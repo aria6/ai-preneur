@@ -88,6 +88,7 @@ export function createErrorHandler(logger: Logger): ErrorRequestHandler {
       },
     };
 
+    for (const [name, value] of Object.entries(appError.headers)) res.setHeader(name, value);
     res.status(appError.statusCode).json(body);
   };
 }

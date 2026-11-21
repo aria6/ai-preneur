@@ -27,6 +27,8 @@
     "clean": "pnpm -r clean",
     "db:generate": "pnpm --filter @ai-preneur/database db:generate",
     "db:migrate": "pnpm --filter @ai-preneur/database db:migrate",
+    "db:seed": "pnpm --filter @ai-preneur/api db:seed",
+    "db:setup": "pnpm db:generate && pnpm db:migrate && pnpm db:seed",
     "db:check": "pnpm --filter @ai-preneur/database db:check",
     "db:studio": "pnpm --filter @ai-preneur/database db:studio",
     "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm build"

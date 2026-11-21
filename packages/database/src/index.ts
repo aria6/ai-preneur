@@ -9,6 +9,32 @@ export {
   type Database,
   type DatabaseClient,
   type DatabaseClientOptions,
+  type DatabaseExecutor,
   type DatabaseSchema,
 } from './client.js';
+export { isForeignKeyViolation, isUniqueViolation } from './errors.js';
+export * from './schema/index.js';
 export * as schema from './schema/index.js';
+
+/**
+ * Query operators re-exported so consumers use the exact drizzle-orm instance
+ * that built the tables (and do not need their own drizzle-orm dependency).
+ */
+export {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gt,
+  ilike,
+  inArray,
+  isNull,
+  lt,
+  ne,
+  not,
+  notInArray,
+  or,
+  sql,
+} from 'drizzle-orm';
+export type { SQL } from 'drizzle-orm';

@@ -19,11 +19,19 @@ export class ApiClientError extends Error {
   }
 }
 
-export interface RequestOptions<T> extends Omit<RequestInit, 'body' | 'method'> {
+export interface RequestOptions<T> extends Omit<RequestInit, 'body' | 'method' | 'credentials'> {
   /** JSON-serializable request body. */
   body?: unknown;
   /** Optional Zod schema (usually from @ai-preneur/shared) to validate `data` at runtime. */
   schema?: ZodType<T>;
+}
+
+type UnauthorizedListener = () => void;
+let unauthorizedListener: UnauthorizedListener | undefined;
+
+/** Registered by AuthProvider: any 401 means the session is gone → back to login. */
+export function onUnauthorized(listener: UnauthorizedListener | undefined): void {
+  unauthorizedListener = listener;
 }
 
 function isApiResponse(value: unknown): value is ApiResponse<unknown> {
@@ -43,12 +51,16 @@ async function request<T>(method: string, path: string, options: RequestOptions<
       ...init,
       method,
       headers: finalHeaders,
+      // Send the HttpOnly session cookie. The token is never readable from JS.
+      credentials: 'include',
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error;
-    throw new ApiClientError('Unable to reach the API', 0, 'NETWORK_ERROR', error);
+    throw new ApiClientError('Tidak dapat terhubung ke server.', 0, 'NETWORK_ERROR', error);
   }
+
+  if (response.status === 401 && !path.startsWith('/auth/login')) unauthorizedListener?.();
 
   if (response.status === 204) return undefined as T;
 
@@ -57,23 +69,18 @@ async function request<T>(method: string, path: string, options: RequestOptions<
     payload = await response.json();
   } catch {
     throw new ApiClientError(
-      `Unexpected non-JSON response (HTTP ${response.status})`,
+      `Respons server tidak valid (HTTP ${response.status}).`,
       response.status,
       'INVALID_RESPONSE',
     );
   }
 
   if (!isApiResponse(payload)) {
-    throw new ApiClientError('Response does not follow the API envelope', response.status, 'INVALID_RESPONSE');
+    throw new ApiClientError('Respons server tidak valid.', response.status, 'INVALID_RESPONSE');
   }
 
   if (!payload.success) {
-    throw new ApiClientError(
-      payload.error.message,
-      response.status,
-      payload.error.code,
-      payload.error.details,
-    );
+    throw new ApiClientError(payload.error.message, response.status, payload.error.code, payload.error.details);
   }
 
   if (!schema) return payload.data as T;
@@ -81,7 +88,7 @@ async function request<T>(method: string, path: string, options: RequestOptions<
   const parsed = schema.safeParse(payload.data);
   if (!parsed.success) {
     throw new ApiClientError(
-      'Response data does not match the expected contract',
+      'Data dari server tidak sesuai kontrak.',
       response.status,
       'INVALID_RESPONSE',
       parsed.error.issues,

@@ -1,8 +1,10 @@
 # Backend modules
 
 Each business capability lives in its own directory here (`users/`, `agents/`,
-`workflows/`, `executions/`, …). Only `health/` exists today; it is infrastructure,
-not a business module.
+`workflows/`, `executions/`, …). Existing: `health/` (infrastructure) and `iam/`
+(authentication, users, roles & permissions — see docs/auth-and-access.md).
+
+Protect new routes with `requireAuth` / `requirePermission(PERMISSIONS.X)` from `../iam/index.js`.
 
 ## Conventions
 

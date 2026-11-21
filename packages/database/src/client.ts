@@ -1,4 +1,9 @@
-import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
+import {
+  drizzle,
+  type NodePgDatabase,
+  type NodePgQueryResultHKT,
+} from 'drizzle-orm/node-postgres';
+import type { PgDatabase } from 'drizzle-orm/pg-core';
 import pg from 'pg';
 import type { Pool } from 'pg';
 
@@ -6,6 +11,12 @@ import * as schema from './schema/index.js';
 
 export type DatabaseSchema = typeof schema;
 export type Database = NodePgDatabase<DatabaseSchema>;
+
+/**
+ * Anything that can run queries: the root `db` or a transaction `tx`.
+ * Repositories accept this so they work inside and outside transactions.
+ */
+export type DatabaseExecutor = PgDatabase<NodePgQueryResultHKT, DatabaseSchema>;
 
 export interface DatabaseClientOptions {
   /** PostgreSQL connection string (postgres:// or postgresql://). */

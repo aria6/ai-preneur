@@ -4,8 +4,19 @@ Platform foundation for AI Preneur — one platform hosting many lines of work (
 business development, software house, IoT, digital marketing, education, digital content,
 food estate, …).
 
-> **Status:** project foundation only. No product features, authentication or business
-> tables exist yet. See [`docs/architecture.md`](docs/architecture.md) before adding any.
+> **Status:** foundation + **authentication & user management** (login/logout, role-based
+> access control, profile). No business features yet. See [`docs/architecture.md`](docs/architecture.md)
+> and [`docs/auth-and-access.md`](docs/auth-and-access.md).
+
+## Quick start
+
+```bash
+corepack enable && pnpm install
+cp .env.example .env     # set DATABASE_URL (and SEED_ADMIN_* if you like)
+createdb ai_preneur      # or create the database with your preferred tool
+pnpm db:setup            # generate migrations → apply → seed roles + first Super Admin
+pnpm dev                 # http://localhost:5173 — log in with the seeded admin
+```
 
 ## Technology stack
 
@@ -29,7 +40,7 @@ packages/
   shared/       Runtime-agnostic API contracts: Zod schemas, types, constants. Used by both apps.
   database/     Server-only: Drizzle client factory, schema, migrations.
 docs/
-  architecture.md
+  architecture.md, auth-and-access.md
 scripts/
   check-boundaries.mjs   Enforces architectural dependency rules.
 ```
@@ -46,11 +57,12 @@ module conventions and the extraction path to services: [`docs/architecture.md`]
 │   ├── web/
 │   │   ├── public/favicon.svg
 │   │   ├── src/
-│   │   │   ├── app/          App.tsx, router.tsx, env.ts, styles.css
-│   │   │   ├── components/   layout/RootLayout.tsx
-│   │   │   ├── hooks/        use-api-health.ts
-│   │   │   ├── pages/        HomePage.tsx, NotFoundPage.tsx
-│   │   │   ├── services/     api-client.ts, health.service.ts
+│   │   │   ├── app/          App.tsx, router.tsx, env.ts, styles.css, auth/ (AuthProvider)
+│   │   │   ├── components/   auth/ (route guards), layout/ (AppLayout, Sidebar, UserMenu), ui/
+│   │   │   ├── hooks/        use-auth, use-media-query, use-debounced-value
+│   │   │   ├── lib/          navigation (menu), access, errors, format, cn
+│   │   │   ├── pages/        Login, Dashboard, Profile, users/, roles/, Forbidden, NotFound
+│   │   │   ├── services/     api-client.ts, auth/users/roles services
 │   │   │   ├── types/        vite-env.d.ts
 │   │   │   └── main.tsx
 │   │   ├── index.html
@@ -60,8 +72,9 @@ module conventions and the extraction path to services: [`docs/architecture.md`]
 │       ├── src/
 │       │   ├── config/       env.ts
 │       │   ├── core/         dependencies.ts, errors.ts, http.ts, logger.ts, validation.ts
-│       │   ├── middlewares/  error-handler.ts, not-found.ts, request-logger.ts
-│       │   ├── modules/      health/ (reference module), README.md
+│       │   ├── middlewares/  error-handler, not-found, request-logger, security-headers, origin-check
+│       │   ├── modules/      health/ (reference), iam/ (auth, sessions, profile, users, roles), README.md
+│       │   ├── scripts/      seed.ts
 │       │   ├── routes/       index.ts
 │       │   ├── app.ts
 │       │   └── server.ts
@@ -70,14 +83,14 @@ module conventions and the extraction path to services: [`docs/architecture.md`]
 ├── packages/
 │   ├── database/
 │   │   ├── src/
-│   │   │   ├── schema/       index.ts (no business tables yet), README.md
+│   │   │   ├── schema/       iam.schema.ts (users, roles, permissions, sessions, …), index.ts
 │   │   │   ├── migrations/   generated SQL (committed)
 │   │   │   ├── client.ts
 │   │   │   └── index.ts
 │   │   └── drizzle.config.ts
 │   └── shared/
 │       └── src/{constants,schemas,types}/, index.ts
-├── docs/architecture.md
+├── docs/architecture.md, docs/auth-and-access.md
 ├── scripts/check-boundaries.mjs
 ├── .env.example  .gitignore  .prettierrc  .prettierignore  .oxlintrc.json  .nvmrc
 ├── package.json  pnpm-workspace.yaml  tsconfig.base.json
@@ -114,9 +127,17 @@ and by Vite (`envDir: '../..'`). Real environment variables always override the 
 | `CORS_ORIGIN`         | api          | `http://localhost:5173`    | Comma-separated list of allowed origins       |
 | `LOG_LEVEL`           | api          | `info`                     | `debug` \| `info` \| `warn` \| `error`        |
 | `SHUTDOWN_TIMEOUT_MS` | api          | `10000`                    | Grace period before forced exit               |
+| `TRUST_PROXY`         | api          | `false`                    | Proxy hop count behind a reverse proxy (correct client IP) |
+| `SESSION_TTL_HOURS`   | api          | `168`                      | Absolute session lifetime                     |
+| `SESSION_IDLE_TIMEOUT_MINUTES` | api | `1440`                     | Inactivity timeout                            |
+| `SESSION_COOKIE_SECURE` | api        | `true` in production       | HTTPS-only `__Host-` cookie                   |
 | `DATABASE_URL`        | api, drizzle | — (**required**)           | `postgres://` or `postgresql://` only         |
 | `DATABASE_POOL_MAX`   | api          | `10`                       |                                               |
-| `VITE_API_BASE_URL`   | web          | — (**required**)           | Includes `/api`. Public — never put secrets in `VITE_*` |
+| `SEED_ADMIN_EMAIL`    | seed         | `admin@example.com`        | First Super Admin                             |
+| `SEED_ADMIN_NAME`     | seed         | `Super Admin`              |                                               |
+| `SEED_ADMIN_PASSWORD` | seed         | random (printed once)      | Min 8 chars                                   |
+| `VITE_API_BASE_URL`   | web          | — (**required**)           | `/api` (same origin). Public — never put secrets in `VITE_*` |
+| `API_PROXY_TARGET`    | web (dev)    | `http://localhost:3000`    | Where the Vite dev server proxies `/api`      |
 
 The API validates its environment with Zod at startup and exits with a readable list of
 problems if anything is missing or malformed.
@@ -124,7 +145,7 @@ problems if anything is missing or malformed.
 ## Development
 
 ```bash
-pnpm dev          # web (http://localhost:5173) + api (http://localhost:3000) together
+pnpm dev          # web (http://localhost:5173, proxies /api) + api (http://localhost:3000) together
 pnpm dev:web      # frontend only
 pnpm dev:api      # backend only (tsx watch)
 ```
@@ -165,11 +186,13 @@ pnpm preview:web  # serve the built frontend locally
 The web build output (`apps/web/dist`) is static files deployable to any static host;
 `VITE_API_BASE_URL` is baked in at build time.
 
-## Database migrations
+## Database migrations & seed
 
 Migrations are **never** applied automatically on API startup.
 
 ```bash
+pnpm db:setup      # = db:generate + db:migrate + db:seed (idempotent, safe to re-run)
+pnpm db:seed       # sync permission catalog, ensure roles, create first Super Admin
 pnpm db:generate   # diff src/schema → new SQL file in packages/database/src/migrations (no DB needed)
 pnpm db:migrate    # apply pending migrations to DATABASE_URL
 pnpm db:check      # check migration files for consistency
@@ -177,8 +200,23 @@ pnpm db:studio     # open Drizzle Studio against DATABASE_URL
 ```
 
 Workflow: edit/add a `*.schema.ts` file → `pnpm db:generate` → review the SQL → commit →
-`pnpm db:migrate`. There are no business tables yet, so `db:generate` currently reports no
-changes. See `packages/database/src/schema/README.md` for conventions.
+`pnpm db:migrate`. See `packages/database/src/schema/README.md` for conventions.
+
+**First run:** the IAM schema is defined in code but its first migration has not been generated
+yet. `pnpm db:setup` (or `pnpm db:generate`) creates `0000_*.sql` under
+`packages/database/src/migrations/` — **commit that folder** so every environment applies the same
+migration history.
+
+The seed creates the system role **Super Admin** (all permissions), a starter role **Member**
+(`dashboard.view`) and the first Super Admin user from `SEED_ADMIN_*`. Re-running it never
+modifies existing users. In production run the compiled seed: `pnpm --filter @ai-preneur/api db:seed:prod`.
+
+## Authentication & access control
+
+Session-cookie authentication with role-based access control. Every user has one role; a role is
+a set of permissions that decides which pages and API endpoints the user can use. Manage them in
+the app under **Pengguna** and **Role & Akses**. Security model, API reference and how to add
+permissions for new features: [`docs/auth-and-access.md`](docs/auth-and-access.md).
 
 ## License
 

@@ -59,6 +59,7 @@ enforced boundaries.
 | `src/pages/`             | Route-level components, one per route                               |
 | `src/components/`        | Reusable presentational components (`layout/` for shells)           |
 | `src/hooks/`             | Reusable React hooks                                                |
+| `src/lib/`               | Framework-free helpers: navigation/menu config, error mapping, formatting |
 | `src/services/`          | API client and per-feature API services                             |
 | `src/types/`             | Frontend-only ambient/global types (e.g. `ImportMetaEnv`)           |
 
@@ -115,6 +116,13 @@ queries and no logic. Errors are thrown as `AppError` and rendered by the centra
 `modules/health/` is the reference implementation: routes + service, no controller or
 repository because it doesn't need them.
 
+**Larger modules** group files by layer in sub-folders instead of prefixing every file.
+`modules/iam/` (authentication, sessions, profile, users, roles) is the example:
+`routes/`, `services/`, `repositories/`, `security/` plus `access-policy.ts`, `iam.middleware.ts`
+and `index.ts` as the only public entry point. Other modules protect their routes with
+`requireAuth` / `requirePermission` exported from `modules/iam/index.ts`. See
+[`auth-and-access.md`](auth-and-access.md).
+
 ## 4. Database package responsibilities (`@ai-preneur/database`)
 
 - **Server-only.** Never imported by `apps/web` or `packages/shared`.
@@ -129,7 +137,10 @@ repository because it doesn't need them.
   applied migrations in `drizzle.__drizzle_migrations`.
 - Schema conventions are in `packages/database/src/schema/README.md`: one
   `<module>.schema.ts` file per owning backend module, camelCase keys mapped to snake_case
-  columns.
+  columns. Drizzle Kit reads the `*.schema.ts` files directly (glob), so schema files must not
+  import each other; relations between tables of one module live in the same file.
+- Query operators (`eq`, `and`, `sql`, …) are re-exported by the package so consumers use the same
+  drizzle-orm instance and need no direct dependency on it.
 
 Table ownership mirrors module ownership: only the `users` module's repository queries
 `users.schema.ts` tables. Other modules call the `users` service.

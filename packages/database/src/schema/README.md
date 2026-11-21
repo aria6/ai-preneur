@@ -9,7 +9,9 @@
   Table names are plural snake_case (`workflow_executions`).
 - **Primary keys:** prefer `uuid('id').primaryKey().defaultRandom()`.
 - **Timestamps:** `timestamp({ withTimezone: true }).notNull().defaultNow()`.
-- **Every file is re-exported** from `index.ts`, otherwise Drizzle Kit will not see it.
+- **Every file is re-exported** from `index.ts` (used by the runtime client). Drizzle Kit reads
+  `*.schema.ts` via a glob, so a schema file must not import another schema file — keep a module's
+  related tables (and their foreign keys) in one file, e.g. `iam.schema.ts`.
 - **Migrations are generated, reviewed and committed** (`pnpm db:generate`), then applied
   explicitly (`pnpm db:migrate`). The API never migrates on startup.
 - Avoid `drizzle-kit push` outside throwaway local databases — it bypasses migration history.

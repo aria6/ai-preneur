@@ -15,7 +15,9 @@ if (databaseUrl && !/^postgres(ql)?:\/\//.test(databaseUrl)) {
 
 export default defineConfig({
   dialect: 'postgresql',
-  schema: './src/schema/index.ts',
+  // Glob over table files (not index.ts) so Drizzle Kit never has to resolve
+  // NodeNext-style `.js` re-exports.
+  schema: './src/schema/*.schema.ts',
   out: './src/migrations',
   // `generate` and `check` work offline; `migrate` and `studio` require DATABASE_URL.
   ...(databaseUrl ? { dbCredentials: { url: databaseUrl } } : {}),
