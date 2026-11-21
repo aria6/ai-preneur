@@ -1,0 +1,73 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "import", "react"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "env": {
+    "es2022": true
+  },
+  "rules": {
+    "typescript/no-explicit-any": "error",
+    "typescript/consistent-type-imports": "error",
+    "import/no-cycle": "error",
+    "import/no-self-import": "error",
+    "no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    "eqeqeq": "error",
+    "no-var": "error",
+    "prefer-const": "error"
+  },
+  "ignorePatterns": ["**/node_modules/**", "**/dist/**", "packages/database/src/migrations/**"],
+  "overrides": [
+    {
+      "files": ["apps/web/**"],
+      "env": { "browser": true },
+      "rules": {
+        "react/rules-of-hooks": "error",
+        "react/exhaustive-deps": "warn",
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@ai-preneur/api",
+                  "@ai-preneur/database",
+                  "express",
+                  "cors",
+                  "pg",
+                  "drizzle-orm",
+                  "drizzle-orm/*",
+                  "dotenv",
+                  "node:*"
+                ],
+                "message": "apps/web must not import server-only code. Share contracts through @ai-preneur/shared."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["apps/api/**", "packages/database/**", "scripts/**"],
+      "env": { "node": true }
+    },
+    {
+      "files": ["packages/shared/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@ai-preneur/*", "express", "pg", "drizzle-orm", "drizzle-orm/*", "node:*"],
+                "message": "packages/shared must stay runtime-agnostic (browser + Node) and depend on nothing but zod."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

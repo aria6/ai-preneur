@@ -1,0 +1,39 @@
+{
+  "name": "ai-preneur",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "AI Preneur platform — Modular Monolith foundation",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22.12.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "dev:web": "pnpm --filter @ai-preneur/web dev",
+    "dev:api": "pnpm --filter @ai-preneur/api dev",
+    "build": "pnpm -r build",
+    "build:web": "pnpm --filter @ai-preneur/web... build",
+    "build:api": "pnpm --filter @ai-preneur/api... build",
+    "start:api": "pnpm --filter @ai-preneur/api start",
+    "preview:web": "pnpm --filter @ai-preneur/web preview",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "oxlint && node scripts/check-boundaries.mjs",
+    "lint:fix": "oxlint --fix",
+    "check:boundaries": "node scripts/check-boundaries.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "clean": "pnpm -r clean",
+    "db:generate": "pnpm --filter @ai-preneur/database db:generate",
+    "db:migrate": "pnpm --filter @ai-preneur/database db:migrate",
+    "db:check": "pnpm --filter @ai-preneur/database db:check",
+    "db:studio": "pnpm --filter @ai-preneur/database db:studio",
+    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm build"
+  },
+  "devDependencies": {
+    "oxlint": "^1.14.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2"
+  }
+}
