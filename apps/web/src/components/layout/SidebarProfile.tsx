@@ -9,8 +9,9 @@ import { Icon } from '../ui/Icon';
 const MENU_ITEM = 'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm';
 
 /**
- * Current user at the bottom of the sidebar. Opens a small menu (Profil saya, Keluar):
- * upwards when the sidebar is expanded, to the right of the avatar when collapsed.
+ * Current user at the bottom of the sidebar. Opens a small menu (Profil saya, Keluar)
+ * to the right of the sidebar on tablet/desktop, and upwards inside the phone drawer
+ * (where there is no room on the right).
  */
 export function SidebarProfile({ collapsed }: { collapsed: boolean }) {
   const { user, logout } = useAuth();
@@ -70,7 +71,7 @@ export function SidebarProfile({ collapsed }: { collapsed: boolean }) {
         </span>
         <Icon
           name="chevronDown"
-          className={cn('size-4 shrink-0 text-slate-400 transition-transform', !open && 'rotate-180', collapsed && 'hidden')}
+          className={cn('size-4 shrink-0 rotate-180 text-slate-400 md:-rotate-90', collapsed && 'hidden')}
         />
       </button>
 
@@ -80,7 +81,9 @@ export function SidebarProfile({ collapsed }: { collapsed: boolean }) {
         hidden={!open}
         className={cn(
           'absolute z-50 rounded-xl border border-slate-200 bg-white p-1 shadow-lg',
-          collapsed ? 'bottom-0 left-full ml-3 w-60' : 'right-0 bottom-full left-0 mb-2',
+          // Phone drawer: above the button, full width. Tablet/desktop: beside the sidebar.
+          'right-0 bottom-full left-0 mb-2',
+          'md:right-auto md:bottom-0 md:left-full md:mb-0 md:ml-3 md:w-60',
         )}
       >
         <div className="border-b border-slate-100 px-3 py-2">
