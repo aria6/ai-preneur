@@ -17,7 +17,7 @@ const CONTROL =
 function controlState(error: string | undefined): string {
   return error
     ? 'border-red-400 focus:border-red-500 focus:outline-red-200'
-    : 'border-slate-300 focus:border-slate-500 focus:outline-slate-200';
+    : 'border-slate-300 focus:border-primary-500 focus:outline-primary-100';
 }
 
 interface FieldShellProps {
@@ -171,8 +171,8 @@ export function Toggle({
         aria-hidden="true"
         className={cn(
           'relative mt-0.5 inline-flex h-5 w-9 shrink-0 rounded-full transition-colors',
-          'peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-slate-400',
-          checked ? 'bg-emerald-600' : 'bg-slate-300',
+          'peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary-400',
+          checked ? 'bg-primary-600' : 'bg-slate-300',
         )}
       >
         <span

@@ -10,7 +10,7 @@ export const SIDEBAR_ID = 'app-sidebar';
 
 const ITEM_BASE = 'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors';
 const ITEM_IDLE = 'text-slate-600 hover:bg-slate-100 hover:text-slate-900';
-const ITEM_ACTIVE = 'bg-slate-900 text-white';
+const ITEM_ACTIVE = 'bg-primary-50 text-primary-700';
 
 interface SidebarProps {
   /** md+ only: icon rail instead of the full sidebar. */
@@ -92,7 +92,7 @@ function SidebarGroup({
         className={cn(
           ITEM_BASE,
           collapsed && 'md:justify-center md:px-0',
-          collapsed && containsActive ? ITEM_ACTIVE : containsActive ? 'text-slate-900 hover:bg-slate-100' : ITEM_IDLE,
+          collapsed && containsActive ? ITEM_ACTIVE : containsActive ? 'text-primary-700 hover:bg-slate-100' : ITEM_IDLE,
         )}
       >
         <Icon name={group.icon} className="size-5 shrink-0" />
@@ -150,7 +150,7 @@ export function Sidebar({ collapsed, mobileOpen, isMobile, onToggleCollapsed, on
             collapsed && 'md:justify-center md:px-0',
           )}
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-sm font-bold text-white">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary-600 text-sm font-bold text-white">
             AP
           </span>
           <span className={cn('truncate font-semibold tracking-tight', collapsed && 'md:hidden')}>AI Preneur</span>

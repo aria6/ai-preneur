@@ -57,7 +57,7 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
-      <span className="mb-3 rounded-full bg-slate-100 p-3 text-slate-500">
+      <span className="mb-3 rounded-full bg-primary-50 p-3 text-primary-600">
         <Icon name={icon} className="size-6" />
       </span>
       <h3 className="text-sm font-semibold text-slate-900">{title}</h3>

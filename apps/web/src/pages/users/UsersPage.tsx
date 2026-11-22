@@ -138,7 +138,7 @@ export function UsersPage() {
           placeholder="Cari nama atau email…"
           aria-label="Cari pengguna"
           maxLength={100}
-          className="block w-full rounded-lg border border-slate-300 bg-white py-2 pr-3 pl-9 text-sm focus:border-slate-500 focus:outline-2 focus:outline-slate-200"
+          className="block w-full rounded-lg border border-slate-300 bg-white py-2 pr-3 pl-9 text-sm focus:border-primary-500 focus:outline-2 focus:outline-primary-100"
         />
       </div>
 
@@ -177,7 +177,7 @@ export function UsersPage() {
                     <tr key={user.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <span className="hidden size-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600 sm:flex">
+                          <span className="hidden size-9 shrink-0 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-700 sm:flex">
                             {initials(user.name)}
                           </span>
                           <div className="min-w-0">

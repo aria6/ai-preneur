@@ -48,7 +48,7 @@ export function UserMenu() {
         aria-expanded={open}
         className="flex items-center gap-2 rounded-lg p-1.5 hover:bg-slate-100"
       >
-        <span className="flex size-8 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-700">
+        <span className="flex size-8 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-700">
           {initials(user.name)}
         </span>
         <span className="hidden max-w-40 text-left sm:block">
