@@ -58,7 +58,7 @@ module conventions and the extraction path to services: [`docs/architecture.md`]
 │   │   ├── public/favicon.svg
 │   │   ├── src/
 │   │   │   ├── app/          App.tsx, router.tsx, env.ts, styles.css, auth/ (AuthProvider)
-│   │   │   ├── components/   auth/ (route guards), layout/ (AppLayout, Sidebar, UserMenu), ui/
+│   │   │   ├── components/   auth/ (route guards), layout/ (AppLayout, Sidebar, SidebarProfile), ui/
 │   │   │   ├── hooks/        use-auth, use-media-query, use-debounced-value
 │   │   │   ├── lib/          navigation (menu), access, errors, format, cn
 │   │   │   ├── pages/        Login, Dashboard, Profile, users/, roles/, Forbidden, NotFound

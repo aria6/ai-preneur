@@ -139,5 +139,3 @@ export function createRolesRepository(db: DatabaseExecutor) {
     },
   };
 }
-
-export type RolesRepository = ReturnType<typeof createRolesRepository>;

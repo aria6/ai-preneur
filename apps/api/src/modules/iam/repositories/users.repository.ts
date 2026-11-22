@@ -162,5 +162,3 @@ export function createUsersRepository(db: DatabaseExecutor) {
     },
   };
 }
-
-export type UsersRepository = ReturnType<typeof createUsersRepository>;

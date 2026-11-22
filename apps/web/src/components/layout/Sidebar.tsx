@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/use-auth';
 import { cn } from '../../lib/cn';
 import { isPathActive, visibleNavEntries, type NavGroupItem, type NavLinkItem } from '../../lib/navigation';
 import { Icon } from '../ui/Icon';
+import { SidebarProfile } from './SidebarProfile';
 
 export const SIDEBAR_ID = 'app-sidebar';
 
@@ -113,8 +114,8 @@ function SidebarGroup({
 
 /**
  * - Phone (<768px): off-canvas drawer opened from the top-bar menu button.
- * - Tablet/desktop (≥768px): static column, collapsible to a 64px icon rail
- *   with the toggle at the bottom of the sidebar.
+ * - Tablet/desktop (≥768px): static column, collapsible to a 64px icon rail with
+ *   the round edge toggle next to the logo. The current user sits at the bottom.
  */
 export function Sidebar({ collapsed, mobileOpen, isMobile, onToggleCollapsed, onExpand, onCloseMobile }: SidebarProps) {
   const { can } = useAuth();
@@ -139,7 +140,8 @@ export function Sidebar({ collapsed, mobileOpen, isMobile, onToggleCollapsed, on
         className={cn(
           'fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-slate-200 bg-white',
           'transition-[transform,width] duration-200 ease-out',
-          'md:static md:z-auto md:translate-x-0',
+          // relative: anchors the edge toggle; z-20 keeps it and the profile menu above the page.
+          'md:relative md:z-20 md:translate-x-0',
           mobileOpen ? 'translate-x-0' : '-translate-x-full',
           collapsed ? 'md:w-16' : 'md:w-64',
         )}
@@ -164,6 +166,24 @@ export function Sidebar({ collapsed, mobileOpen, isMobile, onToggleCollapsed, on
           </button>
         </div>
 
+        {/* Tablet/desktop: round toggle sitting on the sidebar's right edge, level with the logo. */}
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          aria-controls={SIDEBAR_ID}
+          aria-expanded={!collapsed}
+          aria-label={toggleLabel}
+          title={toggleLabel}
+          className={cn(
+            'absolute top-5 -right-3 z-10 hidden size-6 items-center justify-center rounded-full md:flex',
+            'border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors',
+            'hover:border-primary-300 hover:text-primary-600',
+            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
+          )}
+        >
+          <Icon name={collapsed ? 'chevronRight' : 'chevronLeft'} className="size-3.5" />
+        </button>
+
         <nav className="flex-1 space-y-1 overflow-y-auto p-3">
           {entries.map((entry) =>
             entry.type === 'link' ? (
@@ -174,21 +194,8 @@ export function Sidebar({ collapsed, mobileOpen, isMobile, onToggleCollapsed, on
           )}
         </nav>
 
-        <div className="hidden border-t border-slate-200 p-3 md:block">
-          <button
-            type="button"
-            onClick={onToggleCollapsed}
-            aria-controls={SIDEBAR_ID}
-            aria-expanded={!collapsed}
-            className={cn(
-              'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-900',
-              collapsed && 'justify-center px-0',
-            )}
-            title={collapsed ? toggleLabel : undefined}
-          >
-            <Icon name={collapsed ? 'chevronRight' : 'chevronLeft'} className="size-5 shrink-0" />
-            <span className={cn(collapsed && 'sr-only')}>{toggleLabel}</span>
-          </button>
+        <div className={cn('shrink-0 border-t border-slate-200 p-3', collapsed && 'md:px-2')}>
+          <SidebarProfile collapsed={collapsed} />
         </div>
       </aside>
     </>

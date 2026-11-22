@@ -15,5 +15,3 @@ export function useMediaQuery(query: string): boolean {
 
 /** Tailwind `md` (≥768px): tablet and up. */
 export const useIsTabletUp = () => useMediaQuery('(min-width: 768px)');
-/** Tailwind `lg` (≥1024px): desktop. */
-export const useIsDesktop = () => useMediaQuery('(min-width: 1024px)');

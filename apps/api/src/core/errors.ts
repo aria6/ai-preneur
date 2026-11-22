@@ -30,9 +30,6 @@ export class AppError extends Error {
   }
 }
 
-export const badRequest = (message: string, details?: unknown): AppError =>
-  new AppError({ statusCode: 400, code: ERROR_CODES.BAD_REQUEST, message, details });
-
 /** 400 VALIDATION_ERROR pointing at one field, rendered next to it by the frontend. */
 export const fieldError = (path: string, message: string): AppError =>
   new AppError({

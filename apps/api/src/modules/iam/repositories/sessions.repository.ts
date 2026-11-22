@@ -117,5 +117,3 @@ export function createSessionsRepository(db: DatabaseExecutor) {
     },
   };
 }
-
-export type SessionsRepository = ReturnType<typeof createSessionsRepository>;

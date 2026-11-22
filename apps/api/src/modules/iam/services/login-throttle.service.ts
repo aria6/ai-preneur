@@ -62,5 +62,3 @@ export function createLoginThrottle(db: DatabaseExecutor) {
     },
   };
 }
-
-export type LoginThrottle = ReturnType<typeof createLoginThrottle>;

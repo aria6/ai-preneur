@@ -57,5 +57,3 @@ export function createThrottlesRepository(db: DatabaseExecutor) {
     },
   };
 }
-
-export type ThrottlesRepository = ReturnType<typeof createThrottlesRepository>;

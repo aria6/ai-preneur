@@ -4,7 +4,6 @@ import { Outlet, useLocation } from 'react-router';
 import { useIsTabletUp } from '../../hooks/use-media-query';
 import { Icon } from '../ui/Icon';
 import { SIDEBAR_ID, Sidebar } from './Sidebar';
-import { UserMenu } from './UserMenu';
 
 const COLLAPSED_KEY = 'aip:sidebar-collapsed';
 
@@ -75,20 +74,20 @@ export function AppLayout() {
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 sm:px-6">
-          {/* Phones only — on tablet/desktop the sidebar has its own Rapatkan/Perluas toggle. */}
+        {/* Phones only. On tablet/desktop the sidebar holds navigation, toggle and profile,
+            so there is no top bar at all. */}
+        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 md:hidden">
           <button
             type="button"
             onClick={() => setMobileOpen((value) => !value)}
             aria-controls={SIDEBAR_ID}
             aria-expanded={mobileOpen}
             aria-label="Buka menu"
-            className="-ml-1.5 rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 md:hidden"
+            className="-ml-1.5 rounded-lg p-1.5 text-slate-600 hover:bg-slate-100"
           >
             <Icon name="menu" className="size-6" />
           </button>
-          <div className="flex-1" />
-          <UserMenu />
+          <span className="font-semibold tracking-tight">AI Preneur</span>
         </header>
 
         <main className="flex-1 overflow-y-auto">
