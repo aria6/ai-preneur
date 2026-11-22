@@ -91,7 +91,8 @@ export function AppLayout() {
         </header>
 
         <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          {/* No max-width: collapsing the sidebar gives the page the freed space. */}
+          <div className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
             <Outlet />
           </div>
         </main>
