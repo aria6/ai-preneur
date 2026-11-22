@@ -63,7 +63,7 @@ export function TextField({ label, error, hint, className, id, ...props }: TextF
         id={fieldId}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${fieldId}-error` : hint ? `${fieldId}-hint` : undefined}
-        className={cn(CONTROL, controlState(error), className)}
+        className={cn(CONTROL, controlState(error), 'h-10', className)}
         {...props}
       />
     </FieldShell>
@@ -83,7 +83,7 @@ export function PasswordField({ label, error, hint, className, id, ...props }: T
           type={visible ? 'text' : 'password'}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${fieldId}-error` : hint ? `${fieldId}-hint` : undefined}
-          className={cn(CONTROL, controlState(error), 'pr-10', className)}
+          className={cn(CONTROL, controlState(error), 'h-10 pr-10', className)}
           {...props}
         />
         <button
@@ -132,14 +132,27 @@ export function SelectField({ label, error, hint, className, id, children, ...pr
   const fieldId = id ?? generatedId;
   return (
     <FieldShell id={fieldId} label={label} error={error} hint={hint}>
-      <select
-        id={fieldId}
-        aria-invalid={error ? true : undefined}
-        className={cn(CONTROL, controlState(error), className)}
-        {...props}
-      >
-        {children}
-      </select>
+      {/* Native select for accessibility/mobile pickers, with the browser chrome replaced
+          by a chevron so it matches the text inputs. */}
+      <div className="relative">
+        <select
+          id={fieldId}
+          aria-invalid={error ? true : undefined}
+          className={cn(
+            CONTROL,
+            controlState(error),
+            'h-10 cursor-pointer appearance-none truncate pr-10 disabled:cursor-not-allowed',
+            className,
+          )}
+          {...props}
+        >
+          {children}
+        </select>
+        <Icon
+          name="chevronDown"
+          className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-slate-400"
+        />
+      </div>
     </FieldShell>
   );
 }

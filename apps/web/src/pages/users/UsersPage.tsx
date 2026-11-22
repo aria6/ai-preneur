@@ -211,19 +211,18 @@ export function UsersPage() {
                               <>
                                 {canUpdate && (
                                   <>
-                                    <Button variant="ghost" size="sm" className="px-2" title="Ubah" aria-label={`Ubah ${user.name}`} onClick={() => setFormState({ open: true, user })}>
+                                    <Button variant="ghost" size="icon" title="Ubah" aria-label={`Ubah ${user.name}`} onClick={() => setFormState({ open: true, user })}>
                                       <Icon name="edit" className="size-4" />
                                     </Button>
-                                    <Button variant="ghost" size="sm" className="px-2" title="Reset password" aria-label={`Reset password ${user.name}`} onClick={() => setResetTarget(user)}>
+                                    <Button variant="ghost" size="icon" title="Reset password" aria-label={`Reset password ${user.name}`} onClick={() => setResetTarget(user)}>
                                       <Icon name="key" className="size-4" />
                                     </Button>
                                   </>
                                 )}
                                 {canDelete && (
                                   <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="px-2 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                    variant="dangerGhost"
+                                    size="icon"
                                     title="Hapus"
                                     aria-label={`Hapus ${user.name}`}
                                     onClick={() => {

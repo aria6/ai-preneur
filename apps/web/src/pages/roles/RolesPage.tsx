@@ -128,9 +128,8 @@ export function RolesPage() {
                     <Icon name="edit" className="size-4" /> Ubah
                   </Button>
                   <Button
-                    variant="ghost"
+                    variant="dangerGhost"
                     size="sm"
-                    className="text-red-600 hover:bg-red-50 hover:text-red-700"
                     onClick={() => {
                       setDeleteError(null);
                       setDeleteTarget(role);

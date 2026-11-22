@@ -99,7 +99,7 @@ export function Modal({ open, onClose, title, description, children, footer, siz
             </h2>
             {description && <p className="mt-0.5 text-sm text-slate-500">{description}</p>}
           </div>
-          <Button variant="ghost" size="sm" className="-mr-2 px-2" onClick={onClose} disabled={busy} aria-label="Tutup">
+          <Button variant="ghost" size="icon" className="-mr-2" onClick={onClose} disabled={busy} aria-label="Tutup">
             <Icon name="close" className="size-4" />
           </Button>
         </div>
