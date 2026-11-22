@@ -21,11 +21,13 @@ import {
 } from 'drizzle-orm/pg-core';
 
 const createdAt = () => timestamp({ withTimezone: true }).notNull().defaultNow();
+// $onUpdate must return a Date: drizzle-orm 0.44 wraps the result in a timestamp
+// param (calls toISOString), so an SQL expression like sql`now()` crashes updates.
 const updatedAt = () =>
   timestamp({ withTimezone: true })
     .notNull()
     .defaultNow()
-    .$onUpdate(() => sql`now()`);
+    .$onUpdate(() => new Date());
 
 // ---- Roles & permissions ---------------------------------------------------------
 
