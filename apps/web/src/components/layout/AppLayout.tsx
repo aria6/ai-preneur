@@ -17,25 +17,35 @@ function readStoredCollapsed(): boolean | null {
   }
 }
 
+function storeCollapsed(value: boolean): void {
+  try {
+    window.localStorage.setItem(COLLAPSED_KEY, String(value));
+  } catch {
+    // Storage unavailable (private mode) — keep the in-memory state.
+  }
+}
+
 /** Authenticated shell: collapsible sidebar + top bar + routed content. */
 export function AppLayout() {
   const isTabletUp = useIsTabletUp();
   const location = useLocation();
 
   // Tablets start as an icon rail, desktops expanded — unless the user chose otherwise.
-  const [collapsed, setCollapsed] = useState<boolean>(() => readStoredCollapsed() ?? !window.matchMedia('(min-width: 1024px)').matches);
+  const [collapsed, setCollapsed] = useState<boolean>(
+    () => readStoredCollapsed() ?? !window.matchMedia('(min-width: 1024px)').matches,
+  );
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((previous) => {
-      const next = !previous;
-      try {
-        window.localStorage.setItem(COLLAPSED_KEY, String(next));
-      } catch {
-        // Storage unavailable (private mode) — keep the in-memory state.
-      }
-      return next;
+      storeCollapsed(!previous);
+      return !previous;
     });
+  }, []);
+
+  const expand = useCallback(() => {
+    storeCollapsed(false);
+    setCollapsed(false);
   }, []);
 
   // Close the drawer on navigation and when growing past the phone breakpoint.
@@ -53,8 +63,6 @@ export function AppLayout() {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [mobileOpen]);
 
-  const onMenuButton = () => (isTabletUp ? toggleCollapsed() : setMobileOpen((v) => !v));
-
   return (
     <div className="flex h-dvh overflow-hidden bg-slate-50 text-slate-900">
       <Sidebar
@@ -62,18 +70,20 @@ export function AppLayout() {
         mobileOpen={mobileOpen}
         isMobile={!isTabletUp}
         onToggleCollapsed={toggleCollapsed}
+        onExpand={expand}
         onCloseMobile={() => setMobileOpen(false)}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-16 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 sm:px-6">
+          {/* Phones only — on tablet/desktop the sidebar has its own Rapatkan/Perluas toggle. */}
           <button
             type="button"
-            onClick={onMenuButton}
+            onClick={() => setMobileOpen((value) => !value)}
             aria-controls={SIDEBAR_ID}
-            aria-expanded={isTabletUp ? !collapsed : mobileOpen}
-            aria-label={isTabletUp ? (collapsed ? 'Perluas menu' : 'Ciutkan menu') : 'Buka menu'}
-            className="-ml-1.5 rounded-lg p-1.5 text-slate-600 hover:bg-slate-100"
+            aria-expanded={mobileOpen}
+            aria-label="Buka menu"
+            className="-ml-1.5 rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 md:hidden"
           >
             <Icon name="menu" className="size-6" />
           </button>

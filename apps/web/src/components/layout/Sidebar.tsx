@@ -1,11 +1,16 @@
-import { NavLink } from 'react-router';
+import { useEffect, useId, useState } from 'react';
+import { NavLink, useLocation } from 'react-router';
 
 import { useAuth } from '../../hooks/use-auth';
 import { cn } from '../../lib/cn';
-import { NAV_ITEMS } from '../../lib/navigation';
+import { isPathActive, visibleNavEntries, type NavGroupItem, type NavLinkItem } from '../../lib/navigation';
 import { Icon } from '../ui/Icon';
 
 export const SIDEBAR_ID = 'app-sidebar';
+
+const ITEM_BASE = 'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors';
+const ITEM_IDLE = 'text-slate-600 hover:bg-slate-100 hover:text-slate-900';
+const ITEM_ACTIVE = 'bg-slate-900 text-white';
 
 interface SidebarProps {
   /** md+ only: icon rail instead of the full sidebar. */
@@ -15,16 +20,106 @@ interface SidebarProps {
   /** Phone layout: the closed drawer is made inert so it cannot be tabbed into. */
   isMobile: boolean;
   onToggleCollapsed: () => void;
+  /** Expands the rail (used when a group is clicked while collapsed). */
+  onExpand: () => void;
   onCloseMobile: () => void;
 }
 
+function SidebarLink({
+  item,
+  collapsed,
+  nested = false,
+}: {
+  item: NavLinkItem;
+  collapsed: boolean;
+  nested?: boolean;
+}) {
+  return (
+    <NavLink
+      to={item.to}
+      title={collapsed ? item.label : undefined}
+      className={({ isActive }) =>
+        cn(ITEM_BASE, nested && 'pl-11', collapsed && 'md:justify-center md:px-0', isActive ? ITEM_ACTIVE : ITEM_IDLE)
+      }
+    >
+      {!nested && <Icon name={item.icon} className="size-5 shrink-0" />}
+      <span className={cn('truncate', collapsed && 'md:sr-only')}>{item.label}</span>
+    </NavLink>
+  );
+}
+
 /**
- * - Phone (<768px): off-canvas drawer with backdrop, always full width labels.
- * - Tablet/desktop (≥768px): static column, collapsible to a 64px icon rail.
+ * Expandable menu group. Opens automatically when one of its pages is active.
+ * In the collapsed rail, clicking it expands the sidebar and opens the group.
  */
-export function Sidebar({ collapsed, mobileOpen, isMobile, onToggleCollapsed, onCloseMobile }: SidebarProps) {
+function SidebarGroup({
+  group,
+  collapsed,
+  onExpand,
+}: {
+  group: NavGroupItem;
+  collapsed: boolean;
+  onExpand: () => void;
+}) {
+  const { pathname } = useLocation();
+  const panelId = useId();
+  const containsActive = group.children.some((child) => isPathActive(pathname, child.to));
+  const [open, setOpen] = useState(containsActive);
+
+  useEffect(() => {
+    if (containsActive) setOpen(true);
+  }, [containsActive]);
+
+  const onClick = () => {
+    if (collapsed) {
+      onExpand();
+      setOpen(true);
+    } else {
+      setOpen((value) => !value);
+    }
+  };
+
+  const expanded = open && !collapsed;
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-expanded={expanded}
+        aria-controls={panelId}
+        title={collapsed ? group.label : undefined}
+        className={cn(
+          ITEM_BASE,
+          collapsed && 'md:justify-center md:px-0',
+          collapsed && containsActive ? ITEM_ACTIVE : containsActive ? 'text-slate-900 hover:bg-slate-100' : ITEM_IDLE,
+        )}
+      >
+        <Icon name={group.icon} className="size-5 shrink-0" />
+        <span className={cn('flex-1 truncate text-left', collapsed && 'md:sr-only')}>{group.label}</span>
+        <Icon
+          name="chevronDown"
+          className={cn('size-4 shrink-0 transition-transform', expanded && 'rotate-180', collapsed && 'md:hidden')}
+        />
+      </button>
+      <div id={panelId} hidden={!expanded} className="mt-1 space-y-1">
+        {group.children.map((child) => (
+          <SidebarLink key={child.to} item={child} collapsed={false} nested />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * - Phone (<768px): off-canvas drawer opened from the top-bar menu button.
+ * - Tablet/desktop (≥768px): static column, collapsible to a 64px icon rail
+ *   with the toggle at the bottom of the sidebar.
+ */
+export function Sidebar({ collapsed, mobileOpen, isMobile, onToggleCollapsed, onExpand, onCloseMobile }: SidebarProps) {
   const { can } = useAuth();
-  const items = NAV_ITEMS.filter((item) => can(item.permission));
+  const entries = visibleNavEntries(can);
+  const toggleLabel = collapsed ? 'Perluas Menu' : 'Rapatkan Menu';
 
   return (
     <>
@@ -49,7 +144,12 @@ export function Sidebar({ collapsed, mobileOpen, isMobile, onToggleCollapsed, on
           collapsed ? 'md:w-16' : 'md:w-64',
         )}
       >
-        <div className={cn('flex h-16 shrink-0 items-center gap-2 border-b border-slate-200 px-4', collapsed && 'md:justify-center md:px-0')}>
+        <div
+          className={cn(
+            'flex h-16 shrink-0 items-center gap-2 border-b border-slate-200 px-4',
+            collapsed && 'md:justify-center md:px-0',
+          )}
+        >
           <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-sm font-bold text-white">
             AP
           </span>
@@ -65,23 +165,13 @@ export function Sidebar({ collapsed, mobileOpen, isMobile, onToggleCollapsed, on
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-          {items.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              title={collapsed ? item.label : undefined}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                  collapsed && 'md:justify-center md:px-0',
-                  isActive ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
-                )
-              }
-            >
-              <Icon name={item.icon} className="size-5 shrink-0" />
-              <span className={cn('truncate', collapsed && 'md:sr-only')}>{item.label}</span>
-            </NavLink>
-          ))}
+          {entries.map((entry) =>
+            entry.type === 'link' ? (
+              <SidebarLink key={entry.to} item={entry} collapsed={collapsed} />
+            ) : (
+              <SidebarGroup key={entry.id} group={entry} collapsed={collapsed} onExpand={onExpand} />
+            ),
+          )}
         </nav>
 
         <div className="hidden border-t border-slate-200 p-3 md:block">
@@ -94,10 +184,10 @@ export function Sidebar({ collapsed, mobileOpen, isMobile, onToggleCollapsed, on
               'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-900',
               collapsed && 'justify-center px-0',
             )}
-            title={collapsed ? 'Perluas menu' : undefined}
+            title={collapsed ? toggleLabel : undefined}
           >
             <Icon name={collapsed ? 'chevronRight' : 'chevronLeft'} className="size-5 shrink-0" />
-            <span className={cn(collapsed && 'sr-only')}>{collapsed ? 'Perluas menu' : 'Ciutkan menu'}</span>
+            <span className={cn(collapsed && 'sr-only')}>{toggleLabel}</span>
           </button>
         </div>
       </aside>
