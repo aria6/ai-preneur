@@ -1,4 +1,4 @@
-import { isUniqueViolation, type Database } from '@ai-preneur/database';
+import { isUniqueViolation, sql, type Database, type DatabaseExecutor } from '@ai-preneur/database';
 import type {
   CreateUserRequest,
   ListUsersQuery,
@@ -19,6 +19,18 @@ import { hashPassword } from '../security/password.js';
 
 const EMAIL_TAKEN = 'Email sudah digunakan oleh pengguna lain.';
 const LAST_SUPER_ADMIN = 'Harus ada minimal satu pengguna aktif dengan role sistem.';
+
+/**
+ * Serializes the "last active system user" guard. Without it, two concurrent
+ * transactions each demoting/deleting a different one of the last two system
+ * users could both read count=1 and both commit, leaving zero admins. A
+ * transaction-scoped advisory lock (auto-released on commit/rollback) makes the
+ * read-then-write critical section mutually exclusive. The key is arbitrary but
+ * shared by every path that runs this guard.
+ */
+async function lockSystemUserGuard(tx: DatabaseExecutor): Promise<void> {
+  await tx.execute(sql`select pg_advisory_xact_lock(748213)`);
+}
 
 /** Administrative user management. Every mutation goes through the access policy. */
 export function createUsersService(deps: { db: Database; logger: Logger }) {
@@ -98,8 +110,9 @@ export function createUsersService(deps: { db: Database; logger: Logger }) {
 
       await db.transaction(async (tx) => {
         const txUsers = createUsersRepository(tx);
-        if (losesSystemAccess && (await txUsers.countActiveSystemUsers(target.id)) === 0) {
-          throw conflict(LAST_SUPER_ADMIN);
+        if (losesSystemAccess) {
+          await lockSystemUserGuard(tx);
+          if ((await txUsers.countActiveSystemUsers(target.id)) === 0) throw conflict(LAST_SUPER_ADMIN);
         }
         await txUsers.update(id, { name: input.name, roleId: input.roleId, isActive: input.isActive });
         // A deactivated user is logged out everywhere immediately.
@@ -124,8 +137,9 @@ export function createUsersService(deps: { db: Database; logger: Logger }) {
       const target = await getManageableUser(ctx, id);
       await db.transaction(async (tx) => {
         const txUsers = createUsersRepository(tx);
-        if (target.roleIsSystem && target.isActive && (await txUsers.countActiveSystemUsers(target.id)) === 0) {
-          throw conflict(LAST_SUPER_ADMIN);
+        if (target.roleIsSystem && target.isActive) {
+          await lockSystemUserGuard(tx);
+          if ((await txUsers.countActiveSystemUsers(target.id)) === 0) throw conflict(LAST_SUPER_ADMIN);
         }
         await txUsers.delete(id); // sessions are removed by ON DELETE CASCADE
       });

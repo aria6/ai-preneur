@@ -11,6 +11,30 @@ const CURRENT = { N: 2 ** 15, r: 8, p: 1, keyLength: 64, saltLength: 16 } as con
 const MAX_N = 2 ** 20;
 const SCRYPT_MAXMEM = 256 * 1024 * 1024;
 
+/**
+ * Each scrypt call holds ~32 MiB. Without a bound, N concurrent logins would
+ * allocate N × 32 MiB at once and can OOM a small host. This caps how many run
+ * simultaneously; excess calls queue (cheaply) instead of allocating in parallel.
+ * Paired with the per-IP rate limiter on the auth routes.
+ */
+const MAX_CONCURRENT_HASHES = 4;
+let activeHashes = 0;
+const hashQueue: (() => void)[] = [];
+
+function acquireHashSlot(): Promise<void> {
+  if (activeHashes < MAX_CONCURRENT_HASHES) {
+    activeHashes += 1;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => hashQueue.push(resolve));
+}
+
+function releaseHashSlot(): void {
+  const next = hashQueue.shift();
+  if (next) next();
+  else activeHashes -= 1;
+}
+
 function deriveKey(
   password: string,
   salt: Buffer,
@@ -24,6 +48,21 @@ function deriveKey(
       else resolve(key);
     });
   });
+}
+
+/** deriveKey behind the concurrency gate. */
+async function deriveKeyGated(
+  password: string,
+  salt: Buffer,
+  keyLength: number,
+  options: ScryptOptions,
+): Promise<Buffer> {
+  await acquireHashSlot();
+  try {
+    return await deriveKey(password, salt, keyLength, options);
+  } finally {
+    releaseHashSlot();
+  }
 }
 
 interface ParsedHash {
@@ -53,7 +92,7 @@ function parseHash(stored: string): ParsedHash | null {
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(CURRENT.saltLength);
-  const key = await deriveKey(password, salt, CURRENT.keyLength, {
+  const key = await deriveKeyGated(password, salt, CURRENT.keyLength, {
     N: CURRENT.N,
     r: CURRENT.r,
     p: CURRENT.p,
@@ -66,7 +105,7 @@ export async function hashPassword(password: string): Promise<string> {
 export async function verifyPassword(password: string, stored: string): Promise<boolean> {
   const parsed = parseHash(stored);
   if (!parsed) return false;
-  const actual = await deriveKey(password, parsed.salt, parsed.key.length, {
+  const actual = await deriveKeyGated(password, parsed.salt, parsed.key.length, {
     N: parsed.N,
     r: parsed.r,
     p: parsed.p,

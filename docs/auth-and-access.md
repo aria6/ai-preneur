@@ -94,7 +94,14 @@ All routes are under `/api`. Responses use the standard envelope.
 - Wrong "current password" on password change: 5 / 15 min per user.
 - Unknown emails still pay the full hashing cost, and every credential failure returns the same
   message → neither the response nor its timing reveals registered emails.
-- Behind a reverse proxy set `TRUST_PROXY` so the real client IP is used.
+- A **per-IP burst limiter** (15 / min, `middlewares/rate-limit.ts`) sits in front of `/auth/login`
+  and `/profile/password` and rejects with `429` **before** the password hash runs, so a burst cannot
+  slip through the pre-hash gap in the DB throttle.
+- **Concurrent scrypt calls are capped** (`security/password.ts`): each hash holds ~32 MiB, so
+  unbounded parallel logins could OOM a small host. Excess calls queue instead of allocating at once.
+- Behind a reverse proxy set `TRUST_PROXY` so the real client IP is used. The burst limiter and scrypt
+  cap are **in-memory / per-instance** (right for a single-instance deployment); for several instances
+  or a hard DoS control, also rate-limit at the reverse proxy.
 
 ### Authorization (no privilege escalation)
 
@@ -107,7 +114,10 @@ Enforced server-side in `access-policy.ts`; the UI only mirrors it:
   could assign — a user admin cannot reset a Super Admin's password.
 - You cannot edit or delete **your own role**, and you cannot manage **your own account** through the
   admin endpoints (use `/profile`) → no self-escalation, no self-lockout.
-- System roles are immutable; at least one active system-role user always remains.
+- System roles are immutable; at least one active system-role user always remains — the
+  "last active system user" check runs under a transaction-scoped Postgres advisory lock
+  (`pg_advisory_xact_lock`), so two concurrent demotions/deletions can't both pass it and leave
+  zero admins.
 
 ### Request hardening
 

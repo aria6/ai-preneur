@@ -1,6 +1,7 @@
 import express, { type Router } from 'express';
 
 import type { AppDependencies } from '../core/dependencies.js';
+import { createRateLimiter } from '../middlewares/rate-limit.js';
 import { createHealthRouter } from '../modules/health/index.js';
 import { createIamModule } from '../modules/iam/index.js';
 
@@ -18,6 +19,16 @@ export function createApiRouter(deps: AppDependencies): Router {
   });
 
   router.use('/health', createHealthRouter({ database: deps.database }));
+
+  // Per-IP burst limit in front of the password-hashing endpoints, applied before
+  // the hash runs. Complements the durable per-email/IP DB throttle.
+  const authRateLimiter = createRateLimiter({
+    windowMs: 60_000,
+    max: 15,
+    message: 'Terlalu banyak percobaan. Silakan tunggu sebentar lalu coba lagi.',
+  });
+  router.use('/auth/login', authRateLimiter);
+  router.use('/profile/password', authRateLimiter);
 
   // Resolves the session cookie for every route below. Access is enforced per
   // route with requireAuth / requirePermission.
