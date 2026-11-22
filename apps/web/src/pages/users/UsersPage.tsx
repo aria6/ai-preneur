@@ -115,11 +115,28 @@ export function UsersPage() {
         title="Pengguna"
         description="Kelola akun pengguna beserta role dan status aksesnya."
         actions={
-          canCreate && (
-            <Button onClick={() => setFormState({ open: true })}>
-              <Icon name="plus" className="size-4" /> Tambah pengguna
-            </Button>
-          )
+          <>
+            <div className="relative w-full sm:w-64">
+              <Icon
+                name="search"
+                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400"
+              />
+              <input
+                type="search"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="Cari nama atau email…"
+                aria-label="Cari pengguna"
+                maxLength={100}
+                className="block h-10 w-full rounded-lg border border-slate-300 bg-white pr-3 pl-9 text-sm shadow-xs placeholder:text-slate-400 focus:border-primary-500 focus:outline-2 focus:outline-primary-100"
+              />
+            </div>
+            {canCreate && (
+              <Button onClick={() => setFormState({ open: true })}>
+                <Icon name="plus" className="size-4" /> Tambah pengguna
+              </Button>
+            )}
+          </>
         }
       />
 
@@ -128,19 +145,6 @@ export function UsersPage() {
           {notice}
         </Alert>
       )}
-
-      <div className="relative mb-4 max-w-sm">
-        <Icon name="search" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
-        <input
-          type="search"
-          value={searchInput}
-          onChange={(event) => setSearchInput(event.target.value)}
-          placeholder="Cari nama atau email…"
-          aria-label="Cari pengguna"
-          maxLength={100}
-          className="block w-full rounded-lg border border-slate-300 bg-white py-2 pr-3 pl-9 text-sm focus:border-primary-500 focus:outline-2 focus:outline-primary-100"
-        />
-      </div>
 
       {loadError ? (
         <Alert>{loadError}</Alert>
