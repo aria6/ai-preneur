@@ -43,7 +43,7 @@ export function LoginPage() {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-slate-100 px-4 py-10">
       <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center text-center">
+        <div className="mb-6 flex flex-col items-center text-center">
           <span className="mb-4 flex size-12 items-center justify-center rounded-xl bg-primary-600 text-lg font-bold text-white">
             AP
           </span>
