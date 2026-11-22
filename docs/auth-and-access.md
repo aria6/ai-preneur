@@ -99,6 +99,8 @@ All routes are under `/api`. Responses use the standard envelope.
   slip through the pre-hash gap in the DB throttle.
 - **Concurrent scrypt calls are capped** (`security/password.ts`): each hash holds ~32 MiB, so
   unbounded parallel logins could OOM a small host. Excess calls queue instead of allocating at once.
+- Per-IP limits key **IPv6 by /64** (one subscriber's whole allocation) and treat IPv4-mapped
+  addresses as IPv4, so rotating addresses cannot evade them (`core/client-ip.ts`).
 - Behind a reverse proxy set `TRUST_PROXY` so the real client IP is used. The burst limiter and scrypt
   cap are **in-memory / per-instance** (right for a single-instance deployment); for several instances
   or a hard DoS control, also rate-limit at the reverse proxy.

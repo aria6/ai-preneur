@@ -1,5 +1,6 @@
 import type { RequestHandler } from 'express';
 
+import { clientRateKey } from '../core/client-ip.js';
 import { tooManyRequests } from '../core/errors.js';
 
 interface Counter {
@@ -14,7 +15,7 @@ export interface RateLimitOptions {
   max: number;
   /** Message returned on 429. */
   message?: string;
-  /** Key function; defaults to the client IP. */
+  /** Key function; defaults to the client IP (IPv6 grouped by /64). */
   key?: (ip: string | undefined) => string;
 }
 
@@ -30,7 +31,7 @@ export interface RateLimitOptions {
  */
 export function createRateLimiter(options: RateLimitOptions): RequestHandler {
   const { windowMs, max, message = 'Terlalu banyak permintaan. Silakan coba lagi nanti.' } = options;
-  const keyOf = options.key ?? ((ip) => ip ?? 'unknown');
+  const keyOf = options.key ?? clientRateKey;
   const counters = new Map<string, Counter>();
   let nextSweep = Date.now() + windowMs;
 

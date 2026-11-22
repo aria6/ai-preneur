@@ -22,6 +22,7 @@ single-instance VPS deployment behind an SSH tunnel.
 |---|----------|---------|--------|
 | 1 | Medium | **Pre-auth DoS / brute-force burst.** `/auth/login` runs a ~32 MiB scrypt per request before any durable gate. The DB throttle only checks a lock that is written *after* failures, so a burst of concurrent requests from one IP all passed the gate and hashed in parallel (memory/CPU exhaustion), and ~50 guesses could land before the IP lock tripped. | **Fixed** — per-IP burst limiter (15/min) in front of the hash; concurrent scrypt capped at 4. |
 | 2 | Low–Medium | **TOCTOU race in the "last active system user" guard.** Two concurrent demotions/deletions of the last two Super Admins could each read count=1 and both commit → zero admins (total lockout). | **Fixed** — guard runs under `pg_advisory_xact_lock` inside the transaction. |
+| 3 | Medium | **IPv6 rotation bypasses every per-IP limit** *(found in the re-audit)*. The burst limiter and the DB IP throttle keyed on the full `req.ip`. One IPv6 subscriber usually controls a whole /64 (2⁶⁴ addresses), so an attacker could use a fresh address per attempt and never reach 15/min or 50/15 min. IPv4-mapped addresses (`::ffff:1.2.3.4`) were also bucketed apart from plain IPv4. | **Fixed** — `core/client-ip.ts` keys IPv6 by /64 and collapses IPv4-mapped to IPv4; used by both limiters. |
 
 ### Checked and found sound (no change needed)
 
@@ -44,11 +45,24 @@ single-instance VPS deployment behind an SSH tunnel.
 - **Headers / errors:** strict CSP, `nosniff`, frame-deny, `no-store`, HSTS in production,
   `x-powered-by` off; 5xx details are logged, never returned.
 
+## Re-audit
+
+A second full pass re-checked both fixes and every item above and found #3. The advisory-lock
+fix (#2) was confirmed correct: under READ COMMITTED the count query issued after acquiring the
+lock takes a fresh snapshot, so the second transaction sees the first one's committed change.
+
 ## Residual risks (accepted / deployment-level)
 
 - **Account-lockout as availability tradeoff:** 5 failed logins lock an email for 15 min, so a
   known email can be kept locked. This is inherent to lockout; the alternative (no lockout) is worse.
   Mitigate operationally with proxy-level IP reputation / CAPTCHA if abused.
+- **Distributed attacks:** the per-/64 key stops single-allocation rotation, not botnets spread over
+  many networks. The durable per-email throttle (5 / 15 min) remains the brute-force backstop.
+  Under a flood of >50 000 distinct keys the in-memory limiter resets (fail-open, by design to bound
+  memory); the DB throttle is unaffected.
+- **Frontend security headers:** the SPA's static files need `Content-Security-Policy`,
+  `X-Frame-Options`/`frame-ancestors`, `X-Content-Type-Options` and HSTS from the web server
+  (e.g. Nginx) in production — the API's headers only cover API responses.
 - **In-memory limiter is per-instance:** correct for one instance; add reverse-proxy rate limiting
   for multi-instance or hardened DoS protection.
 - **`GET /api/health`** is public and reveals DB-reachability + uptime (needed by load balancers).
@@ -61,5 +75,7 @@ single-instance VPS deployment behind an SSH tunnel.
 - Password-hash correctness preserved through the concurrency gate; 61 concurrent hashes resolve
   with no deadlock.
 - Rate limiter: 15 pass then `429`, isolated per IP, resets after the window.
+- IP keying: IPv4, IPv4-mapped, compressed IPv6, zone ids and embedded-IPv4 forms normalize
+  correctly; 1 000 random addresses inside one /64 collapse to a single bucket.
 - Syntax, architectural-boundary and import/export checks pass. Full `pnpm verify` (typecheck +
   build) and live DB behaviour still need to run on the deployment host.

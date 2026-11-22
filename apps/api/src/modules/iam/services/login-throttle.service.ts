@@ -1,5 +1,6 @@
 import type { DatabaseExecutor } from '@ai-preneur/database';
 
+import { clientRateKey } from '../../../core/client-ip.js';
 import { tooManyRequests } from '../../../core/errors.js';
 import { createThrottlesRepository } from '../repositories/throttles.repository.js';
 import { sha256Hex } from '../security/tokens.js';
@@ -10,7 +11,7 @@ import { sha256Hex } from '../security/tokens.js';
  *
  *  - per email : 5 failures / 15 min → locked 15 min (also for unknown emails,
  *                so a lock never reveals whether an account exists)
- *  - per IP    : 50 failures / 15 min → locked 15 min (password spraying)
+ *  - per IP    : 50 failures / 15 min → locked 15 min (password spraying; IPv6 per /64)
  *  - per user  : 5 wrong "current password" / 15 min on password change
  */
 const POLICIES = {
@@ -25,7 +26,8 @@ export function createLoginThrottle(db: DatabaseExecutor) {
   const repo = createThrottlesRepository(db);
 
   const emailKey = (email: string) => `email:${sha256Hex(email)}`;
-  const ipKey = (ip: string) => `ip:${sha256Hex(ip)}`;
+  // IPv6 grouped by /64 so rotating addresses inside one allocation cannot evade the limit.
+  const ipKey = (ip: string) => `ip:${sha256Hex(clientRateKey(ip))}`;
   const passwordKey = (userId: string) => `pwd:${userId}`;
 
   async function assertNotLocked(keys: string[]): Promise<void> {
