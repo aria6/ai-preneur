@@ -83,8 +83,8 @@ export function SidebarProfile({ collapsed }: { collapsed: boolean }) {
           'absolute z-50 rounded-xl border border-slate-200 bg-white p-1 shadow-lg',
           // Phone drawer: above the button, full width. Tablet/desktop: beside the sidebar.
           'right-0 bottom-full left-0 mb-3',
-          // ml-6 = 12px sidebar padding + 12px visible gap past the sidebar border.
-          'md:right-auto md:bottom-0 md:left-full md:mb-0 md:ml-6 md:w-60',
+          // ml-5 = 12px sidebar padding + 8px visible gap past the sidebar border.
+          'md:right-auto md:bottom-0 md:left-full md:mb-0 md:ml-5 md:w-60',
         )}
       >
         <div className="border-b border-slate-100 px-3 py-2">
