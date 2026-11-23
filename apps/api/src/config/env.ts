@@ -27,6 +27,19 @@ const envSchema = z.object({
   SESSION_IDLE_TIMEOUT_MINUTES: z.coerce.number().int().min(5).max(60 * 24 * 30).default(60 * 24),
   /** Defaults to true in production. Must be true whenever the site is served over HTTPS. */
   SESSION_COOKIE_SECURE: booleanString.optional(),
+  /** Google API key used to read publicly shared Drive folders (Social Media AIgency). */
+  GOOGLE_API_KEY: z.string().trim().optional(),
+  /** 32-byte base64 key encrypting social media tokens: `openssl rand -base64 32`. */
+  SOCIAL_CREDENTIALS_KEY: z
+    .string()
+    .trim()
+    .optional()
+    .refine((value) => !value || Buffer.from(value, 'base64').length === 32, {
+      message: 'SOCIAL_CREDENTIALS_KEY must be 32 bytes, base64 encoded (openssl rand -base64 32)',
+    }),
+  /** Runs the scheduled-upload worker. Keep false until a platform publisher is implemented. */
+  SOCIAL_PUBLISHER_ENABLED: booleanString.default(false),
+  SOCIAL_PUBLISHER_INTERVAL_SECONDS: z.coerce.number().int().min(10).max(3600).default(30),
 });
 
 export interface AuthConfig {
@@ -49,6 +62,14 @@ export interface AppConfig {
   cors: { origins: string[] };
   database: { url: string; poolMax: number };
   auth: AuthConfig;
+  social: SocialConfig;
+}
+
+export interface SocialConfig {
+  googleApiKey: string | null;
+  credentialsKey: string | null;
+  publisherEnabled: boolean;
+  publisherIntervalMs: number;
 }
 
 /**
@@ -110,6 +131,12 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       // `__Host-` binds the cookie to this exact host, HTTPS-only, path `/`.
       cookieName: cookieSecure ? '__Host-aip_session' : 'aip_session',
       cookieSecure,
+    },
+    social: {
+      googleApiKey: env.GOOGLE_API_KEY || null,
+      credentialsKey: env.SOCIAL_CREDENTIALS_KEY || null,
+      publisherEnabled: env.SOCIAL_PUBLISHER_ENABLED,
+      publisherIntervalMs: env.SOCIAL_PUBLISHER_INTERVAL_SECONDS * 1000,
     },
   });
 }

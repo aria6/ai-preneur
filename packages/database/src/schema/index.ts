@@ -7,3 +7,4 @@
  * See README.md in this directory for conventions.
  */
 export * from './iam.schema.js';
+export * from './social-media.schema.js';

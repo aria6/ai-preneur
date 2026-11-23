@@ -3,6 +3,7 @@ import { createDatabaseClient } from '@ai-preneur/database';
 import { createApp } from './app.js';
 import { loadConfig, loadEnvFile } from './config/env.js';
 import { createLogger } from './core/logger.js';
+import { createSocialPublisherWorker } from './modules/social-media/index.js';
 
 /**
  * Composition root: the only place that reads the environment, creates
@@ -20,6 +21,12 @@ const database = createDatabaseClient({
 });
 
 const app = createApp({ config, logger, database });
+
+// Scheduled uploads (Social Media AIgency). Off by default until a platform publisher is ready.
+const publisherWorker = config.social.publisherEnabled
+  ? createSocialPublisherWorker({ db: database.db, logger, config: config.social })
+  : null;
+publisherWorker?.start();
 
 const server = app.listen(config.server.port, config.server.host, (error?: Error) => {
   if (error) {
@@ -49,6 +56,7 @@ async function shutdown(reason: string, exitCode = 0): Promise<void> {
     await new Promise<void>((resolve, reject) => {
       server.close((error) => (error ? reject(error) : resolve()));
     });
+    await publisherWorker?.stop();
     await database.close();
     logger.info('Shutdown complete');
     process.exit(exitCode);

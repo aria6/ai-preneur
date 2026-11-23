@@ -4,6 +4,7 @@ import type { AppDependencies } from '../core/dependencies.js';
 import { createRateLimiter } from '../middlewares/rate-limit.js';
 import { createHealthRouter } from '../modules/health/index.js';
 import { createIamModule } from '../modules/iam/index.js';
+import { createSocialMediaRouter } from '../modules/social-media/index.js';
 
 /**
  * Root API router, mounted at API_PREFIX (`/api`) in app.ts.
@@ -38,6 +39,10 @@ export function createApiRouter(deps: AppDependencies): Router {
   router.use('/profile', iam.routers.profile);
   router.use('/users', iam.routers.users);
   router.use('/roles', iam.routers.roles);
+  router.use(
+    '/social',
+    createSocialMediaRouter({ db: deps.database.db, logger: deps.logger, config: deps.config.social }),
+  );
 
   // Register future modules here, guarding them with requirePermission from the iam module.
 

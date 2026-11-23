@@ -4,9 +4,11 @@ Platform foundation for AI Preneur — one platform hosting many lines of work (
 business development, software house, IoT, digital marketing, education, digital content,
 food estate, …).
 
-> **Status:** foundation + **authentication & user management** (login/logout, role-based
-> access control, profile). No business features yet. See [`docs/architecture.md`](docs/architecture.md)
-> and [`docs/auth-and-access.md`](docs/auth-and-access.md).
+> **Status:** foundation, **authentication & user management** (login/logout, role-based
+> access control, profile) and **Social Media AIgency → Publisher AIgent, Tahap 1** (content queue
+> from Google Drive, scheduling, accounts; the upload engine comes in Tahap 2).
+> See [`docs/architecture.md`](docs/architecture.md), [`docs/auth-and-access.md`](docs/auth-and-access.md)
+> and [`docs/social-media-aigency.md`](docs/social-media-aigency.md).
 
 ## Quick start
 
@@ -61,7 +63,7 @@ module conventions and the extraction path to services: [`docs/architecture.md`]
 │   │   │   ├── components/   auth/ (route guards), layout/ (AppLayout, Sidebar, SidebarProfile), ui/
 │   │   │   ├── hooks/        use-auth, use-media-query, use-debounced-value
 │   │   │   ├── lib/          navigation (menu), access, errors, format, cn
-│   │   │   ├── pages/        Login, Dashboard, Profile, users/, roles/, Forbidden, NotFound
+│   │   │   ├── pages/        Login, Dashboard, Profile, users/, roles/, social/, Forbidden, NotFound
 │   │   │   ├── services/     api-client.ts, auth/users/roles services
 │   │   │   ├── types/        vite-env.d.ts
 │   │   │   └── main.tsx
@@ -73,7 +75,7 @@ module conventions and the extraction path to services: [`docs/architecture.md`]
 │       │   ├── config/       env.ts
 │       │   ├── core/         dependencies.ts, errors.ts, http.ts, logger.ts, validation.ts
 │       │   ├── middlewares/  error-handler, not-found, request-logger, security-headers, origin-check
-│       │   ├── modules/      health/ (reference), iam/ (auth, sessions, profile, users, roles), README.md
+│       │   ├── modules/      health/ (reference), iam/ (auth, users, roles), social-media/ (Publisher AIgent), README.md
 │       │   ├── scripts/      seed.ts
 │       │   ├── routes/       index.ts
 │       │   ├── app.ts
@@ -83,7 +85,7 @@ module conventions and the extraction path to services: [`docs/architecture.md`]
 ├── packages/
 │   ├── database/
 │   │   ├── src/
-│   │   │   ├── schema/       iam.schema.ts (users, roles, permissions, sessions, …), index.ts
+│   │   │   ├── schema/       iam.schema.ts, social-media.schema.ts (sm_*), index.ts
 │   │   │   ├── migrations/   generated SQL (committed)
 │   │   │   ├── client.ts
 │   │   │   └── index.ts
@@ -133,6 +135,9 @@ and by Vite (`envDir: '../..'`). Real environment variables always override the 
 | `SESSION_COOKIE_SECURE` | api        | `true` in production       | HTTPS-only `__Host-` cookie                   |
 | `DATABASE_URL`        | api, drizzle | — (**required**)           | `postgres://` or `postgresql://` only         |
 | `DATABASE_POOL_MAX`   | api          | `10`                       |                                               |
+| `GOOGLE_API_KEY`      | api          | —                          | Reads public Drive folders (Publisher AIgent) |
+| `SOCIAL_CREDENTIALS_KEY` | api       | —                          | `openssl rand -base64 32`; encrypts social tokens |
+| `SOCIAL_PUBLISHER_ENABLED` | api     | `false`                    | Scheduled-upload worker (Tahap 2)             |
 | `SEED_ADMIN_EMAIL`    | seed         | `admin@example.com`        | First Super Admin                             |
 | `SEED_ADMIN_NAME`     | seed         | `Super Admin`              |                                               |
 | `SEED_ADMIN_PASSWORD` | seed         | random (printed once)      | Min 8 chars                                   |

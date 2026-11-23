@@ -14,6 +14,9 @@ export const PERMISSIONS = {
   USERS_DELETE: 'users.delete',
   ROLES_VIEW: 'roles.view',
   ROLES_MANAGE: 'roles.manage',
+  SOCIAL_PUBLISHER_VIEW: 'social.publisher.view',
+  SOCIAL_PUBLISHER_MANAGE: 'social.publisher.manage',
+  SOCIAL_SETTINGS_MANAGE: 'social.settings.manage',
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -68,6 +71,24 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     category: 'Role & Akses',
     label: 'Kelola role',
     description: 'Membuat, mengubah, dan menghapus role serta hak aksesnya.',
+  },
+  {
+    key: PERMISSIONS.SOCIAL_PUBLISHER_VIEW,
+    category: 'Social Media AIgency',
+    label: 'Lihat Publisher AIgent',
+    description: 'Melihat batch publikasi, antrean konten, dan status unggahan.',
+  },
+  {
+    key: PERMISSIONS.SOCIAL_PUBLISHER_MANAGE,
+    category: 'Social Media AIgency',
+    label: 'Kelola Publisher AIgent',
+    description: 'Membuat batch, mengatur antrean dan jadwal, menghubungkan akun, dan mengonfirmasi jadwal.',
+  },
+  {
+    key: PERMISSIONS.SOCIAL_SETTINGS_MANAGE,
+    category: 'Social Media AIgency',
+    label: 'Kelola pengaturan Social Media AIgency',
+    description: 'Mengubah batas waktu kunci edit dan jeda minimal konfirmasi jadwal.',
   },
 ];
 

@@ -39,6 +39,12 @@ export function apiFieldErrors(error: unknown): FieldErrors {
   return result;
 }
 
+/** String details attached to an API error (e.g. reasons a batch cannot be confirmed). */
+export function errorDetails(error: unknown): string[] {
+  if (!(error instanceof ApiClientError) || !Array.isArray(error.details)) return [];
+  return error.details.filter((detail): detail is string => typeof detail === 'string');
+}
+
 /** Human-readable message for any thrown value. */
 export function errorMessage(error: unknown): string {
   if (error instanceof ApiClientError) {

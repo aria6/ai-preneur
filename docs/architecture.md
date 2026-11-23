@@ -123,6 +123,11 @@ and `index.ts` as the only public entry point. Other modules protect their route
 `requireAuth` / `requirePermission` exported from `modules/iam/index.ts`. See
 [`auth-and-access.md`](auth-and-access.md).
 
+`modules/social-media/` (Publisher AIgent) follows the same shape and adds `domain/` for pure,
+unit-testable rules (file-name parsing, row locks, slot reordering, confirmation checks),
+`integrations/` for outbound HTTP clients (Google Drive, Instagram) and `publishers/` for the
+in-process, PostgreSQL-polling upload worker. See [`social-media-aigency.md`](social-media-aigency.md).
+
 ## 4. Database package responsibilities (`@ai-preneur/database`)
 
 - **Server-only.** Never imported by `apps/web` or `packages/shared`.
