@@ -1,4 +1,9 @@
-import { updateBatchRequestSchema, type BatchDetailDto, type ScanWarning, type UpdateBatchRequest } from '@ai-preneur/shared';
+import {
+  updateBatchRequestSchema,
+  type BatchDetailDto,
+  type ScanWarning,
+  type UpdateBatchRequest,
+} from '@ai-preneur/shared';
 import { useEffect, useState, type FormEvent } from 'react';
 
 import { Button } from '../../../components/ui/Button';
@@ -6,7 +11,12 @@ import { TextField } from '../../../components/ui/fields';
 import { Alert, Card } from '../../../components/ui/feedback';
 import { Icon } from '../../../components/ui/Icon';
 import { ConfirmDialog } from '../../../components/ui/Modal';
-import { apiFieldErrors, errorMessage, zodFieldErrors, type FieldErrors } from '../../../lib/errors';
+import {
+  apiFieldErrors,
+  errorMessage,
+  zodFieldErrors,
+  type FieldErrors,
+} from '../../../lib/errors';
 import * as socialService from '../../../services/social.service';
 
 const MAX_WARNINGS_SHOWN = 8;
@@ -41,14 +51,17 @@ export function IdeaCard({
   const isDraft = batch.status === 'draft';
   const editable = canManage && batch.status !== 'completed';
   const dirty =
-    title !== batch.title || ideaNumber !== String(batch.ideaNumber) || folderUrl.trim() !== batch.driveFolderUrl;
+    title !== batch.title ||
+    ideaNumber !== String(batch.ideaNumber) ||
+    folderUrl.trim() !== batch.driveFolderUrl;
 
   const onSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormError(null);
     const patch: UpdateBatchRequest = {};
     if (title !== batch.title) patch.title = title;
-    if (ideaNumber !== String(batch.ideaNumber)) patch.ideaNumber = ideaNumber.trim() === '' ? Number.NaN : Number(ideaNumber);
+    if (ideaNumber !== String(batch.ideaNumber))
+      patch.ideaNumber = ideaNumber.trim() === '' ? Number.NaN : Number(ideaNumber);
     if (folderUrl.trim() !== batch.driveFolderUrl) patch.driveFolderUrl = folderUrl;
 
     const parsed = updateBatchRequestSchema.safeParse(patch);
@@ -91,7 +104,9 @@ export function IdeaCard({
       <form onSubmit={onSave} noValidate>
         <div className="border-b border-slate-100 px-5 py-4">
           <h2 className="text-base font-semibold">Ide & sumber konten</h2>
-          <p className="text-sm text-slate-500">Video diambil dari folder Google Drive berdasarkan nama file.</p>
+          <p className="text-sm text-slate-500">
+            Video diambil dari folder Google Drive berdasarkan nama file.
+          </p>
         </div>
 
         <div className="space-y-4 px-5 py-4">
@@ -105,12 +120,15 @@ export function IdeaCard({
                   <ul className="mt-1 list-disc space-y-0.5 pl-5">
                     {report.warnings.slice(0, MAX_WARNINGS_SHOWN).map((warning, index) => (
                       <li key={`${warning.fileName}-${index}`}>
-                        <span className="font-mono text-xs">{warning.fileName}</span> — {warning.message}
+                        <span className="font-mono text-xs">{warning.fileName}</span> —{' '}
+                        {warning.message}
                       </li>
                     ))}
                   </ul>
                   {report.warnings.length > MAX_WARNINGS_SHOWN && (
-                    <p className="mt-1">…dan {report.warnings.length - MAX_WARNINGS_SHOWN} catatan lainnya.</p>
+                    <p className="mt-1">
+                      …dan {report.warnings.length - MAX_WARNINGS_SHOWN} catatan lainnya.
+                    </p>
                   )}
                 </>
               )}

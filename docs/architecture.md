@@ -53,15 +53,15 @@ enforced boundaries.
 
 ### Frontend layout
 
-| Folder                   | Purpose                                                             |
-| ------------------------ | ------------------------------------------------------------------- |
-| `src/app/`               | App shell: router, root component, global styles, env access        |
-| `src/pages/`             | Route-level components, one per route                               |
-| `src/components/`        | Reusable presentational components (`layout/` for shells)           |
-| `src/hooks/`             | Reusable React hooks                                                |
-| `src/lib/`               | Framework-free helpers: navigation/menu config, error mapping, formatting |
-| `src/services/`          | API client and per-feature API services                             |
-| `src/types/`             | Frontend-only ambient/global types (e.g. `ImportMetaEnv`)           |
+| Folder            | Purpose                                                                   |
+| ----------------- | ------------------------------------------------------------------------- |
+| `src/app/`        | App shell: router, root component, global styles, env access              |
+| `src/pages/`      | Route-level components, one per route                                     |
+| `src/components/` | Reusable presentational components (`layout/` for shells)                 |
+| `src/hooks/`      | Reusable React hooks                                                      |
+| `src/lib/`        | Framework-free helpers: navigation/menu config, error mapping, formatting |
+| `src/services/`   | API client and per-feature API services                                   |
+| `src/types/`      | Frontend-only ambient/global types (e.g. `ImportMetaEnv`)                 |
 
 When features arrive and these flat folders grow, group by feature
 (`src/features/<name>/{components,hooks,services}`) rather than adding more global folders.
@@ -98,15 +98,15 @@ server.ts → app.ts → routes/ → modules/<name>/index.ts → module internal
 Only `index.ts` and `<name>.routes.ts` are required. Everything else is added when it earns
 its place — empty layers are not created.
 
-| File                     | Introduce it when…                                                                                   |
-| ------------------------ | ---------------------------------------------------------------------------------------------------- |
-| `index.ts`               | Always. Exports the router factory and anything other modules may use.                               |
-| `<name>.routes.ts`       | Always. `create<Name>Router(deps)` — paths, HTTP verbs, wiring.                                       |
-| `<name>.controller.ts`   | Handlers grow beyond a few lines of parse → call service → respond, or are numerous.                 |
-| `<name>.service.ts`      | There is business logic: rules, orchestration, calls to other modules, transactions.                |
-| `<name>.repository.ts`   | The module touches the database. All Drizzle queries for the module's tables live here.              |
-| `<name>.schemas.ts`      | The module validates input with Zod schemas that the frontend does not need.                         |
-| `<name>.types.ts`        | Module-private types are reused across several files of the module.                                  |
+| File                   | Introduce it when…                                                                      |
+| ---------------------- | --------------------------------------------------------------------------------------- |
+| `index.ts`             | Always. Exports the router factory and anything other modules may use.                  |
+| `<name>.routes.ts`     | Always. `create<Name>Router(deps)` — paths, HTTP verbs, wiring.                         |
+| `<name>.controller.ts` | Handlers grow beyond a few lines of parse → call service → respond, or are numerous.    |
+| `<name>.service.ts`    | There is business logic: rules, orchestration, calls to other modules, transactions.    |
+| `<name>.repository.ts` | The module touches the database. All Drizzle queries for the module's tables live here. |
+| `<name>.schemas.ts`    | The module validates input with Zod schemas that the frontend does not need.            |
+| `<name>.types.ts`      | Module-private types are reused across several files of the module.                     |
 
 Request flow inside a module: **routes → controller → service → repository → database**.
 Controllers parse input (`parseInput(schema, req.body)`), call services and respond
@@ -163,12 +163,12 @@ dependency other than `zod`. If only one side needs something, it stays on that 
 
 ## 6. Dependency rules
 
-| Package              | May depend on (internal)                    | Must never import                                  |
-| -------------------- | ------------------------------------------- | -------------------------------------------------- |
-| `apps/web`           | `@ai-preneur/shared`                        | `@ai-preneur/api`, `@ai-preneur/database`, express, pg, drizzle-orm, dotenv, `node:*` |
-| `apps/api`           | `@ai-preneur/shared`, `@ai-preneur/database` | `@ai-preneur/web`                                  |
-| `packages/database`  | —                                           | any app                                            |
-| `packages/shared`    | — (external: `zod` only)                    | any workspace package, `node:*`                    |
+| Package             | May depend on (internal)                     | Must never import                                                                     |
+| ------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `apps/web`          | `@ai-preneur/shared`                         | `@ai-preneur/api`, `@ai-preneur/database`, express, pg, drizzle-orm, dotenv, `node:*` |
+| `apps/api`          | `@ai-preneur/shared`, `@ai-preneur/database` | `@ai-preneur/web`                                                                     |
+| `packages/database` | —                                            | any app                                                                               |
+| `packages/shared`   | — (external: `zod` only)                     | any workspace package, `node:*`                                                       |
 
 Additional rules: no relative imports across package boundaries, no deep imports
 (`@ai-preneur/shared/src/...`), acyclic package graph.

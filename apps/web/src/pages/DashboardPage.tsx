@@ -6,7 +6,10 @@ export function DashboardPage() {
 
   return (
     <>
-      <PageHeader title="Dashboard" description={user ? `Selamat datang, ${user.name}.` : undefined} />
+      <PageHeader
+        title="Dashboard"
+        description={user ? `Selamat datang, ${user.name}.` : undefined}
+      />
       <EmptyState
         icon="dashboard"
         title="Dashboard masih kosong"

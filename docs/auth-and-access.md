@@ -13,15 +13,15 @@ Implemented by the `iam` module (`apps/api/src/modules/iam`) and the
 - **System role** (`roles.is_system = true`, seeded as **Super Admin**) — implicitly holds
   every permission, including ones added later. It cannot be edited or deleted through the API.
 
-| Permission       | Grants                                                          |
-| ---------------- | --------------------------------------------------------------- |
-| `dashboard.view` | Dashboard page                                                   |
-| `users.view`     | User list and details                                            |
-| `users.create`   | Create users                                                     |
-| `users.update`   | Change name/role/status of users, reset their password          |
-| `users.delete`   | Delete users                                                     |
-| `roles.view`     | Role list with permissions                                       |
-| `roles.manage`   | Create, edit and delete roles                                    |
+| Permission       | Grants                                                 |
+| ---------------- | ------------------------------------------------------ |
+| `dashboard.view` | Dashboard page                                         |
+| `users.view`     | User list and details                                  |
+| `users.create`   | Create users                                           |
+| `users.update`   | Change name/role/status of users, reset their password |
+| `users.delete`   | Delete users                                           |
+| `roles.view`     | Role list with permissions                             |
+| `roles.manage`   | Create, edit and delete roles                          |
 
 Every logged-in user can always view their profile, change their name and change their password.
 
@@ -38,24 +38,24 @@ Every logged-in user can always view their profile, change their name and change
 
 All routes are under `/api`. Responses use the standard envelope.
 
-| Method & path                 | Access                                   | Notes                                            |
-| ----------------------------- | ---------------------------------------- | ------------------------------------------------ |
-| `POST /auth/login`            | public                                   | Sets the session cookie, returns `{ user }`      |
-| `POST /auth/logout`           | any                                      | Revokes the session, clears the cookie           |
-| `GET /auth/me`                | authenticated                            | `{ user }` with effective permissions            |
-| `PATCH /profile`              | authenticated                            | `{ name }`                                       |
-| `PUT /profile/password`       | authenticated                            | `{ currentPassword, newPassword }`               |
-| `GET /users`                  | `users.view`                             | `?page&pageSize&search`                          |
-| `GET /users/:id`              | `users.view`                             |                                                  |
-| `POST /users`                 | `users.create`                           |                                                  |
-| `PATCH /users/:id`            | `users.update`                           | `{ name?, roleId?, isActive? }`                  |
-| `PUT /users/:id/password`     | `users.update`                           | `{ newPassword }` — admin reset                  |
-| `DELETE /users/:id`           | `users.delete`                           |                                                  |
-| `GET /roles`                  | `roles.view` or `users.create/update`    | Role picker for user forms                       |
-| `GET /roles/:id`              | `roles.view`                             |                                                  |
-| `POST /roles`                 | `roles.manage`                           | `{ name, description?, permissions[] }`          |
-| `PATCH /roles/:id`            | `roles.manage`                           |                                                  |
-| `DELETE /roles/:id`           | `roles.manage`                           | Refused while users still hold the role          |
+| Method & path             | Access                                | Notes                                       |
+| ------------------------- | ------------------------------------- | ------------------------------------------- |
+| `POST /auth/login`        | public                                | Sets the session cookie, returns `{ user }` |
+| `POST /auth/logout`       | any                                   | Revokes the session, clears the cookie      |
+| `GET /auth/me`            | authenticated                         | `{ user }` with effective permissions       |
+| `PATCH /profile`          | authenticated                         | `{ name }`                                  |
+| `PUT /profile/password`   | authenticated                         | `{ currentPassword, newPassword }`          |
+| `GET /users`              | `users.view`                          | `?page&pageSize&search`                     |
+| `GET /users/:id`          | `users.view`                          |                                             |
+| `POST /users`             | `users.create`                        |                                             |
+| `PATCH /users/:id`        | `users.update`                        | `{ name?, roleId?, isActive? }`             |
+| `PUT /users/:id/password` | `users.update`                        | `{ newPassword }` — admin reset             |
+| `DELETE /users/:id`       | `users.delete`                        |                                             |
+| `GET /roles`              | `roles.view` or `users.create/update` | Role picker for user forms                  |
+| `GET /roles/:id`          | `roles.view`                          |                                             |
+| `POST /roles`             | `roles.manage`                        | `{ name, description?, permissions[] }`     |
+| `PATCH /roles/:id`        | `roles.manage`                        |                                             |
+| `DELETE /roles/:id`       | `roles.manage`                        | Refused while users still hold the role     |
 
 ## Security model
 

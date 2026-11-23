@@ -76,12 +76,16 @@ function InstagramAccountPanel({
     return (
       <div className="mt-3 flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="truncate font-medium text-slate-900">@{account.username ?? account.externalAccountId}</p>
+          <p className="truncate font-medium text-slate-900">
+            @{account.username ?? account.externalAccountId}
+          </p>
           <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
             <Badge color={account.status === 'connected' ? 'green' : 'red'}>
               {account.status === 'connected' ? 'Terhubung' : 'Bermasalah'}
             </Badge>
-            {account.accountType && <span>Akun {account.accountType.toLowerCase().replace('_', ' ')}</span>}
+            {account.accountType && (
+              <span>Akun {account.accountType.toLowerCase().replace('_', ' ')}</span>
+            )}
           </p>
           {account.lastError && <p className="mt-1 text-xs text-red-600">{account.lastError}</p>}
           {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
@@ -109,7 +113,11 @@ function InstagramAccountPanel({
   }
 
   return (
-    <form onSubmit={connect} noValidate className="mt-3 space-y-3 rounded-lg border border-slate-200 p-3">
+    <form
+      onSubmit={connect}
+      noValidate
+      className="mt-3 space-y-3 rounded-lg border border-slate-200 p-3"
+    >
       <PasswordField
         label="Access token Instagram"
         autoComplete="off"
@@ -119,12 +127,21 @@ function InstagramAccountPanel({
         hint="Token disimpan terenkripsi dan tidak pernah ditampilkan lagi. Satu akun hanya untuk satu ide."
       />
       <details className="text-xs text-slate-600">
-        <summary className="cursor-pointer font-medium text-primary-700">Cara mendapatkan access token</summary>
+        <summary className="cursor-pointer font-medium text-primary-700">
+          Cara mendapatkan access token
+        </summary>
         <ol className="mt-2 list-decimal space-y-1 pl-5">
           <li>Pastikan akun Instagram berjenis Profesional (Bisnis atau Kreator).</li>
-          <li>Di Meta for Developers, buat app lalu tambahkan produk Instagram (API dengan login Instagram).</li>
-          <li>Tambahkan akun sebagai Instagram Tester, lalu terima undangannya di aplikasi Instagram.</li>
-          <li>Di dashboard app → Instagram → API setup, klik Generate token untuk akun tersebut.</li>
+          <li>
+            Di Meta for Developers, buat app lalu tambahkan produk Instagram (API dengan login
+            Instagram).
+          </li>
+          <li>
+            Tambahkan akun sebagai Instagram Tester, lalu terima undangannya di aplikasi Instagram.
+          </li>
+          <li>
+            Di dashboard app → Instagram → API setup, klik Generate token untuk akun tersebut.
+          </li>
           <li>Salin token, tempel di sini, lalu klik Tes & hubungkan.</li>
         </ol>
       </details>
@@ -156,7 +173,9 @@ export function PlatformsCard({
   const editable = canManage && isDraft;
 
   const setPlatform = async (platform: SocialPlatform, checked: boolean) => {
-    const platforms = checked ? [...batch.platforms, platform] : batch.platforms.filter((p) => p !== platform);
+    const platforms = checked
+      ? [...batch.platforms, platform]
+      : batch.platforms.filter((p) => p !== platform);
     setError(null);
     setSaving(platform);
     try {
@@ -196,9 +215,17 @@ export function PlatformsCard({
             return (
               <li
                 key={platform}
-                className={cn('rounded-lg border p-3', checked ? 'border-primary-200 bg-primary-50/40' : 'border-slate-200')}
+                className={cn(
+                  'rounded-lg border p-3',
+                  checked ? 'border-primary-200 bg-primary-50/40' : 'border-slate-200',
+                )}
               >
-                <label className={cn('flex items-center gap-3', editable && available ? 'cursor-pointer' : 'cursor-default')}>
+                <label
+                  className={cn(
+                    'flex items-center gap-3',
+                    editable && available ? 'cursor-pointer' : 'cursor-default',
+                  )}
+                >
                   <input
                     type="checkbox"
                     className="size-4 rounded border-slate-300 accent-primary-600"
@@ -209,7 +236,9 @@ export function PlatformsCard({
                   <span className="flex size-7 items-center justify-center rounded-md bg-slate-100 text-[11px] font-semibold text-slate-600">
                     {PLATFORM_SHORT[platform]}
                   </span>
-                  <span className="flex-1 text-sm font-medium text-slate-800">{SOCIAL_PLATFORM_LABELS[platform]}</span>
+                  <span className="flex-1 text-sm font-medium text-slate-800">
+                    {SOCIAL_PLATFORM_LABELS[platform]}
+                  </span>
                   {!available && <Badge>Segera hadir</Badge>}
                 </label>
                 {checked && platform === 'instagram' && (

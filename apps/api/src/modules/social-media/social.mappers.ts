@@ -1,4 +1,9 @@
-import type { SmAccountRow, SmBatchRow, SmPublicationRow, SmQueueItemRow } from '@ai-preneur/database';
+import type {
+  SmAccountRow,
+  SmBatchRow,
+  SmPublicationRow,
+  SmQueueItemRow,
+} from '@ai-preneur/database';
 import {
   SOCIAL_PLATFORMS,
   type BatchDetailDto,

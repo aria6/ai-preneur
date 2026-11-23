@@ -1,7 +1,12 @@
 import { PERMISSIONS } from '@ai-preneur/shared';
 import { createBrowserRouter } from 'react-router';
 
-import { HomeRedirect, RedirectIfAuthenticated, RequireAuth, RequirePermission } from '../components/auth/guards';
+import {
+  HomeRedirect,
+  RedirectIfAuthenticated,
+  RequireAuth,
+  RequirePermission,
+} from '../components/auth/guards';
 import { AppLayout } from '../components/layout/AppLayout';
 import { DashboardPage } from '../pages/DashboardPage';
 import { LoginPage } from '../pages/LoginPage';

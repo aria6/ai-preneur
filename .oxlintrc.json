@@ -61,7 +61,14 @@
           {
             "patterns": [
               {
-                "group": ["@ai-preneur/*", "express", "pg", "drizzle-orm", "drizzle-orm/*", "node:*"],
+                "group": [
+                  "@ai-preneur/*",
+                  "express",
+                  "pg",
+                  "drizzle-orm",
+                  "drizzle-orm/*",
+                  "node:*"
+                ],
                 "message": "packages/shared must stay runtime-agnostic (browser + Node) and depend on nothing but zod."
               }
             ]

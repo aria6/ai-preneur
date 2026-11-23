@@ -31,7 +31,11 @@ const updatedAt = () =>
 export const smPlatform = pgEnum('sm_platform', ['instagram', 'tiktok', 'facebook', 'youtube']);
 export const smBatchStatus = pgEnum('sm_batch_status', ['draft', 'scheduled', 'completed']);
 export const smAccountStatus = pgEnum('sm_account_status', ['connected', 'error']);
-export const smPublicationStatus = pgEnum('sm_publication_status', ['processing', 'published', 'failed']);
+export const smPublicationStatus = pgEnum('sm_publication_status', [
+  'processing',
+  'published',
+  'failed',
+]);
 
 // ---- Settings (single row) ---------------------------------------------------------
 

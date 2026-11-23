@@ -1,13 +1,19 @@
 import { eq, smSettings, type DatabaseExecutor } from '@ai-preneur/database';
 import type { SocialSettings } from '@ai-preneur/shared';
 
-export const DEFAULT_SOCIAL_SETTINGS: SocialSettings = { lockMinutes: 30, minConfirmLeadMinutes: 60 };
+export const DEFAULT_SOCIAL_SETTINGS: SocialSettings = {
+  lockMinutes: 30,
+  minConfirmLeadMinutes: 60,
+};
 
 export function createSettingsRepository(db: DatabaseExecutor) {
   return {
     async get(): Promise<SocialSettings> {
       const [row] = await db
-        .select({ lockMinutes: smSettings.lockMinutes, minConfirmLeadMinutes: smSettings.minConfirmLeadMinutes })
+        .select({
+          lockMinutes: smSettings.lockMinutes,
+          minConfirmLeadMinutes: smSettings.minConfirmLeadMinutes,
+        })
         .from(smSettings)
         .where(eq(smSettings.id, 1))
         .limit(1);

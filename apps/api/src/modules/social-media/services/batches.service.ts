@@ -41,7 +41,9 @@ import {
 const THUMBNAIL_FOLDER = /^thumbnails?$/i;
 
 function assertAvailablePlatforms(platforms: readonly SocialPlatform[]): void {
-  const unavailable = platforms.filter((platform) => !AVAILABLE_SOCIAL_PLATFORMS.includes(platform));
+  const unavailable = platforms.filter(
+    (platform) => !AVAILABLE_SOCIAL_PLATFORMS.includes(platform),
+  );
   if (unavailable.length > 0) {
     throw fieldError(
       'platforms',
@@ -57,7 +59,11 @@ function folderIdOrThrow(url: string): string {
 }
 
 /** Publisher AIgent batches: one batch per idea, holding its content queue. */
-export function createBatchesService(deps: { db: Database; drive: GoogleDriveClient; logger: Logger }) {
+export function createBatchesService(deps: {
+  db: Database;
+  drive: GoogleDriveClient;
+  logger: Logger;
+}) {
   const { db, drive, logger } = deps;
   const batches = createBatchesRepository(db);
 
@@ -97,12 +103,16 @@ export function createBatchesService(deps: { db: Database; drive: GoogleDriveCli
         assertNotCompleted(batch);
 
         const draftOnly =
-          input.driveFolderUrl !== undefined || input.platforms !== undefined || input.ideaNumber !== undefined;
+          input.driveFolderUrl !== undefined ||
+          input.platforms !== undefined ||
+          input.ideaNumber !== undefined;
         if (draftOnly) assertDraft(batch, 'Mengubah link folder, IDEA_ID, atau media sosial');
 
         if (input.platforms) {
           // Deselecting a platform frees its account so it can serve another idea.
-          const removed = batchPlatforms(batch).filter((platform) => !input.platforms?.includes(platform));
+          const removed = batchPlatforms(batch).filter(
+            (platform) => !input.platforms?.includes(platform),
+          );
           const accounts = createAccountsRepository(tx);
           for (const platform of removed) await accounts.deleteForBatch(id, platform);
         }
@@ -112,12 +122,19 @@ export function createBatchesService(deps: { db: Database; drive: GoogleDriveCli
           ...(input.ideaNumber !== undefined ? { ideaNumber: input.ideaNumber } : {}),
           ...(input.platforms !== undefined ? { platforms: input.platforms } : {}),
           ...(input.driveFolderUrl !== undefined
-            ? { driveFolderUrl: input.driveFolderUrl, driveFolderId: folderIdOrThrow(input.driveFolderUrl) }
+            ? {
+                driveFolderUrl: input.driveFolderUrl,
+                driveFolderId: folderIdOrThrow(input.driveFolderUrl),
+              }
             : {}),
         });
       });
 
-      logger.info('Publisher batch updated', { actorId: ctx.user.id, batchId: id, fields: Object.keys(input) });
+      logger.info('Publisher batch updated', {
+        actorId: ctx.user.id,
+        batchId: id,
+        fields: Object.keys(input),
+      });
       return loadBatchDetail(db, id);
     },
 
@@ -126,7 +143,9 @@ export function createBatchesService(deps: { db: Database; drive: GoogleDriveCli
         const working = await loadWorkingSet(tx, id, new Date(), { forUpdate: true });
         assertDraft(working.batch, 'Menghapus batch');
         if (hasUploads(working.items)) {
-          throw conflict('Batch ini sudah punya video yang terunggah, sehingga tidak dapat dihapus.');
+          throw conflict(
+            'Batch ini sudah punya video yang terunggah, sehingga tidak dapat dihapus.',
+          );
         }
         await createBatchesRepository(tx).delete(id);
       });
@@ -141,20 +160,28 @@ export function createBatchesService(deps: { db: Database; drive: GoogleDriveCli
       const current = await loadWorkingSet(db, id, new Date());
       assertDraft(current.batch, 'Generate antrean');
       if (hasUploads(current.items)) {
-        throw conflict('Batch ini sudah punya video yang terunggah, sehingga antrean tidak dapat digenerate ulang.');
+        throw conflict(
+          'Batch ini sudah punya video yang terunggah, sehingga antrean tidak dapat digenerate ulang.',
+        );
       }
 
       const warnings: ScanWarning[] = [];
       let result: ReturnType<typeof buildQueueFromFolder>;
       try {
         const folder = await drive.getFile(current.batch.driveFolderId);
-        if (!isDriveFolder(folder)) throw fieldError('driveFolderUrl', 'Link tersebut bukan folder Google Drive.');
+        if (!isDriveFolder(folder))
+          throw fieldError('driveFolderUrl', 'Link tersebut bukan folder Google Drive.');
 
         const contents = await drive.listFolder(folder.id);
         const thumbnailFolder = contents.folders.find((f) => THUMBNAIL_FOLDER.test(f.name.trim()));
-        const thumbnails = thumbnailFolder ? (await drive.listFolder(thumbnailFolder.id)).files : [];
+        const thumbnails = thumbnailFolder
+          ? (await drive.listFolder(thumbnailFolder.id)).files
+          : [];
         if (!thumbnailFolder) {
-          warnings.push({ fileName: 'thumbnail/', message: 'Folder thumbnail/ tidak ditemukan; baris dibuat tanpa thumbnail.' });
+          warnings.push({
+            fileName: 'thumbnail/',
+            message: 'Folder thumbnail/ tidak ditemukan; baris dibuat tanpa thumbnail.',
+          });
         }
         result = buildQueueFromFolder(contents.files, thumbnails, current.batch.ideaNumber);
       } catch (error) {
@@ -174,19 +201,33 @@ export function createBatchesService(deps: { db: Database; drive: GoogleDriveCli
         await items.deleteByBatch(id);
         await items.insertMany(
           id,
-          result.items.map((item) => ({ ...item, caption: '', hashtags: [], scheduledAt: null, isPaused: false })),
+          result.items.map((item) => ({
+            ...item,
+            caption: '',
+            hashtags: [],
+            scheduledAt: null,
+            isPaused: false,
+          })),
         );
         await createBatchesRepository(tx).update(id, { ideaNumber: result.ideaNumber });
       });
 
-      logger.info('Publisher queue generated from Drive', { actorId: ctx.user.id, batchId: id, items: result.items.length });
+      logger.info('Publisher queue generated from Drive', {
+        actorId: ctx.user.id,
+        batchId: id,
+        items: result.items.length,
+      });
       return {
         batch: await loadBatchDetail(db, id),
         report: { added: result.items.length, warnings: [...warnings, ...result.warnings] },
       };
     },
 
-    async autoSchedule(ctx: AuthContext, id: string, input: AutoScheduleRequest): Promise<BatchDetailDto> {
+    async autoSchedule(
+      ctx: AuthContext,
+      id: string,
+      input: AutoScheduleRequest,
+    ): Promise<BatchDetailDto> {
       await db.transaction(async (tx) => {
         const now = new Date();
         const working = await loadWorkingSet(tx, id, now, { forUpdate: true });
@@ -196,7 +237,10 @@ export function createBatchesService(deps: { db: Database; drive: GoogleDriveCli
         if (working.batch.status === 'scheduled') {
           const earliest = earliestEditableTime(working.settings.lockMinutes, now);
           if (startAt < earliest) {
-            throw fieldError('startAt', `Waktu mulai minimal ${working.settings.lockMinutes} menit dari sekarang.`);
+            throw fieldError(
+              'startAt',
+              `Waktu mulai minimal ${working.settings.lockMinutes} menit dari sekarang.`,
+            );
           }
         }
 
@@ -213,7 +257,8 @@ export function createBatchesService(deps: { db: Database; drive: GoogleDriveCli
         if (assignments.length === 0) throw conflict('Tidak ada baris yang bisa dijadwalkan.');
 
         const items = createItemsRepository(tx);
-        for (const { id: itemId, scheduledAt } of assignments) await items.update(itemId, { scheduledAt });
+        for (const { id: itemId, scheduledAt } of assignments)
+          await items.update(itemId, { scheduledAt });
       });
 
       logger.info('Publisher queue auto-scheduled', { actorId: ctx.user.id, batchId: id });
@@ -221,7 +266,11 @@ export function createBatchesService(deps: { db: Database; drive: GoogleDriveCli
     },
 
     /** Drag & drop. Time slots stay at their positions (see reorderWithSlots). */
-    async reorder(ctx: AuthContext, id: string, input: ReorderItemsRequest): Promise<BatchDetailDto> {
+    async reorder(
+      ctx: AuthContext,
+      id: string,
+      input: ReorderItemsRequest,
+    ): Promise<BatchDetailDto> {
       await db.transaction(async (tx) => {
         const now = new Date();
         const working = await loadWorkingSet(tx, id, now, { forUpdate: true });
@@ -244,7 +293,10 @@ export function createBatchesService(deps: { db: Database; drive: GoogleDriveCli
 
         const items = createItemsRepository(tx);
         for (const update of result.updates) {
-          await items.update(update.id, { position: update.position, scheduledAt: update.scheduledAt });
+          await items.update(update.id, {
+            position: update.position,
+            scheduledAt: update.scheduledAt,
+          });
         }
       });
 
@@ -263,7 +315,11 @@ export function createBatchesService(deps: { db: Database; drive: GoogleDriveCli
         const problems = confirmationProblems({
           items: working.items
             .filter((entry) => entry.lockReason === null)
-            .map(({ item }) => ({ title: item.title, isPaused: item.isPaused, scheduledAt: item.scheduledAt })),
+            .map(({ item }) => ({
+              title: item.title,
+              isPaused: item.isPaused,
+              scheduledAt: item.scheduledAt,
+            })),
           platforms: batchPlatforms(working.batch).map((p) => SOCIAL_PLATFORM_LABELS[p]),
           connectedPlatforms: accounts
             .filter((account) => account.status === 'connected')
@@ -284,7 +340,8 @@ export function createBatchesService(deps: { db: Database; drive: GoogleDriveCli
     async cancelSchedule(ctx: AuthContext, id: string): Promise<BatchDetailDto> {
       await db.transaction(async (tx) => {
         const working = await loadWorkingSet(tx, id, new Date(), { forUpdate: true });
-        if (working.batch.status !== 'scheduled') throw conflict('Batch ini tidak sedang terjadwal.');
+        if (working.batch.status !== 'scheduled')
+          throw conflict('Batch ini tidak sedang terjadwal.');
         await createBatchesRepository(tx).update(id, { status: 'draft', confirmedAt: null });
       });
 

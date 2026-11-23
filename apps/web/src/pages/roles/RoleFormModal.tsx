@@ -17,7 +17,9 @@ import { cn } from '../../lib/cn';
 import { apiFieldErrors, errorMessage, zodFieldErrors, type FieldErrors } from '../../lib/errors';
 import * as rolesService from '../../services/roles.service';
 
-function groupByCategory(definitions: readonly PermissionDefinition[]): [string, PermissionDefinition[]][] {
+function groupByCategory(
+  definitions: readonly PermissionDefinition[],
+): [string, PermissionDefinition[]][] {
   const groups = new Map<string, PermissionDefinition[]>();
   for (const definition of definitions) {
     const list = groups.get(definition.category) ?? [];
@@ -58,7 +60,8 @@ export function RoleFormModal({
   }, [open, role]);
 
   /** You can only grant what you have (system roles have everything). */
-  const canGrant = (permission: Permission) => Boolean(me?.role.isSystem || me?.permissions.includes(permission));
+  const canGrant = (permission: Permission) =>
+    Boolean(me?.role.isSystem || me?.permissions.includes(permission));
 
   const toggle = (permission: Permission, checked: boolean) => {
     setSelected((previous) => {
@@ -151,15 +154,24 @@ export function RoleFormModal({
           <div className="mt-3 grid gap-4 md:grid-cols-2">
             {groups.map(([category, definitions]) => (
               <div key={category} className="rounded-lg border border-slate-200 p-3">
-                <p className="mb-2 text-xs font-semibold tracking-wide text-slate-500 uppercase">{category}</p>
+                <p className="mb-2 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                  {category}
+                </p>
                 <div className="space-y-2">
                   {definitions.map((definition) => {
                     const grantable = canGrant(definition.key);
                     return (
                       <label
                         key={definition.key}
-                        className={cn('flex items-start gap-2.5', grantable ? 'cursor-pointer' : 'cursor-not-allowed opacity-50')}
-                        title={grantable ? undefined : 'Anda tidak memiliki hak akses ini, sehingga tidak dapat memberikannya.'}
+                        className={cn(
+                          'flex items-start gap-2.5',
+                          grantable ? 'cursor-pointer' : 'cursor-not-allowed opacity-50',
+                        )}
+                        title={
+                          grantable
+                            ? undefined
+                            : 'Anda tidak memiliki hak akses ini, sehingga tidak dapat memberikannya.'
+                        }
                       >
                         <input
                           type="checkbox"
@@ -170,7 +182,9 @@ export function RoleFormModal({
                         />
                         <span>
                           <span className="block text-sm text-slate-800">{definition.label}</span>
-                          <span className="block text-xs text-slate-500">{definition.description}</span>
+                          <span className="block text-xs text-slate-500">
+                            {definition.description}
+                          </span>
                         </span>
                       </label>
                     );

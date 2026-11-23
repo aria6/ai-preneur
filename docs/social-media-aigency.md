@@ -32,6 +32,7 @@ Backend module: `apps/api/src/modules/social-media` · tables: `packages/databas
    - Every oddity (non-video file, missing thumbnail, unused thumbnail, IDEA_ID mismatch, duplicate
      topic/part) is reported back — nothing is skipped silently.
    - Regenerating replaces the queue (draft only, and never once something was uploaded).
+
 3. Each row: thumbnail, playable video (Drive player), caption, hashtags (max 30), schedule, and
    upload status per selected platform. Rows can be edited, deleted, added manually (Drive file
    links), paused ("Tunda") and reordered by drag & drop.
@@ -45,14 +46,14 @@ Backend module: `apps/api/src/modules/social-media` · tables: `packages/databas
 
 ### Rules (enforced by the API, mirrored by the UI)
 
-| Rule | Detail |
-|------|--------|
-| Lock window | While a batch is Terjadwal, a row whose upload is less than **`lockMinutes`** away (default 30) can't be edited, moved, paused or deleted. Uploaded/uploading rows are always read-only. Paused rows never upload, so they aren't time-locked. |
-| Confirmation | Allowed when every active row has a video and a schedule, every selected platform has a connected account, and the **first upload is at least `minConfirmLeadMinutes`** away (default 60). |
-| Reorder | Time slots stay at their positions: the row dropped at position *n* takes position *n*'s time. Locked rows can't move or be shifted. In a scheduled batch an active row can't receive an empty or too-close slot. |
-| Delete / pause | Other rows keep their schedules (no shifting). Resuming in a scheduled batch requires a new schedule outside the lock window. |
-| Edits while scheduled | New or changed schedules must be at least `lockMinutes` from now. |
-| Platform/account/folder/IDEA_ID changes | Draft only. Deselecting a platform disconnects its account. |
+| Rule                                    | Detail                                                                                                                                                                                                                                         |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Lock window                             | While a batch is Terjadwal, a row whose upload is less than **`lockMinutes`** away (default 30) can't be edited, moved, paused or deleted. Uploaded/uploading rows are always read-only. Paused rows never upload, so they aren't time-locked. |
+| Confirmation                            | Allowed when every active row has a video and a schedule, every selected platform has a connected account, and the **first upload is at least `minConfirmLeadMinutes`** away (default 60).                                                     |
+| Reorder                                 | Time slots stay at their positions: the row dropped at position _n_ takes position _n_'s time. Locked rows can't move or be shifted. In a scheduled batch an active row can't receive an empty or too-close slot.                              |
+| Delete / pause                          | Other rows keep their schedules (no shifting). Resuming in a scheduled batch requires a new schedule outside the lock window.                                                                                                                  |
+| Edits while scheduled                   | New or changed schedules must be at least `lockMinutes` from now.                                                                                                                                                                              |
+| Platform/account/folder/IDEA_ID changes | Draft only. Deselecting a platform disconnects its account.                                                                                                                                                                                    |
 
 Both numbers live in **Social Media AIgency → Pengaturan** (`sm_settings`, single row;
 `minConfirmLeadMinutes ≥ lockMinutes`).
@@ -62,7 +63,7 @@ Both numbers live in **Social Media AIgency → Pengaturan** (`sm_settings`, sin
 ### Google Drive (read public folders)
 
 1. Google Cloud Console → create/select a project → **APIs & Services → Library → Google Drive API → Enable**.
-2. **Credentials → Create credentials → API key**. Restrict it to *Google Drive API*.
+2. **Credentials → Create credentials → API key**. Restrict it to _Google Drive API_.
 3. Put it in `.env` as `GOOGLE_API_KEY`.
 4. Share each content folder (and its files) as **"Siapa saja yang memiliki link — Viewer"**.
 
@@ -108,18 +109,18 @@ Then grant the permissions to roles in **Role & Akses**:
 
 All under `/api/social`; responses use the standard envelope. Mutations return the full batch.
 
-| Method & path | Permission |
-|---|---|
-| `GET /settings` · `PUT /settings` | publisher.view or settings.manage · settings.manage |
-| `GET /batches` · `POST /batches` | publisher.view · publisher.manage |
-| `GET /batches/:id` · `PATCH /batches/:id` · `DELETE /batches/:id` | view · manage · manage |
-| `POST /batches/:id/scan` | manage — Generate antrean konten |
-| `POST /batches/:id/auto-schedule` | manage — Jadwalkan semua |
-| `PUT /batches/:id/order` | manage — drag & drop (`{ itemIds }`) |
-| `POST /batches/:id/confirm` · `POST /batches/:id/cancel` | manage |
-| `POST /batches/:id/items` · `PATCH`/`DELETE /batches/:id/items/:itemId` | manage |
-| `POST /batches/:id/items/:itemId/pause` · `/resume` | manage |
-| `PUT /batches/:id/accounts/instagram` · `DELETE /batches/:id/accounts/:platform` | manage |
+| Method & path                                                                    | Permission                                          |
+| -------------------------------------------------------------------------------- | --------------------------------------------------- |
+| `GET /settings` · `PUT /settings`                                                | publisher.view or settings.manage · settings.manage |
+| `GET /batches` · `POST /batches`                                                 | publisher.view · publisher.manage                   |
+| `GET /batches/:id` · `PATCH /batches/:id` · `DELETE /batches/:id`                | view · manage · manage                              |
+| `POST /batches/:id/scan`                                                         | manage — Generate antrean konten                    |
+| `POST /batches/:id/auto-schedule`                                                | manage — Jadwalkan semua                            |
+| `PUT /batches/:id/order`                                                         | manage — drag & drop (`{ itemIds }`)                |
+| `POST /batches/:id/confirm` · `POST /batches/:id/cancel`                         | manage                                              |
+| `POST /batches/:id/items` · `PATCH`/`DELETE /batches/:id/items/:itemId`          | manage                                              |
+| `POST /batches/:id/items/:itemId/pause` · `/resume`                              | manage                                              |
+| `PUT /batches/:id/accounts/instagram` · `DELETE /batches/:id/accounts/:platform` | manage                                              |
 
 ## Upload engine (worker)
 

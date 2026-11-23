@@ -65,7 +65,10 @@ async function main(): Promise<void> {
     ? passwordSchema.parse(providedPassword)
     : randomBytes(18).toString('base64url');
 
-  const database = createDatabaseClient({ connectionString: config.database.url, maxConnections: 2 });
+  const database = createDatabaseClient({
+    connectionString: config.database.url,
+    maxConnections: 2,
+  });
 
   try {
     const passwordHash = await hashPassword(password);
@@ -75,7 +78,11 @@ async function main(): Promise<void> {
       await tx
         .insert(permissions)
         .values(
-          PERMISSION_DEFINITIONS.map((p) => ({ key: p.key, category: p.category, description: p.description })),
+          PERMISSION_DEFINITIONS.map((p) => ({
+            key: p.key,
+            category: p.category,
+            description: p.description,
+          })),
         )
         .onConflictDoUpdate({
           target: permissions.key,
@@ -104,15 +111,23 @@ async function main(): Promise<void> {
         if (row) {
           await tx
             .insert(rolePermissions)
-            .values(MEMBER_ROLE.permissions.map((permissionKey) => ({ roleId: row.id, permissionKey })));
+            .values(
+              MEMBER_ROLE.permissions.map((permissionKey) => ({ roleId: row.id, permissionKey })),
+            );
         }
       }
 
       // 3. First administrator
-      const [existing] = await tx.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+      const [existing] = await tx
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
       if (existing) return { adminCreated: false };
 
-      await tx.insert(users).values({ email, name, passwordHash, roleId: superAdminRoleId, isActive: true });
+      await tx
+        .insert(users)
+        .values({ email, name, passwordHash, roleId: superAdminRoleId, isActive: true });
       return { adminCreated: true };
     });
 

@@ -22,12 +22,12 @@ pnpm dev                 # http://localhost:5173 — log in with the seeded admi
 
 ## Technology stack
 
-| Area           | Tools                                                             |
-| -------------- | ----------------------------------------------------------------- |
-| Frontend       | React 19, Vite 7, TypeScript, React Router 7, Tailwind CSS 4      |
-| Backend        | Node.js 22, Express 5, TypeScript, Zod 4                          |
-| Database       | PostgreSQL, Drizzle ORM, Drizzle Kit                              |
-| Infrastructure | pnpm workspaces (monorepo), OXLint, Prettier, dotenv              |
+| Area           | Tools                                                        |
+| -------------- | ------------------------------------------------------------ |
+| Frontend       | React 19, Vite 7, TypeScript, React Router 7, Tailwind CSS 4 |
+| Backend        | Node.js 22, Express 5, TypeScript, Zod 4                     |
+| Database       | PostgreSQL, Drizzle ORM, Drizzle Kit                         |
+| Infrastructure | pnpm workspaces (monorepo), OXLint, Prettier, dotenv         |
 
 ## Architecture overview
 
@@ -121,28 +121,28 @@ createdb ai_preneur         # or create the database with your preferred tool
 A **single `.env` at the repository root** is read by the API (`dotenv`), by Drizzle Kit
 and by Vite (`envDir: '../..'`). Real environment variables always override the file.
 
-| Variable              | Used by      | Default                    | Notes                                         |
-| --------------------- | ------------ | -------------------------- | --------------------------------------------- |
-| `NODE_ENV`            | api          | `development`              | `development` \| `test` \| `production`       |
-| `API_HOST`            | api          | `localhost`                | Use `0.0.0.0` in containers/servers           |
-| `API_PORT`            | api          | `3000`                     |                                               |
-| `CORS_ORIGIN`         | api          | `http://localhost:5173`    | Comma-separated list of allowed origins       |
-| `LOG_LEVEL`           | api          | `info`                     | `debug` \| `info` \| `warn` \| `error`        |
-| `SHUTDOWN_TIMEOUT_MS` | api          | `10000`                    | Grace period before forced exit               |
-| `TRUST_PROXY`         | api          | `false`                    | Proxy hop count behind a reverse proxy (correct client IP) |
-| `SESSION_TTL_HOURS`   | api          | `168`                      | Absolute session lifetime                     |
-| `SESSION_IDLE_TIMEOUT_MINUTES` | api | `1440`                     | Inactivity timeout                            |
-| `SESSION_COOKIE_SECURE` | api        | `true` in production       | HTTPS-only `__Host-` cookie                   |
-| `DATABASE_URL`        | api, drizzle | — (**required**)           | `postgres://` or `postgresql://` only         |
-| `DATABASE_POOL_MAX`   | api          | `10`                       |                                               |
-| `GOOGLE_API_KEY`      | api          | —                          | Reads public Drive folders (Publisher AIgent) |
-| `SOCIAL_CREDENTIALS_KEY` | api       | —                          | `openssl rand -base64 32`; encrypts social tokens |
-| `SOCIAL_PUBLISHER_ENABLED` | api     | `false`                    | Scheduled-upload worker (Tahap 2)             |
-| `SEED_ADMIN_EMAIL`    | seed         | `admin@example.com`        | First Super Admin                             |
-| `SEED_ADMIN_NAME`     | seed         | `Super Admin`              |                                               |
-| `SEED_ADMIN_PASSWORD` | seed         | random (printed once)      | Min 8 chars                                   |
-| `VITE_API_BASE_URL`   | web          | — (**required**)           | `/api` (same origin). Public — never put secrets in `VITE_*` |
-| `API_PROXY_TARGET`    | web (dev)    | `http://localhost:3000`    | Where the Vite dev server proxies `/api`      |
+| Variable                       | Used by      | Default                 | Notes                                                        |
+| ------------------------------ | ------------ | ----------------------- | ------------------------------------------------------------ |
+| `NODE_ENV`                     | api          | `development`           | `development` \| `test` \| `production`                      |
+| `API_HOST`                     | api          | `localhost`             | Use `0.0.0.0` in containers/servers                          |
+| `API_PORT`                     | api          | `3000`                  |                                                              |
+| `CORS_ORIGIN`                  | api          | `http://localhost:5173` | Comma-separated list of allowed origins                      |
+| `LOG_LEVEL`                    | api          | `info`                  | `debug` \| `info` \| `warn` \| `error`                       |
+| `SHUTDOWN_TIMEOUT_MS`          | api          | `10000`                 | Grace period before forced exit                              |
+| `TRUST_PROXY`                  | api          | `false`                 | Proxy hop count behind a reverse proxy (correct client IP)   |
+| `SESSION_TTL_HOURS`            | api          | `168`                   | Absolute session lifetime                                    |
+| `SESSION_IDLE_TIMEOUT_MINUTES` | api          | `1440`                  | Inactivity timeout                                           |
+| `SESSION_COOKIE_SECURE`        | api          | `true` in production    | HTTPS-only `__Host-` cookie                                  |
+| `DATABASE_URL`                 | api, drizzle | — (**required**)        | `postgres://` or `postgresql://` only                        |
+| `DATABASE_POOL_MAX`            | api          | `10`                    |                                                              |
+| `GOOGLE_API_KEY`               | api          | —                       | Reads public Drive folders (Publisher AIgent)                |
+| `SOCIAL_CREDENTIALS_KEY`       | api          | —                       | `openssl rand -base64 32`; encrypts social tokens            |
+| `SOCIAL_PUBLISHER_ENABLED`     | api          | `false`                 | Scheduled-upload worker (Tahap 2)                            |
+| `SEED_ADMIN_EMAIL`             | seed         | `admin@example.com`     | First Super Admin                                            |
+| `SEED_ADMIN_NAME`              | seed         | `Super Admin`           |                                                              |
+| `SEED_ADMIN_PASSWORD`          | seed         | random (printed once)   | Min 8 chars                                                  |
+| `VITE_API_BASE_URL`            | web          | — (**required**)        | `/api` (same origin). Public — never put secrets in `VITE_*` |
+| `API_PROXY_TARGET`             | web (dev)    | `http://localhost:3000` | Where the Vite dev server proxies `/api`                     |
 
 The API validates its environment with Zod at startup and exits with a readable list of
 problems if anything is missing or malformed.

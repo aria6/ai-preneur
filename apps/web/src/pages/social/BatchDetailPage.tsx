@@ -29,7 +29,9 @@ export function BatchDetailPage() {
   const [batch, setBatch] = useState<BatchDetailDto | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<{ message: string; details: string[] } | null>(null);
+  const [actionError, setActionError] = useState<{ message: string; details: string[] } | null>(
+    null,
+  );
   const [pending, setPending] = useState<PendingAction>(null);
   const [dialog, setDialog] = useState<PendingAction>(null);
   const [now, setNow] = useState(() => new Date());
@@ -83,7 +85,9 @@ export function BatchDetailPage() {
         return;
       }
       const next =
-        action === 'confirm' ? await socialService.confirmBatch(batch.id) : await socialService.cancelBatchSchedule(batch.id);
+        action === 'confirm'
+          ? await socialService.confirmBatch(batch.id)
+          : await socialService.cancelBatchSchedule(batch.id);
       onChange(next);
       setNotice(
         action === 'confirm'
@@ -101,7 +105,10 @@ export function BatchDetailPage() {
   if (loadError && !batch) {
     return (
       <div className="space-y-4">
-        <Link to="/social/publisher" className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900">
+        <Link
+          to="/social/publisher"
+          className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900"
+        >
           <Icon name="chevronLeft" className="size-4" /> Publisher AIgent
         </Link>
         <Alert>{loadError}</Alert>
@@ -123,7 +130,10 @@ export function BatchDetailPage() {
   return (
     <>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <Link to="/social/publisher" className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900">
+        <Link
+          to="/social/publisher"
+          className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900"
+        >
           <Icon name="chevronLeft" className="size-4" /> Publisher AIgent
         </Link>
         <BatchStatusBadge status={batch.status} />
@@ -138,7 +148,11 @@ export function BatchDetailPage() {
           <>
             {canManage && isDraft && (
               <>
-                <Button variant="dangerGhost" onClick={() => setDialog('delete')} disabled={pending !== null}>
+                <Button
+                  variant="dangerGhost"
+                  onClick={() => setDialog('delete')}
+                  disabled={pending !== null}
+                >
                   <Icon name="trash" className="size-4" /> Hapus batch
                 </Button>
                 <Button onClick={() => void runAction('confirm')} loading={pending === 'confirm'}>
@@ -147,7 +161,11 @@ export function BatchDetailPage() {
               </>
             )}
             {canManage && isScheduled && (
-              <Button variant="secondary" onClick={() => setDialog('cancel')} disabled={pending !== null}>
+              <Button
+                variant="secondary"
+                onClick={() => setDialog('cancel')}
+                disabled={pending !== null}
+              >
                 Batalkan jadwal
               </Button>
             )}
@@ -171,24 +189,37 @@ export function BatchDetailPage() {
         )}
         {isDraft && (
           <Alert variant="info">
-            <strong>Draft</strong> — belum ada yang diunggah. Lengkapi antrean, pilih media sosial dan hubungkan akunnya,
-            lalu klik <strong>Konfirmasi jadwal</strong>. Konten pertama harus dijadwalkan minimal{' '}
-            {batch.settings.minConfirmLeadMinutes} menit dari saat konfirmasi.
+            <strong>Draft</strong> — belum ada yang diunggah. Lengkapi antrean, pilih media sosial
+            dan hubungkan akunnya, lalu klik <strong>Konfirmasi jadwal</strong>. Konten pertama
+            harus dijadwalkan minimal {batch.settings.minConfirmLeadMinutes} menit dari saat
+            konfirmasi.
           </Alert>
         )}
         {isScheduled && (
           <Alert variant="info">
-            <strong>Terjadwal</strong> — setiap video diunggah otomatis pada jadwalnya. Baris masih bisa diubah,
-            diurutkan, ditunda, atau dihapus sampai {batch.settings.lockMinutes} menit sebelum jadwalnya.
+            <strong>Terjadwal</strong> — setiap video diunggah otomatis pada jadwalnya. Baris masih
+            bisa diubah, diurutkan, ditunda, atau dihapus sampai {batch.settings.lockMinutes} menit
+            sebelum jadwalnya.
           </Alert>
         )}
 
         <div className="grid gap-4 xl:grid-cols-2">
           <IdeaCard batch={batch} canManage={canManage} onChange={onChange} onNotice={setNotice} />
-          <PlatformsCard batch={batch} canManage={canManage} onChange={onChange} onNotice={setNotice} />
+          <PlatformsCard
+            batch={batch}
+            canManage={canManage}
+            onChange={onChange}
+            onNotice={setNotice}
+          />
         </div>
 
-        <QueueSection batch={batch} canManage={canManage} now={now} onChange={onChange} onNotice={setNotice} />
+        <QueueSection
+          batch={batch}
+          canManage={canManage}
+          now={now}
+          onChange={onChange}
+          onNotice={setNotice}
+        />
       </div>
 
       <ConfirmDialog
@@ -205,7 +236,8 @@ export function BatchDetailPage() {
         title="Hapus batch?"
         message={
           <>
-            Batch <strong>{batch.title}</strong> beserta antreannya dan akun yang terhubung akan dihapus permanen.
+            Batch <strong>{batch.title}</strong> beserta antreannya dan akun yang terhubung akan
+            dihapus permanen.
           </>
         }
         loading={pending === 'delete'}

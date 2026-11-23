@@ -113,7 +113,15 @@ function QueueRow({
   onDelete,
   onShowError,
 }: RowProps) {
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: item.id,
     disabled: dragDisabled,
   });
@@ -193,7 +201,9 @@ function QueueRow({
             <>
               <Badge color="amber">Ditunda</Badge>
               {item.scheduledAt && (
-                <p className="mt-1 text-xs text-slate-400 line-through">{formatSchedule(item.scheduledAt)}</p>
+                <p className="mt-1 text-xs text-slate-400 line-through">
+                  {formatSchedule(item.scheduledAt)}
+                </p>
               )}
             </>
           ) : item.scheduledAt ? (
@@ -209,7 +219,11 @@ function QueueRow({
         {/* Upload status per platform (nothing shown until an upload happened) */}
         <div className="flex flex-wrap gap-1">
           {item.publications.map((publication) => (
-            <PublicationChip key={publication.platform} publication={publication} onShowError={onShowError} />
+            <PublicationChip
+              key={publication.platform}
+              publication={publication}
+              onShowError={onShowError}
+            />
           ))}
         </div>
 
@@ -217,7 +231,13 @@ function QueueRow({
         <div className="flex justify-start gap-0.5 lg:justify-end">
           {editable && (
             <>
-              <Button variant="ghost" size="icon" title="Ubah" aria-label={`Ubah ${item.title}`} onClick={() => onEdit(item)}>
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Ubah"
+                aria-label={`Ubah ${item.title}`}
+                onClick={() => onEdit(item)}
+              >
                 <Icon name="edit" className="size-4" />
               </Button>
               {item.isPaused ? (
@@ -231,7 +251,13 @@ function QueueRow({
                   <Icon name="play" className="size-4" />
                 </Button>
               ) : (
-                <Button variant="ghost" size="icon" title="Tunda" aria-label={`Tunda ${item.title}`} onClick={() => onPause(item)}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="Tunda"
+                  aria-label={`Tunda ${item.title}`}
+                  onClick={() => onPause(item)}
+                >
                   <Icon name="pause" className="size-4" />
                 </Button>
               )}
@@ -265,7 +291,9 @@ export function QueueSection({ batch, canManage, now, onChange, onNotice }: Queu
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const [formState, setFormState] = useState<{ open: boolean; item?: QueueItemDto }>({ open: false });
+  const [formState, setFormState] = useState<{ open: boolean; item?: QueueItemDto }>({
+    open: false,
+  });
   const [scheduling, setScheduling] = useState(false);
   const [previewItem, setPreviewItem] = useState<QueueItemDto | null>(null);
   const [resumeTarget, setResumeTarget] = useState<QueueItemDto | null>(null);
@@ -304,17 +332,30 @@ export function QueueSection({ batch, canManage, now, onChange, onNotice }: Queu
 
     const moved = arrayMove(items, from, to);
     if (items.some((item, index) => item.locked && moved[index]?.id !== item.id)) {
-      setError('Baris yang terkunci tidak dapat bergeser. Pindahkan baris hanya di antara baris yang belum terkunci.');
+      setError(
+        'Baris yang terkunci tidak dapat bergeser. Pindahkan baris hanya di antara baris yang belum terkunci.',
+      );
       return;
     }
 
     // Optimistic: time slots stay at their positions, exactly like the server does.
     const previous = items;
-    setItems(moved.map((item, index) => ({ ...item, position: index, scheduledAt: previous[index]?.scheduledAt ?? null })));
+    setItems(
+      moved.map((item, index) => ({
+        ...item,
+        position: index,
+        scheduledAt: previous[index]?.scheduledAt ?? null,
+      })),
+    );
     setError(null);
     setBusy(true);
     try {
-      onChange(await socialService.reorderBatchItems(batch.id, moved.map((item) => item.id)));
+      onChange(
+        await socialService.reorderBatchItems(
+          batch.id,
+          moved.map((item) => item.id),
+        ),
+      );
     } catch (err) {
       setItems(previous);
       setError(errorMessage(err));
@@ -340,7 +381,11 @@ export function QueueSection({ batch, canManage, now, onChange, onNotice }: Queu
 
   const onResume = (item: QueueItemDto) => {
     if (batch.status === 'scheduled') setResumeTarget(item);
-    else void run(() => socialService.resumeItem(batch.id, item.id, {}), `Baris "${item.title}" dilanjutkan.`);
+    else
+      void run(
+        () => socialService.resumeItem(batch.id, item.id, {}),
+        `Baris "${item.title}" dilanjutkan.`,
+      );
   };
 
   // TODO: Generate caption & hashtag with AI for every row (next phase, after Publisher Tahap 1).
@@ -352,13 +397,18 @@ export function QueueSection({ batch, canManage, now, onChange, onNotice }: Queu
         <div>
           <h2 className="text-base font-semibold">Antrean konten</h2>
           <p className="text-sm text-slate-500">
-            {items.length} video · seret <Icon name="grip" className="inline size-3.5" strokeWidth={3} /> untuk mengubah
-            urutan (jadwal tetap di posisinya)
+            {items.length} video · seret{' '}
+            <Icon name="grip" className="inline size-3.5" strokeWidth={3} /> untuk mengubah urutan
+            (jadwal tetap di posisinya)
           </p>
         </div>
         {mutable && (
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => setScheduling(true)} disabled={busy || items.length === 0}>
+            <Button
+              variant="secondary"
+              onClick={() => setScheduling(true)}
+              disabled={busy || items.length === 0}
+            >
               <Icon name="calendar" className="size-4" /> Jadwalkan semua
             </Button>
             <Button
@@ -402,7 +452,10 @@ export function QueueSection({ batch, canManage, now, onChange, onNotice }: Queu
             </div>
           </div>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-            <SortableContext items={items.map((item) => item.id)} strategy={verticalListSortingStrategy}>
+            <SortableContext
+              items={items.map((item) => item.id)}
+              strategy={verticalListSortingStrategy}
+            >
               <ul className={cn('divide-y divide-slate-100', busy && 'opacity-70')}>
                 {items.map((item) => (
                   <QueueRow
@@ -415,7 +468,10 @@ export function QueueSection({ batch, canManage, now, onChange, onNotice }: Queu
                     onPlay={setPreviewItem}
                     onEdit={(target) => setFormState({ open: true, item: target })}
                     onPause={(target) =>
-                      void run(() => socialService.pauseItem(batch.id, target.id), `Baris "${target.title}" ditunda.`)
+                      void run(
+                        () => socialService.pauseItem(batch.id, target.id),
+                        `Baris "${target.title}" ditunda.`,
+                      )
                     }
                     onResume={onResume}
                     onDelete={(target) => {
@@ -468,7 +524,8 @@ export function QueueSection({ batch, canManage, now, onChange, onNotice }: Queu
         title="Hapus baris?"
         message={
           <>
-            Baris <strong>{deleteTarget?.title}</strong> akan dihapus dari antrean. Jadwal baris lain tidak berubah.
+            Baris <strong>{deleteTarget?.title}</strong> akan dihapus dari antrean. Jadwal baris
+            lain tidak berubah.
           </>
         }
         loading={deleting}

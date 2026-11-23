@@ -33,7 +33,13 @@ export function RedirectIfAuthenticated({ children }: { children: ReactNode }) {
   return children;
 }
 
-export function RequirePermission({ permission, children }: { permission: Permission; children: ReactNode }) {
+export function RequirePermission({
+  permission,
+  children,
+}: {
+  permission: Permission;
+  children: ReactNode;
+}) {
   const { can } = useAuth();
   return can(permission) ? children : <ForbiddenPage />;
 }

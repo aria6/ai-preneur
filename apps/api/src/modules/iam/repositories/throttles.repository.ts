@@ -1,4 +1,12 @@
-import { and, eq, gt, inArray, loginThrottles, sql, type DatabaseExecutor } from '@ai-preneur/database';
+import {
+  and,
+  eq,
+  gt,
+  inArray,
+  loginThrottles,
+  sql,
+  type DatabaseExecutor,
+} from '@ai-preneur/database';
 
 export function createThrottlesRepository(db: DatabaseExecutor) {
   return {

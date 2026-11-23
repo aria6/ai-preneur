@@ -59,8 +59,20 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
     label: 'Sistem',
     icon: 'system',
     children: [
-      { type: 'link', to: '/users', label: 'Pengguna', icon: 'users', permission: PERMISSIONS.USERS_VIEW },
-      { type: 'link', to: '/roles', label: 'Role & Akses', icon: 'roles', permission: PERMISSIONS.ROLES_VIEW },
+      {
+        type: 'link',
+        to: '/users',
+        label: 'Pengguna',
+        icon: 'users',
+        permission: PERMISSIONS.USERS_VIEW,
+      },
+      {
+        type: 'link',
+        to: '/roles',
+        label: 'Role & Akses',
+        icon: 'roles',
+        permission: PERMISSIONS.ROLES_VIEW,
+      },
     ],
   },
 ];
@@ -90,7 +102,12 @@ export function homePathFor(can: (permission: Permission) => boolean): string {
 
 /** Only same-app relative paths are followed after login (prevents open redirects). */
 export function safeRedirectPath(value: unknown): string | null {
-  if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//') || value.startsWith('/\\')) {
+  if (
+    typeof value !== 'string' ||
+    !value.startsWith('/') ||
+    value.startsWith('//') ||
+    value.startsWith('/\\')
+  ) {
     return null;
   }
   return value.startsWith('/login') ? null : value;

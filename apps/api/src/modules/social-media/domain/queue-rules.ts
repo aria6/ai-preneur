@@ -19,7 +19,11 @@ export interface LockInput {
  * scheduled — once its own upload is closer than `lockMinutes`. Paused rows never
  * upload, so they are not time-locked.
  */
-export function computeItemLock(input: LockInput, lockMinutes: number, now: Date): ItemLockReason | null {
+export function computeItemLock(
+  input: LockInput,
+  lockMinutes: number,
+  now: Date,
+): ItemLockReason | null {
   if (input.publicationStatuses.includes('published')) return 'published';
   if (input.publicationStatuses.includes('processing')) return 'processing';
   if (
@@ -72,7 +76,10 @@ export function reorderWithSlots(
     return { ok: false, message: 'Urutan tidak lengkap. Muat ulang halaman lalu coba lagi.' };
   }
   if (newOrderIds.some((id) => !byId.has(id))) {
-    return { ok: false, message: 'Urutan berisi baris yang tidak dikenal. Muat ulang halaman lalu coba lagi.' };
+    return {
+      ok: false,
+      message: 'Urutan berisi baris yang tidak dikenal. Muat ulang halaman lalu coba lagi.',
+    };
   }
 
   const updates: SlotUpdate[] = [];
@@ -89,10 +96,16 @@ export function reorderWithSlots(
     const timeChanges = (scheduledAt?.getTime() ?? null) !== (item.scheduledAt?.getTime() ?? null);
     if (options.batchScheduled && !item.isPaused && timeChanges) {
       if (scheduledAt === null) {
-        return { ok: false, message: `Slot posisi ${index + 1} belum punya jadwal; baris aktif tidak dapat dipindahkan ke sana.` };
+        return {
+          ok: false,
+          message: `Slot posisi ${index + 1} belum punya jadwal; baris aktif tidak dapat dipindahkan ke sana.`,
+        };
       }
       if (scheduledAt < options.earliestAllowed) {
-        return { ok: false, message: `Jadwal slot posisi ${index + 1} terlalu dekat; baris aktif tidak dapat dipindahkan ke sana.` };
+        return {
+          ok: false,
+          message: `Jadwal slot posisi ${index + 1} terlalu dekat; baris aktif tidak dapat dipindahkan ke sana.`,
+        };
       }
     }
 

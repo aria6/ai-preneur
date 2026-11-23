@@ -34,7 +34,9 @@ export function createPublisherWorker(deps: {
   publishers: readonly PlatformPublisher[];
 }): PublisherWorker {
   const { db, logger, cipher, intervalMs } = deps;
-  const publishers = new Map<SocialPlatform, PlatformPublisher>(deps.publishers.map((p) => [p.platform, p]));
+  const publishers = new Map<SocialPlatform, PlatformPublisher>(
+    deps.publishers.map((p) => [p.platform, p]),
+  );
   const items = createItemsRepository(db);
   const publications = createPublicationsRepository(db);
   const accounts = createAccountsRepository(db);
@@ -43,7 +45,10 @@ export function createPublisherWorker(deps: {
   let inFlight: Promise<void> | null = null;
   let stopped = true;
 
-  async function publishOne(publicationId: string, job: Parameters<PlatformPublisher['publish']>[0]) {
+  async function publishOne(
+    publicationId: string,
+    job: Parameters<PlatformPublisher['publish']>[0],
+  ) {
     const publisher = publishers.get(job.platform);
     try {
       if (!publisher) throw new PublishError('Platform ini belum didukung untuk unggah otomatis.');
@@ -51,7 +56,8 @@ export function createPublisherWorker(deps: {
       await publications.markPublished(publicationId, result);
       logger.info('Video published', { itemId: job.itemId, platform: job.platform });
     } catch (error) {
-      const message = error instanceof PublishError ? error.message : 'Terjadi kesalahan saat mengunggah video.';
+      const message =
+        error instanceof PublishError ? error.message : 'Terjadi kesalahan saat mengunggah video.';
       await publications.markFailed(publicationId, message);
       logger.error('Video publish failed', { itemId: job.itemId, platform: job.platform, error });
     }
@@ -68,9 +74,13 @@ export function createPublisherWorker(deps: {
         try {
           const account = await accounts.findForBatch(batch.id, platform);
           if (!account) throw new PublishError('Akun media sosial untuk ide ini belum terhubung.');
-          credentials = cipher.decrypt(account.encryptedCredentials, credentialsContext(batch.id, platform));
+          credentials = cipher.decrypt(
+            account.encryptedCredentials,
+            credentialsContext(batch.id, platform),
+          );
         } catch (error) {
-          const message = error instanceof PublishError ? error.message : 'Kredensial akun tidak dapat dibaca.';
+          const message =
+            error instanceof PublishError ? error.message : 'Kredensial akun tidak dapat dibaca.';
           await publications.markFailed(publicationId, message);
           logger.error('Publish credentials unavailable', { itemId: item.id, platform, error });
           continue;

@@ -47,7 +47,10 @@ export function createAuthService(deps: { db: Database; config: IamConfig; logge
   async function resolveSession(token: string): Promise<AuthContext | null> {
     if (!isWellFormedSessionToken(token)) return null;
 
-    const row = await sessions.findValidByTokenHash(sha256Hex(token), config.sessionIdleTimeoutMinutes);
+    const row = await sessions.findValidByTokenHash(
+      sha256Hex(token),
+      config.sessionIdleTimeoutMinutes,
+    );
     if (!row) return null;
 
     if (!row.isActive) {
@@ -70,7 +73,9 @@ export function createAuthService(deps: { db: Database; config: IamConfig; logge
         roleName: row.roleName,
         isSystemRole: row.roleIsSystem,
       },
-      permissions: new Set(effectivePermissions({ isSystem: row.roleIsSystem, permissions: granted })),
+      permissions: new Set(
+        effectivePermissions({ isSystem: row.roleIsSystem, permissions: granted }),
+      ),
     };
   }
 
@@ -82,7 +87,10 @@ export function createAuthService(deps: { db: Database; config: IamConfig; logge
      * Every failure path returns the same message, and unknown emails still pay the
      * hashing cost, so neither responses nor timing reveal which accounts exist.
      */
-    async login(input: LoginRequest, client: ClientInfo): Promise<{ token: string; user: AuthUser }> {
+    async login(
+      input: LoginRequest,
+      client: ClientInfo,
+    ): Promise<{ token: string; user: AuthUser }> {
       await throttle.assertLoginAllowed(input.email, client.ip);
 
       const credentials = await users.findCredentialsByEmail(input.email);

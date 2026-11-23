@@ -27,7 +27,11 @@ export interface IamModule {
   routers: { auth: Router; profile: Router; users: Router; roles: Router };
 }
 
-export function createIamModule(deps: { db: Database; logger: Logger; config: IamConfig }): IamModule {
+export function createIamModule(deps: {
+  db: Database;
+  logger: Logger;
+  config: IamConfig;
+}): IamModule {
   const cookie: SessionCookieConfig = {
     name: deps.config.cookieName,
     secure: deps.config.cookieSecure,

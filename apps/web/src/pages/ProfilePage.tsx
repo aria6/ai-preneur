@@ -57,7 +57,12 @@ function ProfileInfoForm() {
             error={errors.name}
             maxLength={100}
           />
-          <TextField label="Email" value={user.email} disabled hint="Email tidak dapat diubah sendiri." />
+          <TextField
+            label="Email"
+            value={user.email}
+            disabled
+            hint="Email tidak dapat diubah sendiri."
+          />
           <div className="space-y-1.5">
             <span className="block text-sm font-medium text-slate-700">Role</span>
             <Badge color={user.role.isSystem ? 'violet' : 'gray'}>{user.role.name}</Badge>
@@ -87,7 +92,8 @@ function ChangePasswordForm() {
 
     const parsed = changePasswordRequestSchema.safeParse({ currentPassword, newPassword });
     const nextErrors: FieldErrors = parsed.success ? {} : zodFieldErrors(parsed.error);
-    if (newPassword !== confirmPassword) nextErrors.confirmPassword = 'Konfirmasi password tidak cocok';
+    if (newPassword !== confirmPassword)
+      nextErrors.confirmPassword = 'Konfirmasi password tidak cocok';
     if (!parsed.success || nextErrors.confirmPassword) {
       setErrors(nextErrors);
       return;
@@ -117,7 +123,9 @@ function ChangePasswordForm() {
       <form onSubmit={onSubmit} noValidate>
         <div className="border-b border-slate-100 px-5 py-4">
           <h2 className="text-base font-semibold">Ubah password</h2>
-          <p className="text-sm text-slate-500">Setelah diubah, Anda tetap masuk di perangkat ini saja.</p>
+          <p className="text-sm text-slate-500">
+            Setelah diubah, Anda tetap masuk di perangkat ini saja.
+          </p>
         </div>
         <div className="space-y-4 px-5 py-4">
           {status && <Alert variant={status.type}>{status.message}</Alert>}

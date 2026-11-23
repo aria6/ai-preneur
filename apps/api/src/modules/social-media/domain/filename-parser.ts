@@ -125,7 +125,10 @@ export function buildQueueFromFolder(
   const thumbnails = new Map<string, DriveFileRef>();
   for (const file of thumbnailFiles) {
     if (!isImageFile(file)) {
-      warnings.push({ fileName: `thumbnail/${file.name}`, message: 'Bukan file gambar, dilewati.' });
+      warnings.push({
+        fileName: `thumbnail/${file.name}`,
+        message: 'Bukan file gambar, dilewati.',
+      });
       continue;
     }
     const key = baseName(file.name).toLowerCase();
@@ -187,7 +190,11 @@ export function buildQueueFromFolder(
     const key = baseName(file.name).toLowerCase();
     const thumbnail = thumbnails.get(key) ?? null;
     if (thumbnail) usedThumbnails.add(key);
-    else warnings.push({ fileName: file.name, message: 'Thumbnail dengan nama yang sama tidak ditemukan di folder thumbnail/.' });
+    else
+      warnings.push({
+        fileName: file.name,
+        message: 'Thumbnail dengan nama yang sama tidak ditemukan di folder thumbnail/.',
+      });
 
     items.push({
       position: items.length,
@@ -203,7 +210,10 @@ export function buildQueueFromFolder(
 
   for (const [key, file] of thumbnails) {
     if (!usedThumbnails.has(key)) {
-      warnings.push({ fileName: `thumbnail/${file.name}`, message: 'Tidak ada video dengan nama yang sama.' });
+      warnings.push({
+        fileName: `thumbnail/${file.name}`,
+        message: 'Tidak ada video dengan nama yang sama.',
+      });
     }
   }
 

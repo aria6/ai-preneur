@@ -26,7 +26,9 @@ const DRIVE_ID = /^[A-Za-z0-9_-]{10,200}$/;
  * Regex-based on purpose: this package must not depend on DOM or Node globals.
  */
 function splitDriveUrl(value: string): { path: string; query: string } | null {
-  const match = /^https:\/\/drive\.google\.com(\/[^?#]*)?(?:\?([^#]*))?(?:#.*)?$/i.exec(value.trim());
+  const match = /^https:\/\/drive\.google\.com(\/[^?#]*)?(?:\?([^#]*))?(?:#.*)?$/i.exec(
+    value.trim(),
+  );
   if (!match) return null;
   return { path: match[1] ?? '/', query: match[2] ?? '' };
 }
@@ -74,7 +76,10 @@ const driveFileUrlSchema = z
 
 // ---- Field schemas -----------------------------------------------------------------
 
-const isoDateTimeSchema = z.iso.datetime({ offset: true, error: 'Format tanggal/waktu tidak valid' });
+const isoDateTimeSchema = z.iso.datetime({
+  offset: true,
+  error: 'Format tanggal/waktu tidak valid',
+});
 
 const hashtagSchema = z
   .string()

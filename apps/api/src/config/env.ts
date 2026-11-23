@@ -23,8 +23,18 @@ const envSchema = z.object({
     .string({ error: 'DATABASE_URL is required' })
     .regex(/^postgres(ql)?:\/\//, 'DATABASE_URL must start with postgres:// or postgresql://'),
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
-  SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(24 * 90).default(24 * 7),
-  SESSION_IDLE_TIMEOUT_MINUTES: z.coerce.number().int().min(5).max(60 * 24 * 30).default(60 * 24),
+  SESSION_TTL_HOURS: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(24 * 90)
+    .default(24 * 7),
+  SESSION_IDLE_TIMEOUT_MINUTES: z.coerce
+    .number()
+    .int()
+    .min(5)
+    .max(60 * 24 * 30)
+    .default(60 * 24),
   /** Defaults to true in production. Must be true whenever the site is served over HTTPS. */
   SESSION_COOKIE_SECURE: booleanString.optional(),
   /** Google API key used to read publicly shared Drive folders (Social Media AIgency). */

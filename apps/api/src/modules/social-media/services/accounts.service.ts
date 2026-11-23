@@ -12,22 +12,38 @@ import {
   type CredentialsCipher,
 } from '../security/credentials-cipher.js';
 import { batchPlatforms } from '../social.mappers.js';
-import { assertDraft, credentialsKeyError, loadBatchDetail, loadWorkingSet } from './batch-context.js';
+import {
+  assertDraft,
+  credentialsKeyError,
+  loadBatchDetail,
+  loadWorkingSet,
+} from './batch-context.js';
 
 /**
  * Social accounts belong to one idea (batch) per platform, and one platform account
  * can never serve two ideas (enforced by a unique index). Tokens are encrypted at
  * rest and never returned to the client.
  */
-export function createAccountsService(deps: { db: Database; cipher: CredentialsCipher; logger: Logger }) {
+export function createAccountsService(deps: {
+  db: Database;
+  cipher: CredentialsCipher;
+  logger: Logger;
+}) {
   const { db, cipher, logger } = deps;
 
   return {
-    async connectInstagram(ctx: AuthContext, batchId: string, input: ConnectInstagramRequest): Promise<BatchDetailDto> {
+    async connectInstagram(
+      ctx: AuthContext,
+      batchId: string,
+      input: ConnectInstagramRequest,
+    ): Promise<BatchDetailDto> {
       const current = await loadWorkingSet(db, batchId, new Date());
       assertDraft(current.batch, 'Menghubungkan akun');
       if (!batchPlatforms(current.batch).includes('instagram')) {
-        throw fieldError('accessToken', 'Centang Instagram pada pilihan media sosial terlebih dahulu.');
+        throw fieldError(
+          'accessToken',
+          'Centang Instagram pada pilihan media sosial terlebih dahulu.',
+        );
       }
       if (!cipher.configured) throw credentialsKeyError(new CredentialsKeyMissingError());
 
@@ -65,11 +81,19 @@ export function createAccountsService(deps: { db: Database; cipher: CredentialsC
         throw credentialsKeyError(error);
       }
 
-      logger.info('Social account connected', { actorId: ctx.user.id, batchId, platform: 'instagram' });
+      logger.info('Social account connected', {
+        actorId: ctx.user.id,
+        batchId,
+        platform: 'instagram',
+      });
       return loadBatchDetail(db, batchId);
     },
 
-    async disconnect(ctx: AuthContext, batchId: string, platform: SocialPlatform): Promise<BatchDetailDto> {
+    async disconnect(
+      ctx: AuthContext,
+      batchId: string,
+      platform: SocialPlatform,
+    ): Promise<BatchDetailDto> {
       await db.transaction(async (tx) => {
         const working = await loadWorkingSet(tx, batchId, new Date(), { forUpdate: true });
         assertDraft(working.batch, 'Memutuskan akun');

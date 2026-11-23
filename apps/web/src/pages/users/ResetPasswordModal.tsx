@@ -70,7 +70,9 @@ export function ResetPasswordModal({
     >
       <form id="reset-password-form" onSubmit={onSubmit} noValidate className="space-y-4">
         {formError && <Alert>{formError}</Alert>}
-        <Alert variant="info">Semua sesi pengguna ini akan diakhiri. Ia harus masuk dengan password baru.</Alert>
+        <Alert variant="info">
+          Semua sesi pengguna ini akan diakhiri. Ia harus masuk dengan password baru.
+        </Alert>
         <PasswordField
           label="Password baru"
           data-autofocus

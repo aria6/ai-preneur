@@ -11,7 +11,12 @@ import { SelectField, TextField } from '../../../components/ui/fields';
 import { Alert } from '../../../components/ui/feedback';
 import { Modal } from '../../../components/ui/Modal';
 import { fromDateTimeLocal, suggestStart, toDateTimeLocal } from '../../../lib/datetime';
-import { apiFieldErrors, errorMessage, zodFieldErrors, type FieldErrors } from '../../../lib/errors';
+import {
+  apiFieldErrors,
+  errorMessage,
+  zodFieldErrors,
+  type FieldErrors,
+} from '../../../lib/errors';
 import * as socialService from '../../../services/social.service';
 
 /** "Jadwalkan semua": fills the schedule of every editable, active row in queue order. */
@@ -33,7 +38,9 @@ export function AutoScheduleModal({
   const [saving, setSaving] = useState(false);
 
   const minimumMinutes =
-    batch.status === 'scheduled' ? batch.settings.lockMinutes : batch.settings.minConfirmLeadMinutes;
+    batch.status === 'scheduled'
+      ? batch.settings.lockMinutes
+      : batch.settings.minConfirmLeadMinutes;
   const affected = batch.items.filter((item) => !item.locked && !item.isPaused).length;
 
   useEffect(() => {
@@ -79,7 +86,12 @@ export function AutoScheduleModal({
           <Button variant="secondary" onClick={onClose} disabled={saving}>
             Batal
           </Button>
-          <Button type="submit" form="auto-schedule-form" loading={saving} disabled={affected === 0}>
+          <Button
+            type="submit"
+            form="auto-schedule-form"
+            loading={saving}
+            disabled={affected === 0}
+          >
             Generate jadwal
           </Button>
         </>
@@ -112,7 +124,9 @@ export function AutoScheduleModal({
             </option>
           ))}
         </SelectField>
-        <Alert variant="info">Baris yang terkunci, sudah terunggah, atau ditunda tidak diubah.</Alert>
+        <Alert variant="info">
+          Baris yang terkunci, sudah terunggah, atau ditunda tidak diubah.
+        </Alert>
       </form>
     </Modal>
   );
@@ -138,7 +152,11 @@ export function ResumeItemModal({
     if (!item) return;
     const minimum = Date.now() + batch.settings.lockMinutes * 60_000;
     const current = item.scheduledAt ? new Date(item.scheduledAt).getTime() : 0;
-    setSchedule(current > minimum ? toDateTimeLocal(item.scheduledAt) : suggestStart(batch.settings.lockMinutes));
+    setSchedule(
+      current > minimum
+        ? toDateTimeLocal(item.scheduledAt)
+        : suggestStart(batch.settings.lockMinutes),
+    );
     setError(null);
   }, [item, batch.settings.lockMinutes]);
 

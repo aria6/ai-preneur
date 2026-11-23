@@ -33,7 +33,9 @@ interface SocialMediaDeps {
 
 export function createSocialMediaRouter(deps: SocialMediaDeps): Router {
   const drive = createGoogleDriveClient(deps.config.googleApiKey);
-  const cipher = createCredentialsCipher(parseCredentialsKey(deps.config.credentialsKey ?? undefined));
+  const cipher = createCredentialsCipher(
+    parseCredentialsKey(deps.config.credentialsKey ?? undefined),
+  );
   const services = { db: deps.db, logger: deps.logger };
 
   return createSocialRouter({

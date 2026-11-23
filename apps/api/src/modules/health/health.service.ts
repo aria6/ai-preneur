@@ -19,7 +19,10 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
-export function createHealthService({ database, timeoutMs = 2_000 }: HealthServiceDeps): HealthService {
+export function createHealthService({
+  database,
+  timeoutMs = 2_000,
+}: HealthServiceDeps): HealthService {
   return {
     async check() {
       const databaseUp = await withTimeout(database.ping(), timeoutMs).then(

@@ -4,7 +4,11 @@ import type { RequestHandler } from 'express';
 import { forbidden } from '../../core/errors.js';
 import { hasPermission } from './access-policy.js';
 import { requireAuthContext, setAuthContext } from './auth-context.js';
-import { clearSessionCookie, readSessionCookie, type SessionCookieConfig } from './security/session-cookie.js';
+import {
+  clearSessionCookie,
+  readSessionCookie,
+  type SessionCookieConfig,
+} from './security/session-cookie.js';
 import type { AuthService } from './services/auth.service.js';
 
 /**

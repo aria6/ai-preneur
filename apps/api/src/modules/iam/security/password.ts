@@ -1,4 +1,9 @@
-import { randomBytes, scrypt as scryptCallback, timingSafeEqual, type ScryptOptions } from 'node:crypto';
+import {
+  randomBytes,
+  scrypt as scryptCallback,
+  timingSafeEqual,
+  type ScryptOptions,
+} from 'node:crypto';
 
 /**
  * Password hashing with Node's built-in scrypt (memory-hard, no native addon).
@@ -84,7 +89,8 @@ function parseHash(stored: string): ParsedHash | null {
   const key = Buffer.from(parts[5] ?? '', 'base64');
 
   const validN = Number.isInteger(N) && N > 1 && N <= MAX_N && (N & (N - 1)) === 0;
-  const validRp = Number.isInteger(r) && r >= 1 && r <= 32 && Number.isInteger(p) && p >= 1 && p <= 16;
+  const validRp =
+    Number.isInteger(r) && r >= 1 && r <= 32 && Number.isInteger(p) && p >= 1 && p <= 16;
   if (!validN || !validRp || salt.length < 16 || key.length < 32) return null;
 
   return { N, r, p, salt, key };
@@ -98,7 +104,14 @@ export async function hashPassword(password: string): Promise<string> {
     p: CURRENT.p,
     maxmem: SCRYPT_MAXMEM,
   });
-  return ['scrypt', CURRENT.N, CURRENT.r, CURRENT.p, salt.toString('base64'), key.toString('base64')].join('$');
+  return [
+    'scrypt',
+    CURRENT.N,
+    CURRENT.r,
+    CURRENT.p,
+    salt.toString('base64'),
+    key.toString('base64'),
+  ].join('$');
 }
 
 /** Constant-time comparison. Returns false (never throws) for malformed hashes. */

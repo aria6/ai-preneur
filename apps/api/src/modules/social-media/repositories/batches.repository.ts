@@ -40,7 +40,12 @@ export function createBatchesRepository(db: DatabaseExecutor) {
 
     /** Locks the batch row for the rest of the transaction (serializes concurrent edits). */
     async findByIdForUpdate(id: string): Promise<SmBatchRow | undefined> {
-      const [row] = await db.select().from(smBatches).where(eq(smBatches.id, id)).limit(1).for('update');
+      const [row] = await db
+        .select()
+        .from(smBatches)
+        .where(eq(smBatches.id, id))
+        .limit(1)
+        .for('update');
       return row;
     },
 
@@ -65,7 +70,8 @@ export function createBatchesRepository(db: DatabaseExecutor) {
         .where(and(inArray(smQueueItems.batchId, batchIds), eq(smPublications.status, 'published')))
         .groupBy(smQueueItems.batchId);
 
-      for (const id of batchIds) result.set(id, { itemCount: 0, publishedCount: 0, nextScheduledAt: null });
+      for (const id of batchIds)
+        result.set(id, { itemCount: 0, publishedCount: 0, nextScheduledAt: null });
       for (const row of itemRows) {
         const entry = result.get(row.batchId);
         if (entry) {

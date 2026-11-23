@@ -10,7 +10,11 @@ export function useMediaQuery(query: string): boolean {
     },
     [query],
   );
-  return useSyncExternalStore(subscribe, () => window.matchMedia(query).matches, () => false);
+  return useSyncExternalStore(
+    subscribe,
+    () => window.matchMedia(query).matches,
+    () => false,
+  );
 }
 
 /** Tailwind `md` (≥768px): tablet and up. */

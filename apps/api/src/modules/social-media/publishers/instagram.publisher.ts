@@ -16,6 +16,8 @@ import { PublishError, type PlatformPublisher } from './publisher.js';
 export const instagramPublisher: PlatformPublisher = {
   platform: 'instagram',
   publish() {
-    return Promise.reject(new PublishError('Unggah otomatis ke Instagram belum diaktifkan (Tahap 2).'));
+    return Promise.reject(
+      new PublishError('Unggah otomatis ke Instagram belum diaktifkan (Tahap 2).'),
+    );
   },
 };

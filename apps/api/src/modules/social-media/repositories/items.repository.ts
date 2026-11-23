@@ -53,7 +53,9 @@ export function createItemsRepository(db: DatabaseExecutor) {
       return row;
     },
 
-    async nextPositionAndTopic(batchId: string): Promise<{ position: number; topicNumber: number }> {
+    async nextPositionAndTopic(
+      batchId: string,
+    ): Promise<{ position: number; topicNumber: number }> {
       const [row] = await db
         .select({
           position: sql<number>`coalesce(max(${smQueueItems.position}), -1) + 1`,

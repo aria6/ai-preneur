@@ -38,7 +38,11 @@ function isApiResponse(value: unknown): value is ApiResponse<unknown> {
   return typeof value === 'object' && value !== null && 'success' in value;
 }
 
-async function request<T>(method: string, path: string, options: RequestOptions<T> = {}): Promise<T> {
+async function request<T>(
+  method: string,
+  path: string,
+  options: RequestOptions<T> = {},
+): Promise<T> {
   const { body, schema, headers, ...init } = options;
 
   const finalHeaders = new Headers(headers);
@@ -80,7 +84,12 @@ async function request<T>(method: string, path: string, options: RequestOptions<
   }
 
   if (!payload.success) {
-    throw new ApiClientError(payload.error.message, response.status, payload.error.code, payload.error.details);
+    throw new ApiClientError(
+      payload.error.message,
+      response.status,
+      payload.error.code,
+      payload.error.details,
+    );
   }
 
   if (!schema) return payload.data as T;
@@ -102,7 +111,8 @@ async function request<T>(method: string, path: string, options: RequestOptions<
  * components and hooks never call `fetch` directly.
  */
 export const apiClient = {
-  get: <T>(path: string, options?: Omit<RequestOptions<T>, 'body'>) => request<T>('GET', path, options),
+  get: <T>(path: string, options?: Omit<RequestOptions<T>, 'body'>) =>
+    request<T>('GET', path, options),
   post: <T>(path: string, options?: RequestOptions<T>) => request<T>('POST', path, options),
   put: <T>(path: string, options?: RequestOptions<T>) => request<T>('PUT', path, options),
   patch: <T>(path: string, options?: RequestOptions<T>) => request<T>('PATCH', path, options),

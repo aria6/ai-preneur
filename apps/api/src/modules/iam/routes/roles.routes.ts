@@ -27,7 +27,11 @@ export function createRolesRouter(deps: { roles: RolesService }): Router {
 
   router.get(
     '/',
-    requireAnyPermission(PERMISSIONS.ROLES_VIEW, PERMISSIONS.USERS_CREATE, PERMISSIONS.USERS_UPDATE),
+    requireAnyPermission(
+      PERMISSIONS.ROLES_VIEW,
+      PERMISSIONS.USERS_CREATE,
+      PERMISSIONS.USERS_UPDATE,
+    ),
     async (_req, res) => {
       sendSuccess<RoleListResponse>(res, { items: await roles.list() });
     },

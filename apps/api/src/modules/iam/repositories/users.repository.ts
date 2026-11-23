@@ -76,7 +76,11 @@ export function createUsersRepository(db: DatabaseExecutor) {
     },
 
     async existsByEmail(email: string): Promise<boolean> {
-      const [row] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+      const [row] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
       return row !== undefined;
     },
 
@@ -115,7 +119,11 @@ export function createUsersRepository(db: DatabaseExecutor) {
 
     async update(
       id: string,
-      patch: { name?: string | undefined; roleId?: string | undefined; isActive?: boolean | undefined },
+      patch: {
+        name?: string | undefined;
+        roleId?: string | undefined;
+        isActive?: boolean | undefined;
+      },
     ): Promise<void> {
       const set: Partial<typeof users.$inferInsert> = {};
       if (patch.name !== undefined) set.name = patch.name;
@@ -142,7 +150,10 @@ export function createUsersRepository(db: DatabaseExecutor) {
     },
 
     async touchLastLogin(id: string): Promise<void> {
-      await db.update(users).set({ lastLoginAt: sql`now()` }).where(eq(users.id, id));
+      await db
+        .update(users)
+        .set({ lastLoginAt: sql`now()` })
+        .where(eq(users.id, id));
     },
 
     async delete(id: string): Promise<void> {

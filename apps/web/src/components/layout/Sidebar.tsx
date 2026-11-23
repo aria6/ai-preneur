@@ -3,13 +3,19 @@ import { NavLink, useLocation } from 'react-router';
 
 import { useAuth } from '../../hooks/use-auth';
 import { cn } from '../../lib/cn';
-import { isPathActive, visibleNavEntries, type NavGroupItem, type NavLinkItem } from '../../lib/navigation';
+import {
+  isPathActive,
+  visibleNavEntries,
+  type NavGroupItem,
+  type NavLinkItem,
+} from '../../lib/navigation';
 import { Icon } from '../ui/Icon';
 import { SidebarProfile } from './SidebarProfile';
 
 export const SIDEBAR_ID = 'app-sidebar';
 
-const ITEM_BASE = 'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors';
+const ITEM_BASE =
+  'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors';
 const ITEM_IDLE = 'text-slate-600 hover:bg-slate-100 hover:text-slate-900';
 const ITEM_ACTIVE = 'bg-primary-50 text-primary-700';
 
@@ -40,7 +46,12 @@ function SidebarLink({
       to={item.to}
       title={collapsed ? item.label : undefined}
       className={({ isActive }) =>
-        cn(ITEM_BASE, nested && 'pl-11', collapsed && 'md:justify-center md:px-0', isActive ? ITEM_ACTIVE : ITEM_IDLE)
+        cn(
+          ITEM_BASE,
+          nested && 'pl-11',
+          collapsed && 'md:justify-center md:px-0',
+          isActive ? ITEM_ACTIVE : ITEM_IDLE,
+        )
       }
     >
       {!nested && <Icon name={item.icon} className="size-5 shrink-0" />}
@@ -93,14 +104,24 @@ function SidebarGroup({
         className={cn(
           ITEM_BASE,
           collapsed && 'md:justify-center md:px-0',
-          collapsed && containsActive ? ITEM_ACTIVE : containsActive ? 'text-primary-700 hover:bg-slate-100' : ITEM_IDLE,
+          collapsed && containsActive
+            ? ITEM_ACTIVE
+            : containsActive
+              ? 'text-primary-700 hover:bg-slate-100'
+              : ITEM_IDLE,
         )}
       >
         <Icon name={group.icon} className="size-5 shrink-0" />
-        <span className={cn('flex-1 truncate text-left', collapsed && 'md:sr-only')}>{group.label}</span>
+        <span className={cn('flex-1 truncate text-left', collapsed && 'md:sr-only')}>
+          {group.label}
+        </span>
         <Icon
           name="chevronDown"
-          className={cn('size-4 shrink-0 transition-transform', expanded && 'rotate-180', collapsed && 'md:hidden')}
+          className={cn(
+            'size-4 shrink-0 transition-transform',
+            expanded && 'rotate-180',
+            collapsed && 'md:hidden',
+          )}
         />
       </button>
       <div id={panelId} hidden={!expanded} className="mt-1 space-y-1">
@@ -117,7 +138,14 @@ function SidebarGroup({
  * - Tablet/desktop (≥768px): static column, collapsible to a 64px icon rail with
  *   the round edge toggle next to the logo. The current user sits at the bottom.
  */
-export function Sidebar({ collapsed, mobileOpen, isMobile, onToggleCollapsed, onExpand, onCloseMobile }: SidebarProps) {
+export function Sidebar({
+  collapsed,
+  mobileOpen,
+  isMobile,
+  onToggleCollapsed,
+  onExpand,
+  onCloseMobile,
+}: SidebarProps) {
   const { can } = useAuth();
   const entries = visibleNavEntries(can);
   const toggleLabel = collapsed ? 'Perluas Menu' : 'Rapatkan Menu';
@@ -155,7 +183,9 @@ export function Sidebar({ collapsed, mobileOpen, isMobile, onToggleCollapsed, on
           <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary-600 text-sm font-bold text-white">
             AP
           </span>
-          <span className={cn('truncate font-semibold tracking-tight', collapsed && 'md:hidden')}>AI Preneur</span>
+          <span className={cn('truncate font-semibold tracking-tight', collapsed && 'md:hidden')}>
+            AI Preneur
+          </span>
           <button
             type="button"
             onClick={onCloseMobile}
@@ -189,7 +219,12 @@ export function Sidebar({ collapsed, mobileOpen, isMobile, onToggleCollapsed, on
             entry.type === 'link' ? (
               <SidebarLink key={entry.to} item={entry} collapsed={collapsed} />
             ) : (
-              <SidebarGroup key={entry.id} group={entry} collapsed={collapsed} onExpand={onExpand} />
+              <SidebarGroup
+                key={entry.id}
+                group={entry}
+                collapsed={collapsed}
+                onExpand={onExpand}
+              />
             ),
           )}
         </nav>

@@ -13,7 +13,12 @@ import { Alert } from '../../../components/ui/feedback';
 import { Modal } from '../../../components/ui/Modal';
 import { fromDateTimeLocal, toDateTimeLocal } from '../../../lib/datetime';
 import { driveViewUrl } from '../../../lib/drive';
-import { apiFieldErrors, errorMessage, zodFieldErrors, type FieldErrors } from '../../../lib/errors';
+import {
+  apiFieldErrors,
+  errorMessage,
+  zodFieldErrors,
+  type FieldErrors,
+} from '../../../lib/errors';
 import * as socialService from '../../../services/social.service';
 
 function parseHashtags(text: string): string[] {
@@ -93,7 +98,8 @@ export function ItemFormModal({ open, batch, item, onClose, onSaved }: ItemFormM
         if (topic !== initial.topic) patch.topicNumber = optionalNumber(topic) ?? Number.NaN;
         if (part !== initial.part) patch.partNumber = part.trim() === '' ? null : Number(part);
         if (videoUrl.trim() !== initial.videoUrl) patch.videoUrl = videoUrl;
-        if (thumbnailUrl.trim() !== initial.thumbnailUrl) patch.thumbnailUrl = thumbnailUrl.trim() || null;
+        if (thumbnailUrl.trim() !== initial.thumbnailUrl)
+          patch.thumbnailUrl = thumbnailUrl.trim() || null;
         if (caption !== initial.caption) patch.caption = caption;
         if (tags.trim() !== initial.tags) patch.hashtags = parseHashtags(tags);
         if (schedule !== initial.schedule) patch.scheduledAt = fromDateTimeLocal(schedule);
@@ -146,7 +152,9 @@ export function ItemFormModal({ open, batch, item, onClose, onSaved }: ItemFormM
       busy={saving}
       size="lg"
       title={item ? 'Ubah baris' : 'Tambah baris'}
-      description={item ? item.videoFileName : 'Tambahkan video secara manual dari link file Google Drive.'}
+      description={
+        item ? item.videoFileName : 'Tambahkan video secara manual dari link file Google Drive.'
+      }
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={saving}>

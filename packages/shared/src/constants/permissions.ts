@@ -82,7 +82,8 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.SOCIAL_PUBLISHER_MANAGE,
     category: 'Social Media AIgency',
     label: 'Kelola Publisher AIgent',
-    description: 'Membuat batch, mengatur antrean dan jadwal, menghubungkan akun, dan mengonfirmasi jadwal.',
+    description:
+      'Membuat batch, mengatur antrean dan jadwal, menghubungkan akun, dan mengonfirmasi jadwal.',
   },
   {
     key: PERMISSIONS.SOCIAL_SETTINGS_MANAGE,

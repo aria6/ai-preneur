@@ -47,7 +47,9 @@ export function LoginPage() {
           <span className="mb-4 flex size-12 items-center justify-center rounded-xl bg-primary-600 text-lg font-bold text-white">
             AP
           </span>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Masuk ke AI Preneur</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+            Masuk ke AI Preneur
+          </h1>
           <p className="mt-1 text-sm text-slate-500">Gunakan email dan password akun Anda.</p>
         </div>
 

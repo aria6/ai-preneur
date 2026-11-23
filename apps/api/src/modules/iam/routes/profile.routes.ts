@@ -17,7 +17,10 @@ import { clientInfo } from './auth.routes.js';
  * PATCH /profile           — update own name.
  * PUT   /profile/password  — change own password (requires current password).
  */
-export function createProfileRouter(deps: { profile: ProfileService; cookie: SessionCookieConfig }): Router {
+export function createProfileRouter(deps: {
+  profile: ProfileService;
+  cookie: SessionCookieConfig;
+}): Router {
   const { profile, cookie } = deps;
   const router = express.Router();
 

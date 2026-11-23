@@ -29,7 +29,8 @@ export function createRolesService(deps: { db: Database; logger: Logger }) {
   /** Mutations are refused for system roles, the actor's own role and more powerful roles. */
   function assertCanModify(ctx: AuthContext, role: RoleRecord): void {
     if (role.isSystem) throw forbidden('Role sistem tidak dapat diubah atau dihapus.');
-    if (role.id === ctx.user.roleId) throw forbidden('Anda tidak dapat mengubah role Anda sendiri.');
+    if (role.id === ctx.user.roleId)
+      throw forbidden('Anda tidak dapat mengubah role Anda sendiri.');
     if (!canActOnRole(ctx, role)) {
       throw forbidden('Anda tidak dapat mengelola role dengan hak akses melebihi milik Anda.');
     }
@@ -57,7 +58,10 @@ export function createRolesService(deps: { db: Database; logger: Logger }) {
       try {
         id = await db.transaction(async (tx) => {
           const txRoles = createRolesRepository(tx);
-          const newId = await txRoles.insert({ name: input.name, description: input.description ?? null });
+          const newId = await txRoles.insert({
+            name: input.name,
+            description: input.description ?? null,
+          });
           await txRoles.replacePermissions(newId, input.permissions);
           return newId;
         });

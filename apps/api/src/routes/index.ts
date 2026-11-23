@@ -41,7 +41,11 @@ export function createApiRouter(deps: AppDependencies): Router {
   router.use('/roles', iam.routers.roles);
   router.use(
     '/social',
-    createSocialMediaRouter({ db: deps.database.db, logger: deps.logger, config: deps.config.social }),
+    createSocialMediaRouter({
+      db: deps.database.db,
+      logger: deps.logger,
+      config: deps.config.social,
+    }),
   );
 
   // Register future modules here, guarding them with requirePermission from the iam module.

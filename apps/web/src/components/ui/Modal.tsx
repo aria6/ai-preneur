@@ -25,7 +25,16 @@ export interface ModalProps {
  * page scroll is locked, focus returns to the trigger on close. Full-screen sheet
  * on phones, centered panel from `sm` up.
  */
-export function Modal({ open, onClose, title, description, children, footer, size = 'md', busy = false }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  description,
+  children,
+  footer,
+  size = 'md',
+  busy = false,
+}: ModalProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -40,7 +49,9 @@ export function Modal({ open, onClose, title, description, children, footer, siz
     document.body.style.overflow = 'hidden';
 
     const panel = panelRef.current;
-    const first = panel?.querySelector<HTMLElement>('[data-autofocus]') ?? panel?.querySelector<HTMLElement>(FOCUSABLE);
+    const first =
+      panel?.querySelector<HTMLElement>('[data-autofocus]') ??
+      panel?.querySelector<HTMLElement>(FOCUSABLE);
     first?.focus();
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -99,7 +110,14 @@ export function Modal({ open, onClose, title, description, children, footer, siz
             </h2>
             {description && <p className="mt-0.5 text-sm text-slate-500">{description}</p>}
           </div>
-          <Button variant="ghost" size="icon" className="-mr-2" onClick={onClose} disabled={busy} aria-label="Tutup">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="-mr-2"
+            onClick={onClose}
+            disabled={busy}
+            aria-label="Tutup"
+          >
             <Icon name="close" className="size-4" />
           </Button>
         </div>

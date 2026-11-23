@@ -34,9 +34,13 @@ function assertSchedulable(
   field = 'scheduledAt',
 ): void {
   if (working.batch.status !== 'scheduled') return;
-  if (scheduledAt === null) throw fieldError(field, 'Jadwal unggah wajib diisi karena batch sudah terjadwal.');
+  if (scheduledAt === null)
+    throw fieldError(field, 'Jadwal unggah wajib diisi karena batch sudah terjadwal.');
   if (scheduledAt < earliestEditableTime(working.settings.lockMinutes, now)) {
-    throw fieldError(field, `Jadwal unggah minimal ${working.settings.lockMinutes} menit dari sekarang.`);
+    throw fieldError(
+      field,
+      `Jadwal unggah minimal ${working.settings.lockMinutes} menit dari sekarang.`,
+    );
   }
 }
 
@@ -51,7 +55,11 @@ function assertUnlocked(working: BatchWorkingSet, entry: LockedItem): void {
 }
 
 /** Queue rows: manual add, edit, delete, pause ("Tunda") and resume. */
-export function createItemsService(deps: { db: Database; drive: GoogleDriveClient; logger: Logger }) {
+export function createItemsService(deps: {
+  db: Database;
+  drive: GoogleDriveClient;
+  logger: Logger;
+}) {
   const { db, drive, logger } = deps;
 
   async function resolveDriveFile(
@@ -68,12 +76,20 @@ export function createItemsService(deps: { db: Database; drive: GoogleDriveClien
       throw driveToAppError(error, field);
     }
     const ok = kind === 'video' ? isVideoFile(file) : isImageFile(file);
-    if (!ok) throw fieldError(field, kind === 'video' ? 'File tersebut bukan video.' : 'File tersebut bukan gambar.');
+    if (!ok)
+      throw fieldError(
+        field,
+        kind === 'video' ? 'File tersebut bukan video.' : 'File tersebut bukan gambar.',
+      );
     return file;
   }
 
   return {
-    async create(ctx: AuthContext, batchId: string, input: CreateItemRequest): Promise<BatchDetailDto> {
+    async create(
+      ctx: AuthContext,
+      batchId: string,
+      input: CreateItemRequest,
+    ): Promise<BatchDetailDto> {
       // Drive lookups happen before the transaction (network calls must not hold row locks).
       const video = await resolveDriveFile(input.videoUrl, 'videoUrl', 'video');
       const thumbnail = input.thumbnailUrl
@@ -110,8 +126,15 @@ export function createItemsService(deps: { db: Database; drive: GoogleDriveClien
       return loadBatchDetail(db, batchId);
     },
 
-    async update(ctx: AuthContext, batchId: string, itemId: string, input: UpdateItemRequest): Promise<BatchDetailDto> {
-      const video = input.videoUrl ? await resolveDriveFile(input.videoUrl, 'videoUrl', 'video') : undefined;
+    async update(
+      ctx: AuthContext,
+      batchId: string,
+      itemId: string,
+      input: UpdateItemRequest,
+    ): Promise<BatchDetailDto> {
+      const video = input.videoUrl
+        ? await resolveDriveFile(input.videoUrl, 'videoUrl', 'video')
+        : undefined;
       const thumbnail =
         input.thumbnailUrl === undefined
           ? undefined
@@ -149,7 +172,12 @@ export function createItemsService(deps: { db: Database; drive: GoogleDriveClien
         await createItemsRepository(tx).update(itemId, patch);
       });
 
-      logger.info('Publisher row updated', { actorId: ctx.user.id, batchId, itemId, fields: Object.keys(input) });
+      logger.info('Publisher row updated', {
+        actorId: ctx.user.id,
+        batchId,
+        itemId,
+        fields: Object.keys(input),
+      });
       return loadBatchDetail(db, batchId);
     },
 
@@ -173,7 +201,8 @@ export function createItemsService(deps: { db: Database; drive: GoogleDriveClien
         assertNotCompleted(working.batch);
         const entry = findItem(working, itemId);
         assertUnlocked(working, entry);
-        if (!entry.item.isPaused) await createItemsRepository(tx).update(itemId, { isPaused: true });
+        if (!entry.item.isPaused)
+          await createItemsRepository(tx).update(itemId, { isPaused: true });
       });
 
       logger.info('Publisher row paused', { actorId: ctx.user.id, batchId, itemId });
@@ -181,7 +210,12 @@ export function createItemsService(deps: { db: Database; drive: GoogleDriveClien
     },
 
     /** Resumes a paused row; in a scheduled batch it needs a schedule outside the lock window. */
-    async resume(ctx: AuthContext, batchId: string, itemId: string, input: ResumeItemRequest): Promise<BatchDetailDto> {
+    async resume(
+      ctx: AuthContext,
+      batchId: string,
+      itemId: string,
+      input: ResumeItemRequest,
+    ): Promise<BatchDetailDto> {
       await db.transaction(async (tx) => {
         const now = new Date();
         const working = await loadWorkingSet(tx, batchId, now, { forUpdate: true });

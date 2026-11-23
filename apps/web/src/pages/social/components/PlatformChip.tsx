@@ -24,7 +24,10 @@ const CHIP = 'inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-[11px] f
 /** Neutral platform tag (lists, selections). */
 export function PlatformTag({ platform }: { platform: SocialPlatform }) {
   return (
-    <span className={cn(CHIP, 'bg-slate-100 text-slate-600')} title={SOCIAL_PLATFORM_LABELS[platform]}>
+    <span
+      className={cn(CHIP, 'bg-slate-100 text-slate-600')}
+      title={SOCIAL_PLATFORM_LABELS[platform]}
+    >
       {PLATFORM_SHORT[platform]}
     </span>
   );
@@ -60,7 +63,10 @@ export function PublicationChip({
         <Icon name="external" className="size-3" />
       </a>
     ) : (
-      <span title={`Terunggah ke ${label}`} className={cn(CHIP, PLATFORM_ACTIVE[publication.platform])}>
+      <span
+        title={`Terunggah ke ${label}`}
+        className={cn(CHIP, PLATFORM_ACTIVE[publication.platform])}
+      >
         {short}
         <Icon name="check" className="size-3" />
       </span>
@@ -82,7 +88,10 @@ export function PublicationChip({
   }
 
   return (
-    <span title={`Sedang diunggah ke ${label}`} className={cn(CHIP, 'animate-pulse bg-slate-100 text-slate-500')}>
+    <span
+      title={`Sedang diunggah ke ${label}`}
+      className={cn(CHIP, 'animate-pulse bg-slate-100 text-slate-500')}
+    >
       {short}
     </span>
   );

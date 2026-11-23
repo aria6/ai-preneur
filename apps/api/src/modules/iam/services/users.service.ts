@@ -112,9 +112,14 @@ export function createUsersService(deps: { db: Database; logger: Logger }) {
         const txUsers = createUsersRepository(tx);
         if (losesSystemAccess) {
           await lockSystemUserGuard(tx);
-          if ((await txUsers.countActiveSystemUsers(target.id)) === 0) throw conflict(LAST_SUPER_ADMIN);
+          if ((await txUsers.countActiveSystemUsers(target.id)) === 0)
+            throw conflict(LAST_SUPER_ADMIN);
         }
-        await txUsers.update(id, { name: input.name, roleId: input.roleId, isActive: input.isActive });
+        await txUsers.update(id, {
+          name: input.name,
+          roleId: input.roleId,
+          isActive: input.isActive,
+        });
         // A deactivated user is logged out everywhere immediately.
         if (input.isActive === false) await createSessionsRepository(tx).deleteAllForUser(id);
       });
@@ -123,7 +128,11 @@ export function createUsersService(deps: { db: Database; logger: Logger }) {
       return toUserDto(await getUserOrThrow(id));
     },
 
-    async resetPassword(ctx: AuthContext, id: string, input: ResetUserPasswordRequest): Promise<void> {
+    async resetPassword(
+      ctx: AuthContext,
+      id: string,
+      input: ResetUserPasswordRequest,
+    ): Promise<void> {
       await getManageableUser(ctx, id);
       const passwordHash = await hashPassword(input.newPassword);
       await db.transaction(async (tx) => {
@@ -139,7 +148,8 @@ export function createUsersService(deps: { db: Database; logger: Logger }) {
         const txUsers = createUsersRepository(tx);
         if (target.roleIsSystem && target.isActive) {
           await lockSystemUserGuard(tx);
-          if ((await txUsers.countActiveSystemUsers(target.id)) === 0) throw conflict(LAST_SUPER_ADMIN);
+          if ((await txUsers.countActiveSystemUsers(target.id)) === 0)
+            throw conflict(LAST_SUPER_ADMIN);
         }
         await txUsers.delete(id); // sessions are removed by ON DELETE CASCADE
       });

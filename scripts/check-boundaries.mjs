@@ -41,10 +41,22 @@ const SERVER_ONLY = [
 
 /** Per-package import policy. `allowExternal` (when set) is an allow-list. */
 const PACKAGES = {
-  'apps/web': { forbidden: SERVER_ONLY, forbidNodeBuiltins: true, allowedInternal: ['@ai-preneur/shared'] },
-  'apps/api': { forbidden: ['@ai-preneur/web'], allowedInternal: ['@ai-preneur/shared', '@ai-preneur/database'] },
+  'apps/web': {
+    forbidden: SERVER_ONLY,
+    forbidNodeBuiltins: true,
+    allowedInternal: ['@ai-preneur/shared'],
+  },
+  'apps/api': {
+    forbidden: ['@ai-preneur/web'],
+    allowedInternal: ['@ai-preneur/shared', '@ai-preneur/database'],
+  },
   'packages/database': { forbidden: [], allowedInternal: [] },
-  'packages/shared': { forbidden: [], forbidNodeBuiltins: true, allowedInternal: [], allowExternal: ['zod'] },
+  'packages/shared': {
+    forbidden: [],
+    forbidNodeBuiltins: true,
+    allowedInternal: [],
+    allowExternal: ['zod'],
+  },
 };
 
 const violations = [];
@@ -94,15 +106,24 @@ function checkApiLayering(file, target) {
   if (fromModule && toModule && fromModule !== toModule) {
     const publicEntry = join(apiSrc, 'modules', toModule, 'index');
     if (stripExt(target) !== publicEntry && target !== join(apiSrc, 'modules', toModule)) {
-      report(file, `module "${fromModule}" imports internal file of module "${toModule}" — use modules/${toModule}/index.ts`);
+      report(
+        file,
+        `module "${fromModule}" imports internal file of module "${toModule}" — use modules/${toModule}/index.ts`,
+      );
     }
   }
 
   if (fromModule && ['app', 'server', 'routes'].includes(targetArea)) {
-    report(file, `module "${fromModule}" must not import ${targetArea} (dependency direction is routes → modules)`);
+    report(
+      file,
+      `module "${fromModule}" must not import ${targetArea} (dependency direction is routes → modules)`,
+    );
   }
 
-  if (['core', 'config'].includes(fileArea) && ['modules', 'routes', 'middlewares', 'app', 'server'].includes(targetArea)) {
+  if (
+    ['core', 'config'].includes(fileArea) &&
+    ['modules', 'routes', 'middlewares', 'app', 'server'].includes(targetArea)
+  ) {
     report(file, `${fileArea}/ is foundational and must not import ${targetArea}`);
   }
 }
@@ -115,7 +136,10 @@ for (const [pkgDir, policy] of Object.entries(PACKAGES)) {
       if (specifier.startsWith('.')) {
         const target = resolve(dirname(file), specifier);
         if (relative(pkgRoot, target).startsWith('..')) {
-          report(file, `relative import "${specifier}" escapes ${pkgDir} — import the workspace package instead`);
+          report(
+            file,
+            `relative import "${specifier}" escapes ${pkgDir} — import the workspace package instead`,
+          );
           continue;
         }
         if (pkgDir === 'apps/api') checkApiLayering(file, target);
@@ -123,7 +147,8 @@ for (const [pkgDir, policy] of Object.entries(PACKAGES)) {
       }
 
       if (specifier.startsWith('node:') || NODE_BUILTINS.has(packageName(specifier))) {
-        if (policy.forbidNodeBuiltins) report(file, `Node.js built-in "${specifier}" is not allowed in ${pkgDir}`);
+        if (policy.forbidNodeBuiltins)
+          report(file, `Node.js built-in "${specifier}" is not allowed in ${pkgDir}`);
         continue;
       }
 
@@ -135,13 +160,18 @@ for (const [pkgDir, policy] of Object.entries(PACKAGES)) {
 
       if (specifier.startsWith(SCOPE)) {
         const name = packageName(specifier);
-        if (specifier !== name) report(file, `deep import "${specifier}" — import from "${name}" only`);
-        if (!policy.allowedInternal.includes(name)) report(file, `${pkgDir} may not depend on "${name}"`);
+        if (specifier !== name)
+          report(file, `deep import "${specifier}" — import from "${name}" only`);
+        if (!policy.allowedInternal.includes(name))
+          report(file, `${pkgDir} may not depend on "${name}"`);
         continue;
       }
 
       if (policy.allowExternal && !policy.allowExternal.includes(packageName(specifier))) {
-        report(file, `"${specifier}" is not allowed in ${pkgDir}; allowed: ${policy.allowExternal.join(', ')}`);
+        report(
+          file,
+          `"${specifier}" is not allowed in ${pkgDir}; allowed: ${policy.allowExternal.join(', ')}`,
+        );
       }
     }
   }
@@ -165,11 +195,18 @@ for (const [pkgDir, policy] of Object.entries(PACKAGES)) {
   graph.set(manifest.name, internal);
 
   for (const dep of internal) {
-    if (!policy.allowedInternal.includes(dep)) report(manifestPath, `${manifest.name} must not depend on ${dep}`);
+    if (!policy.allowedInternal.includes(dep))
+      report(manifestPath, `${manifest.name} must not depend on ${dep}`);
   }
   for (const dep of deps) {
-    if (policy.forbidden.includes(dep)) report(manifestPath, `${manifest.name} must not depend on server-only "${dep}"`);
-    if (policy.allowExternal && !dep.startsWith(SCOPE) && manifest.dependencies?.[dep] && !policy.allowExternal.includes(dep)) {
+    if (policy.forbidden.includes(dep))
+      report(manifestPath, `${manifest.name} must not depend on server-only "${dep}"`);
+    if (
+      policy.allowExternal &&
+      !dep.startsWith(SCOPE) &&
+      manifest.dependencies?.[dep] &&
+      !policy.allowExternal.includes(dep)
+    ) {
       report(manifestPath, `${manifest.name} runtime dependency "${dep}" not in allow-list`);
     }
   }
@@ -196,4 +233,6 @@ if (violations.length > 0) {
   for (const v of violations) console.error(`  - ${v}`);
   process.exit(1);
 }
-console.log('✔ Architectural boundaries respected (packages, imports, api module isolation, no cycles).');
+console.log(
+  '✔ Architectural boundaries respected (packages, imports, api module isolation, no cycles).',
+);

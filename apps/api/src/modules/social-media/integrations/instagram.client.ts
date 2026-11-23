@@ -34,7 +34,10 @@ const errorSchema = z.object({
 });
 
 export async function fetchInstagramAccount(accessToken: string): Promise<InstagramAccount> {
-  const query = new URLSearchParams({ fields: 'user_id,username,account_type', access_token: accessToken });
+  const query = new URLSearchParams({
+    fields: 'user_id,username,account_type',
+    access_token: accessToken,
+  });
 
   let response: Response;
   try {
@@ -55,7 +58,9 @@ export async function fetchInstagramAccount(accessToken: string): Promise<Instag
     if (code === 190 || response.status === 401) {
       throw new InstagramApiError('Access token tidak valid atau sudah kedaluwarsa.');
     }
-    throw new InstagramApiError('Instagram menolak access token ini. Pastikan token dibuat untuk akun Instagram Profesional.');
+    throw new InstagramApiError(
+      'Instagram menolak access token ini. Pastikan token dibuat untuk akun Instagram Profesional.',
+    );
   }
 
   const parsed = meSchema.safeParse(body);
@@ -63,7 +68,9 @@ export async function fetchInstagramAccount(accessToken: string): Promise<Instag
 
   const accountType = parsed.data.account_type ?? null;
   if (accountType === 'PERSONAL') {
-    throw new InstagramApiError('Akun ini akun pribadi. Ubah ke akun Instagram Profesional (Bisnis atau Kreator).');
+    throw new InstagramApiError(
+      'Akun ini akun pribadi. Ubah ke akun Instagram Profesional (Bisnis atau Kreator).',
+    );
   }
 
   return { userId: parsed.data.user_id, username: parsed.data.username, accountType };

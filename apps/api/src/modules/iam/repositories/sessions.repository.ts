@@ -77,7 +77,10 @@ export function createSessionsRepository(db: DatabaseExecutor) {
           and(
             eq(sessions.tokenHash, tokenHash),
             gt(sessions.expiresAt, sql`now()`),
-            gt(sessions.lastSeenAt, sql`now() - (${idleTimeoutMinutes}::int * interval '1 minute')`),
+            gt(
+              sessions.lastSeenAt,
+              sql`now() - (${idleTimeoutMinutes}::int * interval '1 minute')`,
+            ),
             sql`${sessions.createdAt} >= ${users.passwordChangedAt}`,
           ),
         )
@@ -90,7 +93,12 @@ export function createSessionsRepository(db: DatabaseExecutor) {
       await db
         .update(sessions)
         .set({ lastSeenAt: sql`now()` })
-        .where(and(eq(sessions.id, sessionId), lt(sessions.lastSeenAt, sql`now() - interval '1 minute'`)));
+        .where(
+          and(
+            eq(sessions.id, sessionId),
+            lt(sessions.lastSeenAt, sql`now() - interval '1 minute'`),
+          ),
+        );
     },
 
     async deleteById(sessionId: string): Promise<void> {
@@ -106,7 +114,9 @@ export function createSessionsRepository(db: DatabaseExecutor) {
     },
 
     async deleteOthersForUser(userId: string, keepSessionId: string): Promise<void> {
-      await db.delete(sessions).where(and(eq(sessions.userId, userId), ne(sessions.id, keepSessionId)));
+      await db
+        .delete(sessions)
+        .where(and(eq(sessions.userId, userId), ne(sessions.id, keepSessionId)));
     },
 
     /** Housekeeping on login: drop the user's dead sessions. */

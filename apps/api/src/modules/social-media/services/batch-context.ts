@@ -2,8 +2,18 @@
  * Helpers shared by the Publisher services: loading a batch with everything needed
  * to evaluate row locks, and translating integration errors into API errors.
  */
-import type { DatabaseExecutor, SmBatchRow, SmPublicationRow, SmQueueItemRow } from '@ai-preneur/database';
-import { ERROR_CODES, type BatchDetailDto, type ItemLockReason, type SocialSettings } from '@ai-preneur/shared';
+import type {
+  DatabaseExecutor,
+  SmBatchRow,
+  SmPublicationRow,
+  SmQueueItemRow,
+} from '@ai-preneur/database';
+import {
+  ERROR_CODES,
+  type BatchDetailDto,
+  type ItemLockReason,
+  type SocialSettings,
+} from '@ai-preneur/shared';
 
 import { AppError, conflict, fieldError, notFound } from '../../../core/errors.js';
 import { computeItemLock } from '../domain/queue-rules.js';
@@ -68,14 +78,18 @@ export async function loadWorkingSet(
   options: { forUpdate?: boolean } = {},
 ): Promise<BatchWorkingSet> {
   const batches = createBatchesRepository(db);
-  const batch = options.forUpdate ? await batches.findByIdForUpdate(batchId) : await batches.findById(batchId);
+  const batch = options.forUpdate
+    ? await batches.findByIdForUpdate(batchId)
+    : await batches.findById(batchId);
   if (!batch) throw notFound(BATCH_NOT_FOUND);
 
   const [settings, items] = await Promise.all([
     createSettingsRepository(db).get(),
     createItemsRepository(db).listByBatch(batchId),
   ]);
-  const publications = await createPublicationsRepository(db).listByItems(items.map((item) => item.id));
+  const publications = await createPublicationsRepository(db).listByItems(
+    items.map((item) => item.id),
+  );
 
   return {
     batch,
@@ -97,7 +111,10 @@ export async function loadWorkingSet(
   };
 }
 
-export async function loadBatchDetail(db: DatabaseExecutor, batchId: string): Promise<BatchDetailDto> {
+export async function loadBatchDetail(
+  db: DatabaseExecutor,
+  batchId: string,
+): Promise<BatchDetailDto> {
   const now = new Date();
   const working = await loadWorkingSet(db, batchId, now);
   const [accounts, stats] = await Promise.all([
@@ -121,7 +138,11 @@ export async function loadBatchDetail(db: DatabaseExecutor, batchId: string): Pr
 export function driveToAppError(error: unknown, field: string): unknown {
   if (!(error instanceof DriveError)) return error;
   if (error.kind === 'not_configured' || error.kind === 'unavailable') {
-    return new AppError({ statusCode: 503, code: ERROR_CODES.SERVICE_UNAVAILABLE, message: error.message });
+    return new AppError({
+      statusCode: 503,
+      code: ERROR_CODES.SERVICE_UNAVAILABLE,
+      message: error.message,
+    });
   }
   return fieldError(field, error.message);
 }
@@ -131,6 +152,7 @@ export function credentialsKeyError(error: unknown): unknown {
   return new AppError({
     statusCode: 503,
     code: ERROR_CODES.SERVICE_UNAVAILABLE,
-    message: 'SOCIAL_CREDENTIALS_KEY belum diatur di server, sehingga akun belum bisa disimpan. Hubungi administrator.',
+    message:
+      'SOCIAL_CREDENTIALS_KEY belum diatur di server, sehingga akun belum bisa disimpan. Hubungi administrator.',
   });
 }

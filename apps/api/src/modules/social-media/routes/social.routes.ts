@@ -74,10 +74,14 @@ export function createSocialRouter(deps: {
     },
   );
 
-  router.put('/settings', requirePermission(PERMISSIONS.SOCIAL_SETTINGS_MANAGE), async (req, res) => {
-    const input = parseInput(updateSocialSettingsRequestSchema, req.body);
-    sendSuccess(res, { settings: await settings.update(requireAuthContext(req), input) });
-  });
+  router.put(
+    '/settings',
+    requirePermission(PERMISSIONS.SOCIAL_SETTINGS_MANAGE),
+    async (req, res) => {
+      const input = parseInput(updateSocialSettingsRequestSchema, req.body);
+      sendSuccess(res, { settings: await settings.update(requireAuthContext(req), input) });
+    },
+  );
 
   // ---- Batches ----
   router.get('/batches', canView, async (_req, res) => {
@@ -86,7 +90,11 @@ export function createSocialRouter(deps: {
 
   router.post('/batches', canManage, async (req, res) => {
     const input = parseInput(createBatchRequestSchema, req.body);
-    sendSuccess<BatchResponse>(res, { batch: await batches.create(requireAuthContext(req), input) }, 201);
+    sendSuccess<BatchResponse>(
+      res,
+      { batch: await batches.create(requireAuthContext(req), input) },
+      201,
+    );
   });
 
   router.get('/batches/:id', canView, async (req, res) => {
@@ -97,7 +105,9 @@ export function createSocialRouter(deps: {
   router.patch('/batches/:id', canManage, async (req, res) => {
     const { id } = parseInput(batchParams, req.params);
     const input = parseInput(updateBatchRequestSchema, req.body);
-    sendSuccess<BatchResponse>(res, { batch: await batches.update(requireAuthContext(req), id, input) });
+    sendSuccess<BatchResponse>(res, {
+      batch: await batches.update(requireAuthContext(req), id, input),
+    });
   });
 
   router.delete('/batches/:id', canManage, async (req, res) => {
@@ -114,13 +124,17 @@ export function createSocialRouter(deps: {
   router.post('/batches/:id/auto-schedule', canManage, async (req, res) => {
     const { id } = parseInput(batchParams, req.params);
     const input = parseInput(autoScheduleRequestSchema, req.body);
-    sendSuccess<BatchResponse>(res, { batch: await batches.autoSchedule(requireAuthContext(req), id, input) });
+    sendSuccess<BatchResponse>(res, {
+      batch: await batches.autoSchedule(requireAuthContext(req), id, input),
+    });
   });
 
   router.put('/batches/:id/order', canManage, async (req, res) => {
     const { id } = parseInput(batchParams, req.params);
     const input = parseInput(reorderItemsRequestSchema, req.body);
-    sendSuccess<BatchResponse>(res, { batch: await batches.reorder(requireAuthContext(req), id, input) });
+    sendSuccess<BatchResponse>(res, {
+      batch: await batches.reorder(requireAuthContext(req), id, input),
+    });
   });
 
   router.post('/batches/:id/confirm', canManage, async (req, res) => {
@@ -130,36 +144,50 @@ export function createSocialRouter(deps: {
 
   router.post('/batches/:id/cancel', canManage, async (req, res) => {
     const { id } = parseInput(batchParams, req.params);
-    sendSuccess<BatchResponse>(res, { batch: await batches.cancelSchedule(requireAuthContext(req), id) });
+    sendSuccess<BatchResponse>(res, {
+      batch: await batches.cancelSchedule(requireAuthContext(req), id),
+    });
   });
 
   // ---- Queue rows ----
   router.post('/batches/:id/items', canManage, async (req, res) => {
     const { id } = parseInput(batchParams, req.params);
     const input = parseInput(createItemRequestSchema, req.body);
-    sendSuccess<BatchResponse>(res, { batch: await items.create(requireAuthContext(req), id, input) }, 201);
+    sendSuccess<BatchResponse>(
+      res,
+      { batch: await items.create(requireAuthContext(req), id, input) },
+      201,
+    );
   });
 
   router.patch('/batches/:id/items/:itemId', canManage, async (req, res) => {
     const { id, itemId } = parseInput(itemParams, req.params);
     const input = parseInput(updateItemRequestSchema, req.body);
-    sendSuccess<BatchResponse>(res, { batch: await items.update(requireAuthContext(req), id, itemId, input) });
+    sendSuccess<BatchResponse>(res, {
+      batch: await items.update(requireAuthContext(req), id, itemId, input),
+    });
   });
 
   router.delete('/batches/:id/items/:itemId', canManage, async (req, res) => {
     const { id, itemId } = parseInput(itemParams, req.params);
-    sendSuccess<BatchResponse>(res, { batch: await items.delete(requireAuthContext(req), id, itemId) });
+    sendSuccess<BatchResponse>(res, {
+      batch: await items.delete(requireAuthContext(req), id, itemId),
+    });
   });
 
   router.post('/batches/:id/items/:itemId/pause', canManage, async (req, res) => {
     const { id, itemId } = parseInput(itemParams, req.params);
-    sendSuccess<BatchResponse>(res, { batch: await items.pause(requireAuthContext(req), id, itemId) });
+    sendSuccess<BatchResponse>(res, {
+      batch: await items.pause(requireAuthContext(req), id, itemId),
+    });
   });
 
   router.post('/batches/:id/items/:itemId/resume', canManage, async (req, res) => {
     const { id, itemId } = parseInput(itemParams, req.params);
     const input = parseInput(resumeItemRequestSchema, req.body ?? {});
-    sendSuccess<BatchResponse>(res, { batch: await items.resume(requireAuthContext(req), id, itemId, input) });
+    sendSuccess<BatchResponse>(res, {
+      batch: await items.resume(requireAuthContext(req), id, itemId, input),
+    });
   });
 
   // ---- Accounts ----
@@ -173,7 +201,9 @@ export function createSocialRouter(deps: {
 
   router.delete('/batches/:id/accounts/:platform', canManage, async (req, res) => {
     const { id, platform } = parseInput(accountParams, req.params);
-    sendSuccess<BatchResponse>(res, { batch: await accounts.disconnect(requireAuthContext(req), id, platform) });
+    sendSuccess<BatchResponse>(res, {
+      batch: await accounts.disconnect(requireAuthContext(req), id, platform),
+    });
   });
 
   return router;

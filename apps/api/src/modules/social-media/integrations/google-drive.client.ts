@@ -13,7 +13,12 @@ const FOLDER_MIME = 'application/vnd.google-apps.folder';
 const REQUEST_TIMEOUT_MS = 15_000;
 const MAX_PAGES = 10; // 10 × 1000 files is far beyond any realistic content folder
 
-export type DriveErrorKind = 'not_configured' | 'not_found' | 'forbidden' | 'invalid' | 'unavailable';
+export type DriveErrorKind =
+  | 'not_configured'
+  | 'not_found'
+  | 'forbidden'
+  | 'invalid'
+  | 'unavailable';
 
 export class DriveError extends Error {
   readonly kind: DriveErrorKind;
@@ -54,7 +59,10 @@ export function isDriveFolder(file: DriveFileRef): boolean {
 export function createGoogleDriveClient(apiKey: string | null): GoogleDriveClient {
   async function request(path: string, params: Record<string, string>): Promise<unknown> {
     if (!apiKey) {
-      throw new DriveError('not_configured', 'GOOGLE_API_KEY belum diatur di server. Hubungi administrator.');
+      throw new DriveError(
+        'not_configured',
+        'GOOGLE_API_KEY belum diatur di server. Hubungi administrator.',
+      );
     }
     const query = new URLSearchParams({ ...params, key: apiKey, supportsAllDrives: 'true' });
 
@@ -66,7 +74,10 @@ export function createGoogleDriveClient(apiKey: string | null): GoogleDriveClien
       });
     } catch {
       // Never include the URL: it carries the API key.
-      throw new DriveError('unavailable', 'Tidak dapat menghubungi Google Drive. Coba lagi beberapa saat lagi.');
+      throw new DriveError(
+        'unavailable',
+        'Tidak dapat menghubungi Google Drive. Coba lagi beberapa saat lagi.',
+      );
     }
 
     if (response.status === 404) {
@@ -76,7 +87,10 @@ export function createGoogleDriveClient(apiKey: string | null): GoogleDriveClien
       );
     }
     if (response.status === 400) {
-      throw new DriveError('invalid', 'Permintaan ke Google Drive ditolak. Periksa kembali link-nya.');
+      throw new DriveError(
+        'invalid',
+        'Permintaan ke Google Drive ditolak. Periksa kembali link-nya.',
+      );
     }
     if (response.status === 401 || response.status === 403) {
       throw new DriveError(
@@ -85,15 +99,22 @@ export function createGoogleDriveClient(apiKey: string | null): GoogleDriveClien
       );
     }
     if (!response.ok) {
-      throw new DriveError('unavailable', `Google Drive sedang bermasalah (HTTP ${response.status}).`);
+      throw new DriveError(
+        'unavailable',
+        `Google Drive sedang bermasalah (HTTP ${response.status}).`,
+      );
     }
     return response.json();
   }
 
   async function getFile(fileId: string): Promise<DriveFileRef> {
-    const parsed = fileSchema.safeParse(await request(`/${fileId}`, { fields: 'id,name,mimeType,trashed' }));
-    if (!parsed.success) throw new DriveError('unavailable', 'Respons Google Drive tidak dikenali.');
-    if (parsed.data.trashed) throw new DriveError('not_found', 'File berada di sampah Google Drive.');
+    const parsed = fileSchema.safeParse(
+      await request(`/${fileId}`, { fields: 'id,name,mimeType,trashed' }),
+    );
+    if (!parsed.success)
+      throw new DriveError('unavailable', 'Respons Google Drive tidak dikenali.');
+    if (parsed.data.trashed)
+      throw new DriveError('not_found', 'File berada di sampah Google Drive.');
     return { id: parsed.data.id, name: parsed.data.name, mimeType: parsed.data.mimeType };
   }
 
@@ -113,7 +134,8 @@ export function createGoogleDriveClient(apiKey: string | null): GoogleDriveClien
       if (pageToken) params.pageToken = pageToken;
 
       const parsed = listSchema.safeParse(await request('', params));
-      if (!parsed.success) throw new DriveError('unavailable', 'Respons Google Drive tidak dikenali.');
+      if (!parsed.success)
+        throw new DriveError('unavailable', 'Respons Google Drive tidak dikenali.');
 
       for (const file of parsed.data.files) {
         const ref = { id: file.id, name: file.name, mimeType: file.mimeType };

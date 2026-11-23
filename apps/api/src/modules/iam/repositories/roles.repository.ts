@@ -104,7 +104,11 @@ export function createRolesRepository(db: DatabaseExecutor) {
     }): Promise<string> {
       const [row] = await db
         .insert(roles)
-        .values({ name: values.name, description: values.description, isSystem: values.isSystem ?? false })
+        .values({
+          name: values.name,
+          description: values.description,
+          isSystem: values.isSystem ?? false,
+        })
         .returning({ id: roles.id });
       if (!row) throw new Error('Insert into roles returned no row');
       return row.id;
@@ -119,7 +123,10 @@ export function createRolesRepository(db: DatabaseExecutor) {
       if (patch.description !== undefined) set.description = patch.description;
       if (Object.keys(set).length === 0) {
         // Still bump updatedAt when only permissions changed.
-        await db.update(roles).set({ updatedAt: sql`now()` }).where(eq(roles.id, id));
+        await db
+          .update(roles)
+          .set({ updatedAt: sql`now()` })
+          .where(eq(roles.id, id));
         return;
       }
       await db.update(roles).set(set).where(eq(roles.id, id));

@@ -70,7 +70,9 @@ export function SocialSettingsPage() {
           <form onSubmit={onSubmit} noValidate>
             <div className="border-b border-slate-100 px-5 py-4">
               <h2 className="text-base font-semibold">Publisher AIgent</h2>
-              <p className="text-sm text-slate-500">Aturan waktu untuk antrean dan konfirmasi jadwal.</p>
+              <p className="text-sm text-slate-500">
+                Aturan waktu untuk antrean dan konfirmasi jadwal.
+              </p>
             </div>
             <div className="space-y-4 px-5 py-4">
               {status && <Alert variant={status.type}>{status.message}</Alert>}

@@ -36,9 +36,17 @@ export function createCredentialsCipher(key: Buffer | null): CredentialsCipher {
       const iv = randomBytes(12);
       const cipher = createCipheriv('aes-256-gcm', key, iv);
       cipher.setAAD(Buffer.from(context, 'utf8'));
-      const ciphertext = Buffer.concat([cipher.update(JSON.stringify(value), 'utf8'), cipher.final()]);
+      const ciphertext = Buffer.concat([
+        cipher.update(JSON.stringify(value), 'utf8'),
+        cipher.final(),
+      ]);
       const tag = cipher.getAuthTag();
-      return ['v1', iv.toString('base64'), tag.toString('base64'), ciphertext.toString('base64')].join(':');
+      return [
+        'v1',
+        iv.toString('base64'),
+        tag.toString('base64'),
+        ciphertext.toString('base64'),
+      ].join(':');
     },
 
     decrypt(payload, context) {

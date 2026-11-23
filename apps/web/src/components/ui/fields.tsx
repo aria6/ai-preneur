@@ -127,7 +127,15 @@ export interface SelectFieldProps extends SelectHTMLAttributes<HTMLSelectElement
   hint?: ReactNode;
 }
 
-export function SelectField({ label, error, hint, className, id, children, ...props }: SelectFieldProps) {
+export function SelectField({
+  label,
+  error,
+  hint,
+  className,
+  id,
+  children,
+  ...props
+}: SelectFieldProps) {
   const generatedId = useId();
   const fieldId = id ?? generatedId;
   return (
@@ -171,7 +179,12 @@ export function Toggle({
   disabled?: boolean;
 }) {
   return (
-    <label className={cn('flex items-start gap-3', disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer')}>
+    <label
+      className={cn(
+        'flex items-start gap-3',
+        disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
+      )}
+    >
       <input
         type="checkbox"
         role="switch"

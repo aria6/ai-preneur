@@ -76,7 +76,13 @@ export function UserFormModal({ open, user, roles, onClose, onSaved }: UserFormM
         }
         saved = await usersService.updateUser(user.id, parsed.data);
       } else {
-        const parsed = createUserRequestSchema.safeParse({ name, email, password, roleId, isActive });
+        const parsed = createUserRequestSchema.safeParse({
+          name,
+          email,
+          password,
+          roleId,
+          isActive,
+        });
         if (!parsed.success) {
           setErrors(zodFieldErrors(parsed.error));
           return;
@@ -150,7 +156,9 @@ export function UserFormModal({ open, user, roles, onClose, onSaved }: UserFormM
           onChange={(event) => setRoleId(event.target.value)}
           error={errors.roleId}
         >
-          {roleOptions.length === 0 && <option value="">Tidak ada role yang dapat diberikan</option>}
+          {roleOptions.length === 0 && (
+            <option value="">Tidak ada role yang dapat diberikan</option>
+          )}
           {roleOptions.map((role) => (
             <option key={role.id} value={role.id}>
               {role.name}

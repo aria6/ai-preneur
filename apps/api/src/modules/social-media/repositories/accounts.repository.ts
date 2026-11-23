@@ -1,4 +1,11 @@
-import { and, eq, smAccounts, sql, type DatabaseExecutor, type SmAccountRow } from '@ai-preneur/database';
+import {
+  and,
+  eq,
+  smAccounts,
+  sql,
+  type DatabaseExecutor,
+  type SmAccountRow,
+} from '@ai-preneur/database';
 
 export type AccountPlatform = SmAccountRow['platform'];
 
@@ -8,7 +15,10 @@ export function createAccountsRepository(db: DatabaseExecutor) {
       return db.select().from(smAccounts).where(eq(smAccounts.batchId, batchId));
     },
 
-    async findForBatch(batchId: string, platform: AccountPlatform): Promise<SmAccountRow | undefined> {
+    async findForBatch(
+      batchId: string,
+      platform: AccountPlatform,
+    ): Promise<SmAccountRow | undefined> {
       const [row] = await db
         .select()
         .from(smAccounts)
@@ -48,7 +58,9 @@ export function createAccountsRepository(db: DatabaseExecutor) {
     },
 
     async deleteForBatch(batchId: string, platform: AccountPlatform): Promise<void> {
-      await db.delete(smAccounts).where(and(eq(smAccounts.batchId, batchId), eq(smAccounts.platform, platform)));
+      await db
+        .delete(smAccounts)
+        .where(and(eq(smAccounts.batchId, batchId), eq(smAccounts.platform, platform)));
     },
   };
 }

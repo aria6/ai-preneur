@@ -42,7 +42,8 @@ function normalizeError(error: unknown): AppError {
     return new AppError({
       statusCode: 400,
       code: ERROR_CODES.BAD_REQUEST,
-      message: error.type === 'entity.parse.failed' ? 'Malformed JSON body' : 'Invalid request body',
+      message:
+        error.type === 'entity.parse.failed' ? 'Malformed JSON body' : 'Invalid request body',
     });
   }
 

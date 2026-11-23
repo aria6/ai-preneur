@@ -104,7 +104,9 @@ function BatchCard({ batch }: { batch: BatchSummaryDto }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-medium text-slate-500">IDEA_ID {batch.ideaNumber}</p>
-          <h2 className="mt-0.5 truncate font-semibold text-slate-900 group-hover:text-primary-700">{batch.title}</h2>
+          <h2 className="mt-0.5 truncate font-semibold text-slate-900 group-hover:text-primary-700">
+            {batch.title}
+          </h2>
         </div>
         <BatchStatusBadge status={batch.status} />
       </div>
@@ -121,7 +123,8 @@ function BatchCard({ batch }: { batch: BatchSummaryDto }) {
         <div>
           <dt className="text-xs text-slate-500">Video</dt>
           <dd className="font-medium text-slate-900">
-            {batch.itemCount} <span className="font-normal text-slate-500">· {batch.publishedCount} terunggah</span>
+            {batch.itemCount}{' '}
+            <span className="font-normal text-slate-500">· {batch.publishedCount} terunggah</span>
           </dd>
         </div>
         <div>

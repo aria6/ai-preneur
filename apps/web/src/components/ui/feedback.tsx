@@ -36,9 +36,20 @@ const BADGE_STYLES = {
   violet: 'bg-violet-100 text-violet-800',
 } as const;
 
-export function Badge({ color = 'gray', children }: { color?: keyof typeof BADGE_STYLES; children: ReactNode }) {
+export function Badge({
+  color = 'gray',
+  children,
+}: {
+  color?: keyof typeof BADGE_STYLES;
+  children: ReactNode;
+}) {
   return (
-    <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', BADGE_STYLES[color])}>
+    <span
+      className={cn(
+        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+        BADGE_STYLES[color],
+      )}
+    >
       {children}
     </span>
   );
@@ -83,7 +94,9 @@ export function PageHeader({
         {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
       </div>
       {actions && (
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:shrink-0 sm:flex-row sm:items-center">{actions}</div>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:shrink-0 sm:flex-row sm:items-center">
+          {actions}
+        </div>
       )}
     </div>
   );
@@ -91,6 +104,8 @@ export function PageHeader({
 
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <section className={cn('rounded-xl border border-slate-200 bg-white shadow-xs', className)}>{children}</section>
+    <section className={cn('rounded-xl border border-slate-200 bg-white shadow-xs', className)}>
+      {children}
+    </section>
   );
 }

@@ -30,7 +30,11 @@ export interface RateLimitOptions {
  * failures), so it also blunts credential-stuffing bursts.
  */
 export function createRateLimiter(options: RateLimitOptions): RequestHandler {
-  const { windowMs, max, message = 'Terlalu banyak permintaan. Silakan coba lagi nanti.' } = options;
+  const {
+    windowMs,
+    max,
+    message = 'Terlalu banyak permintaan. Silakan coba lagi nanti.',
+  } = options;
   const keyOf = options.key ?? clientRateKey;
   const counters = new Map<string, Counter>();
   let nextSweep = Date.now() + windowMs;

@@ -29,7 +29,10 @@ export function createPublicationsRepository(db: DatabaseExecutor) {
       return row?.id ?? null;
     },
 
-    async markPublished(id: string, result: { externalMediaId: string; externalUrl: string | null }): Promise<void> {
+    async markPublished(
+      id: string,
+      result: { externalMediaId: string; externalUrl: string | null },
+    ): Promise<void> {
       await db
         .update(smPublications)
         .set({

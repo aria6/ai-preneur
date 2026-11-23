@@ -12,7 +12,9 @@ import { errorMessage } from '../../lib/errors';
 import * as rolesService from '../../services/roles.service';
 import { RoleFormModal } from './RoleFormModal';
 
-const LABELS = new Map(PERMISSION_DEFINITIONS.map((definition) => [definition.key, definition.label]));
+const LABELS = new Map(
+  PERMISSION_DEFINITIONS.map((definition) => [definition.key, definition.label]),
+);
 
 export function RolesPage() {
   const { user: me, can } = useAuth();
@@ -46,7 +48,9 @@ export function RolesPage() {
     canManage && me !== null && !role.isSystem && role.id !== me.role.id && canActOnRole(me, role);
 
   const onSaved = (saved: RoleDto) => {
-    setNotice(formState.role ? `Role ${saved.name} diperbarui.` : `Role ${saved.name} ditambahkan.`);
+    setNotice(
+      formState.role ? `Role ${saved.name} diperbarui.` : `Role ${saved.name} ditambahkan.`,
+    );
     setFormState({ open: false });
     reload();
   };
@@ -110,7 +114,9 @@ export function RolesPage() {
                 </div>
               </div>
 
-              {role.description && <p className="mt-3 text-sm text-slate-600">{role.description}</p>}
+              {role.description && (
+                <p className="mt-3 text-sm text-slate-600">{role.description}</p>
+              )}
 
               <div className="mt-4 flex flex-wrap gap-1.5">
                 {role.isSystem ? (
@@ -118,13 +124,19 @@ export function RolesPage() {
                 ) : role.permissions.length === 0 ? (
                   <span className="text-xs text-slate-400">Tidak ada hak akses</span>
                 ) : (
-                  role.permissions.map((permission) => <Badge key={permission}>{LABELS.get(permission) ?? permission}</Badge>)
+                  role.permissions.map((permission) => (
+                    <Badge key={permission}>{LABELS.get(permission) ?? permission}</Badge>
+                  ))
                 )}
               </div>
 
               {editable(role) && (
                 <div className="mt-5 flex gap-2 border-t border-slate-100 pt-4">
-                  <Button variant="secondary" size="sm" onClick={() => setFormState({ open: true, role })}>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setFormState({ open: true, role })}
+                  >
                     <Icon name="edit" className="size-4" /> Ubah
                   </Button>
                   <Button
@@ -156,8 +168,8 @@ export function RolesPage() {
         message={
           deleteTarget && deleteTarget.userCount > 0 ? (
             <>
-              Role <strong>{deleteTarget.name}</strong> masih dipakai oleh {deleteTarget.userCount} pengguna. Pindahkan
-              mereka ke role lain sebelum menghapus.
+              Role <strong>{deleteTarget.name}</strong> masih dipakai oleh {deleteTarget.userCount}{' '}
+              pengguna. Pindahkan mereka ke role lain sebelum menghapus.
             </>
           ) : (
             <>

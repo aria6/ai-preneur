@@ -72,7 +72,10 @@ export function UsersPage() {
     return () => controller.abort();
   }, [canCreate, canUpdate]);
 
-  const assignableRoles = useMemo(() => (me ? roles.filter((role) => canActOnRole(me, role)) : []), [me, roles]);
+  const assignableRoles = useMemo(
+    () => (me ? roles.filter((role) => canActOnRole(me, role)) : []),
+    [me, roles],
+  );
   const roleById = useMemo(() => new Map(roles.map((role) => [role.id, role])), [roles]);
 
   /** Self and more powerful users are managed elsewhere / not at all. */
@@ -83,7 +86,9 @@ export function UsersPage() {
   };
 
   const onSaved = (saved: UserDto) => {
-    setNotice(formState.user ? `Pengguna ${saved.name} diperbarui.` : `Pengguna ${saved.name} ditambahkan.`);
+    setNotice(
+      formState.user ? `Pengguna ${saved.name} diperbarui.` : `Pengguna ${saved.name} ditambahkan.`,
+    );
     setFormState({ open: false });
     reload();
   };
@@ -164,16 +169,28 @@ export function UsersPage() {
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-left text-xs font-semibold tracking-wide text-slate-500 uppercase">
                 <tr>
-                  <th scope="col" className="px-4 py-3">Pengguna</th>
-                  <th scope="col" className="hidden px-4 py-3 sm:table-cell">Role</th>
-                  <th scope="col" className="px-4 py-3">Status</th>
-                  <th scope="col" className="hidden px-4 py-3 lg:table-cell">Login terakhir</th>
+                  <th scope="col" className="px-4 py-3">
+                    Pengguna
+                  </th>
+                  <th scope="col" className="hidden px-4 py-3 sm:table-cell">
+                    Role
+                  </th>
+                  <th scope="col" className="px-4 py-3">
+                    Status
+                  </th>
+                  <th scope="col" className="hidden px-4 py-3 lg:table-cell">
+                    Login terakhir
+                  </th>
                   <th scope="col" className="px-4 py-3 text-right">
                     <span className="sr-only">Aksi</span>
                   </th>
                 </tr>
               </thead>
-              <tbody className={loading ? 'divide-y divide-slate-100 opacity-60' : 'divide-y divide-slate-100'}>
+              <tbody
+                className={
+                  loading ? 'divide-y divide-slate-100 opacity-60' : 'divide-y divide-slate-100'
+                }
+              >
                 {data?.items.map((user) => {
                   const manageable = canManage(user);
                   const isMe = user.id === me?.id;
@@ -186,20 +203,29 @@ export function UsersPage() {
                           </span>
                           <div className="min-w-0">
                             <p className="truncate font-medium text-slate-900">
-                              {user.name} {isMe && <span className="text-xs font-normal text-slate-400">(Anda)</span>}
+                              {user.name}{' '}
+                              {isMe && (
+                                <span className="text-xs font-normal text-slate-400">(Anda)</span>
+                              )}
                             </p>
                             <p className="truncate text-xs text-slate-500">{user.email}</p>
                             <p className="mt-1 sm:hidden">
-                              <Badge color={user.role.isSystem ? 'violet' : 'gray'}>{user.role.name}</Badge>
+                              <Badge color={user.role.isSystem ? 'violet' : 'gray'}>
+                                {user.role.name}
+                              </Badge>
                             </p>
                           </div>
                         </div>
                       </td>
                       <td className="hidden px-4 py-3 sm:table-cell">
-                        <Badge color={user.role.isSystem ? 'violet' : 'gray'}>{user.role.name}</Badge>
+                        <Badge color={user.role.isSystem ? 'violet' : 'gray'}>
+                          {user.role.name}
+                        </Badge>
                       </td>
                       <td className="px-4 py-3">
-                        <Badge color={user.isActive ? 'green' : 'red'}>{user.isActive ? 'Aktif' : 'Nonaktif'}</Badge>
+                        <Badge color={user.isActive ? 'green' : 'red'}>
+                          {user.isActive ? 'Aktif' : 'Nonaktif'}
+                        </Badge>
                       </td>
                       <td className="hidden px-4 py-3 whitespace-nowrap text-slate-500 lg:table-cell">
                         {formatDateTime(user.lastLoginAt)}
@@ -207,7 +233,10 @@ export function UsersPage() {
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-1">
                           {isMe ? (
-                            <Link to="/profile" className="rounded-lg px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100">
+                            <Link
+                              to="/profile"
+                              className="rounded-lg px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                            >
                               Profil
                             </Link>
                           ) : (
@@ -215,10 +244,22 @@ export function UsersPage() {
                               <>
                                 {canUpdate && (
                                   <>
-                                    <Button variant="ghost" size="icon" title="Ubah" aria-label={`Ubah ${user.name}`} onClick={() => setFormState({ open: true, user })}>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      title="Ubah"
+                                      aria-label={`Ubah ${user.name}`}
+                                      onClick={() => setFormState({ open: true, user })}
+                                    >
                                       <Icon name="edit" className="size-4" />
                                     </Button>
-                                    <Button variant="ghost" size="icon" title="Reset password" aria-label={`Reset password ${user.name}`} onClick={() => setResetTarget(user)}>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      title="Reset password"
+                                      aria-label={`Reset password ${user.name}`}
+                                      onClick={() => setResetTarget(user)}
+                                    >
                                       <Icon name="key" className="size-4" />
                                     </Button>
                                   </>
@@ -254,10 +295,20 @@ export function UsersPage() {
               {from}–{to} dari {total} pengguna
             </span>
             <div className="flex gap-2">
-              <Button variant="secondary" size="sm" disabled={page <= 1 || loading} onClick={() => setPage((p) => p - 1)}>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={page <= 1 || loading}
+                onClick={() => setPage((p) => p - 1)}
+              >
                 <Icon name="chevronLeft" className="size-4" /> Sebelumnya
               </Button>
-              <Button variant="secondary" size="sm" disabled={page >= totalPages || loading} onClick={() => setPage((p) => p + 1)}>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={page >= totalPages || loading}
+                onClick={() => setPage((p) => p + 1)}
+              >
                 Berikutnya <Icon name="chevronRight" className="size-4" />
               </Button>
             </div>
@@ -285,8 +336,9 @@ export function UsersPage() {
         title="Hapus pengguna?"
         message={
           <>
-            Akun <strong>{deleteTarget?.name}</strong> ({deleteTarget?.email}) akan dihapus permanen. Tindakan ini tidak
-            dapat dibatalkan. Untuk menonaktifkan sementara, ubah status akun menjadi nonaktif.
+            Akun <strong>{deleteTarget?.name}</strong> ({deleteTarget?.email}) akan dihapus
+            permanen. Tindakan ini tidak dapat dibatalkan. Untuk menonaktifkan sementara, ubah
+            status akun menjadi nonaktif.
           </>
         }
         loading={deleting}

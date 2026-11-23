@@ -71,7 +71,10 @@ export function SidebarProfile({ collapsed }: { collapsed: boolean }) {
         </span>
         <Icon
           name="chevronDown"
-          className={cn('size-4 shrink-0 rotate-180 text-slate-400 md:-rotate-90', collapsed && 'hidden')}
+          className={cn(
+            'size-4 shrink-0 rotate-180 text-slate-400 md:-rotate-90',
+            collapsed && 'hidden',
+          )}
         />
       </button>
 
