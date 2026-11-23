@@ -24,6 +24,7 @@
       "files": ["apps/web/**"],
       "env": { "browser": true },
       "rules": {
+        "react/react-in-jsx-scope": "off",
         "react/rules-of-hooks": "error",
         "react/exhaustive-deps": "warn",
         "no-restricted-imports": [
