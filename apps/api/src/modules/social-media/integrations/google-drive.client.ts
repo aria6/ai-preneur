@@ -14,11 +14,7 @@ const REQUEST_TIMEOUT_MS = 15_000;
 const MAX_PAGES = 10; // 10 × 1000 files is far beyond any realistic content folder
 
 export type DriveErrorKind =
-  | 'not_configured'
-  | 'not_found'
-  | 'forbidden'
-  | 'invalid'
-  | 'unavailable';
+  'not_configured' | 'not_found' | 'forbidden' | 'invalid' | 'unavailable';
 
 export class DriveError extends Error {
   readonly kind: DriveErrorKind;
