@@ -5,7 +5,7 @@ import {
   type QueueItemDto,
   type UpdateItemRequest,
 } from '@ai-preneur/shared';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 
 import { Button } from '../../../components/ui/Button';
 import { TextAreaField, TextField } from '../../../components/ui/fields';
@@ -45,19 +45,7 @@ interface ItemFormModalProps {
   onSaved: (batch: BatchDetailDto) => void;
 }
 
-export function ItemFormModal({ open, batch, item, onClose, onSaved }: ItemFormModalProps) {
-  const [title, setTitle] = useState('');
-  const [topic, setTopic] = useState('');
-  const [part, setPart] = useState('');
-  const [videoUrl, setVideoUrl] = useState('');
-  const [thumbnailUrl, setThumbnailUrl] = useState('');
-  const [caption, setCaption] = useState('');
-  const [tags, setTags] = useState('');
-  const [schedule, setSchedule] = useState('');
-  const [errors, setErrors] = useState<FieldErrors>({});
-  const [formError, setFormError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
+function ItemFormModalContent({ open, batch, item, onClose, onSaved }: ItemFormModalProps) {
   // Initial values, kept to send only what changed when editing.
   const initial = {
     title: item?.title ?? '',
@@ -70,20 +58,17 @@ export function ItemFormModal({ open, batch, item, onClose, onSaved }: ItemFormM
     schedule: toDateTimeLocal(item?.scheduledAt),
   };
 
-  useEffect(() => {
-    if (!open) return;
-    setTitle(initial.title);
-    setTopic(initial.topic);
-    setPart(initial.part);
-    setVideoUrl(initial.videoUrl);
-    setThumbnailUrl(initial.thumbnailUrl);
-    setCaption(initial.caption);
-    setTags(initial.tags);
-    setSchedule(initial.schedule);
-    setErrors({});
-    setFormError(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when the modal opens
-  }, [open, item]);
+  const [title, setTitle] = useState(initial.title);
+  const [topic, setTopic] = useState(initial.topic);
+  const [part, setPart] = useState(initial.part);
+  const [videoUrl, setVideoUrl] = useState(initial.videoUrl);
+  const [thumbnailUrl, setThumbnailUrl] = useState(initial.thumbnailUrl);
+  const [caption, setCaption] = useState(initial.caption);
+  const [tags, setTags] = useState(initial.tags);
+  const [schedule, setSchedule] = useState(initial.schedule);
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -251,4 +236,9 @@ export function ItemFormModal({ open, batch, item, onClose, onSaved }: ItemFormM
       </form>
     </Modal>
   );
+}
+
+/** Mounted only while open, so every opening starts from fresh form state (no reset effect). */
+export function ItemFormModal(props: Parameters<typeof ItemFormModalContent>[0]) {
+  return props.open ? <ItemFormModalContent key={props.item?.id ?? 'new'} {...props} /> : null;
 }

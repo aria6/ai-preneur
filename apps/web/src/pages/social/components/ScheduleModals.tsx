@@ -4,7 +4,7 @@ import {
   type BatchDetailDto,
   type QueueItemDto,
 } from '@ai-preneur/shared';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 
 import { Button } from '../../../components/ui/Button';
 import { SelectField, TextField } from '../../../components/ui/fields';
@@ -20,7 +20,7 @@ import {
 import * as socialService from '../../../services/social.service';
 
 /** "Jadwalkan semua": fills the schedule of every editable, active row in queue order. */
-export function AutoScheduleModal({
+function AutoScheduleModalContent({
   open,
   batch,
   onClose,
@@ -31,25 +31,19 @@ export function AutoScheduleModal({
   onClose: () => void;
   onSaved: (batch: BatchDetailDto) => void;
 }) {
-  const [start, setStart] = useState('');
+  const [start, setStart] = useState(() =>
+    suggestStart(
+      batch.status === 'scheduled'
+        ? batch.settings.lockMinutes
+        : batch.settings.minConfirmLeadMinutes,
+    ),
+  );
   const [intervalMinutes, setIntervalMinutes] = useState('1440');
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const minimumMinutes =
-    batch.status === 'scheduled'
-      ? batch.settings.lockMinutes
-      : batch.settings.minConfirmLeadMinutes;
   const affected = batch.items.filter((item) => !item.locked && !item.isPaused).length;
-
-  useEffect(() => {
-    if (!open) return;
-    setStart(suggestStart(minimumMinutes));
-    setIntervalMinutes('1440');
-    setErrors({});
-    setFormError(null);
-  }, [open, minimumMinutes]);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -132,8 +126,15 @@ export function AutoScheduleModal({
   );
 }
 
+/** Keeps the row's current schedule if it is still outside the lock window, else suggests one. */
+function initialResumeSchedule(item: QueueItemDto | null, lockMinutes: number): string {
+  const minimum = Date.now() + lockMinutes * 60_000;
+  const current = item?.scheduledAt ? new Date(item.scheduledAt).getTime() : 0;
+  return current > minimum ? toDateTimeLocal(item?.scheduledAt) : suggestStart(lockMinutes);
+}
+
 /** Resuming a paused row of a scheduled batch requires a new schedule. */
-export function ResumeItemModal({
+function ResumeItemModalContent({
   batch,
   item,
   onClose,
@@ -144,21 +145,11 @@ export function ResumeItemModal({
   onClose: () => void;
   onSaved: (batch: BatchDetailDto) => void;
 }) {
-  const [schedule, setSchedule] = useState('');
+  const [schedule, setSchedule] = useState(() =>
+    initialResumeSchedule(item, batch.settings.lockMinutes),
+  );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (!item) return;
-    const minimum = Date.now() + batch.settings.lockMinutes * 60_000;
-    const current = item.scheduledAt ? new Date(item.scheduledAt).getTime() : 0;
-    setSchedule(
-      current > minimum
-        ? toDateTimeLocal(item.scheduledAt)
-        : suggestStart(batch.settings.lockMinutes),
-    );
-    setError(null);
-  }, [item, batch.settings.lockMinutes]);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -210,4 +201,14 @@ export function ResumeItemModal({
       </form>
     </Modal>
   );
+}
+
+/** Mounted only while open, so every opening starts from fresh form state (no reset effect). */
+export function AutoScheduleModal(props: Parameters<typeof AutoScheduleModalContent>[0]) {
+  return props.open ? <AutoScheduleModalContent key={'auto-schedule'} {...props} /> : null;
+}
+
+/** Mounted only while open, so every opening starts from fresh form state (no reset effect). */
+export function ResumeItemModal(props: Parameters<typeof ResumeItemModalContent>[0]) {
+  return props.item ? <ResumeItemModalContent key={props.item?.id} {...props} /> : null;
 }

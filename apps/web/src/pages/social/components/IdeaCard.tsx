@@ -4,7 +4,7 @@ import {
   type ScanWarning,
   type UpdateBatchRequest,
 } from '@ai-preneur/shared';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 
 import { Button } from '../../../components/ui/Button';
 import { TextField } from '../../../components/ui/fields';
@@ -42,11 +42,15 @@ export function IdeaCard({
   const [confirmRescan, setConfirmRescan] = useState(false);
   const [report, setReport] = useState<{ added: number; warnings: ScanWarning[] } | null>(null);
 
-  useEffect(() => {
+  // Re-sync the fields when the saved values change (adjust-state-during-render, not an effect).
+  const savedKey = `${batch.title}\u0000${batch.ideaNumber}\u0000${batch.driveFolderUrl}`;
+  const [syncedKey, setSyncedKey] = useState(savedKey);
+  if (syncedKey !== savedKey) {
+    setSyncedKey(savedKey);
     setTitle(batch.title);
     setIdeaNumber(String(batch.ideaNumber));
     setFolderUrl(batch.driveFolderUrl);
-  }, [batch.title, batch.ideaNumber, batch.driveFolderUrl]);
+  }
 
   const isDraft = batch.status === 'draft';
   const editable = canManage && batch.status !== 'completed';

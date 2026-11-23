@@ -1,5 +1,5 @@
 import { resetUserPasswordRequestSchema, type UserDto } from '@ai-preneur/shared';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 
 import { Button } from '../../components/ui/Button';
 import { PasswordField } from '../../components/ui/fields';
@@ -8,7 +8,7 @@ import { Modal } from '../../components/ui/Modal';
 import { apiFieldErrors, errorMessage, zodFieldErrors, type FieldErrors } from '../../lib/errors';
 import * as usersService from '../../services/users.service';
 
-export function ResetPasswordModal({
+function ResetPasswordModalContent({
   user,
   onClose,
   onDone,
@@ -21,12 +21,6 @@ export function ResetPasswordModal({
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    setNewPassword('');
-    setErrors({});
-    setFormError(null);
-  }, [user]);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -85,4 +79,9 @@ export function ResetPasswordModal({
       </form>
     </Modal>
   );
+}
+
+/** Mounted only while open, so every opening starts from fresh form state (no reset effect). */
+export function ResetPasswordModal(props: Parameters<typeof ResetPasswordModalContent>[0]) {
+  return props.user ? <ResetPasswordModalContent key={props.user?.id} {...props} /> : null;
 }

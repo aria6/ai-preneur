@@ -21,7 +21,7 @@ import {
   type PublicationDto,
   type QueueItemDto,
 } from '@ai-preneur/shared';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { Button } from '../../../components/ui/Button';
 import { Alert, Badge, Card, EmptyState } from '../../../components/ui/feedback';
@@ -302,7 +302,12 @@ export function QueueSection({ batch, canManage, now, onChange, onNotice }: Queu
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [failedPublication, setFailedPublication] = useState<PublicationDto | null>(null);
 
-  useEffect(() => setItems(batch.items), [batch.items]);
+  // Adopt fresh server data when it changes (adjust-state-during-render, not an effect).
+  const [sourceItems, setSourceItems] = useState(batch.items);
+  if (sourceItems !== batch.items) {
+    setSourceItems(batch.items);
+    setItems(batch.items);
+  }
 
   const mutable = canManage && batch.status !== 'completed';
 

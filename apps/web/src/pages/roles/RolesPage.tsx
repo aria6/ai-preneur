@@ -33,10 +33,12 @@ export function RolesPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    setLoadError(null);
     rolesService
       .listRoles(controller.signal)
-      .then(setRoles)
+      .then((loaded) => {
+        setRoles(loaded);
+        setLoadError(null);
+      })
       .catch((error: unknown) => {
         if (!controller.signal.aborted) setLoadError(errorMessage(error));
       });

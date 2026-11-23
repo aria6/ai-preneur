@@ -5,7 +5,7 @@ import {
   type UpdateUserRequest,
   type UserDto,
 } from '@ai-preneur/shared';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 
 import { Button } from '../../components/ui/Button';
 import { PasswordField, SelectField, TextField, Toggle } from '../../components/ui/fields';
@@ -24,28 +24,19 @@ interface UserFormModalProps {
   onSaved: (user: UserDto) => void;
 }
 
-export function UserFormModal({ open, user, roles, onClose, onSaved }: UserFormModalProps) {
+function UserFormModalContent({ open, user, roles, onClose, onSaved }: UserFormModalProps) {
   const isEdit = user !== undefined;
 
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [name, setName] = useState(user?.name ?? '');
+  const [email, setEmail] = useState(user?.email ?? '');
   const [password, setPassword] = useState('');
-  const [roleId, setRoleId] = useState('');
-  const [isActive, setIsActive] = useState(true);
+  const [roleId, setRoleId] = useState(
+    () => user?.role.id ?? roles.find((role) => !role.isSystem)?.id ?? roles[0]?.id ?? '',
+  );
+  const [isActive, setIsActive] = useState(user?.isActive ?? true);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    setName(user?.name ?? '');
-    setEmail(user?.email ?? '');
-    setPassword('');
-    setRoleId(user?.role.id ?? roles.find((role) => !role.isSystem)?.id ?? roles[0]?.id ?? '');
-    setIsActive(user?.isActive ?? true);
-    setErrors({});
-    setFormError(null);
-  }, [open, user, roles]);
 
   // The current role stays selectable when editing even if it is not assignable.
   const roleOptions =
@@ -174,4 +165,9 @@ export function UserFormModal({ open, user, roles, onClose, onSaved }: UserFormM
       </form>
     </Modal>
   );
+}
+
+/** Mounted only while open, so every opening starts from fresh form state (no reset effect). */
+export function UserFormModal(props: Parameters<typeof UserFormModalContent>[0]) {
+  return props.open ? <UserFormModalContent key={props.user?.id ?? 'new'} {...props} /> : null;
 }

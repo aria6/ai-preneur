@@ -15,21 +15,13 @@ import * as socialService from '../../services/social.service';
 import { BatchStatusBadge } from './components/BatchStatusBadge';
 import { PlatformTag } from './components/PlatformChip';
 
-function CreateBatchModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+function CreateBatchModalContent({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [driveFolderUrl, setDriveFolderUrl] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    setTitle('');
-    setDriveFolderUrl('');
-    setErrors({});
-    setFormError(null);
-  }, [open]);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -198,4 +190,9 @@ export function PublisherListPage() {
       <CreateBatchModal open={creating} onClose={() => setCreating(false)} />
     </>
   );
+}
+
+/** Mounted only while open, so every opening starts from fresh form state (no reset effect). */
+function CreateBatchModal(props: Parameters<typeof CreateBatchModalContent>[0]) {
+  return props.open ? <CreateBatchModalContent key={'create'} {...props} /> : null;
 }

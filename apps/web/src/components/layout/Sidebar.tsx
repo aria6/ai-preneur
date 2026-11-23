@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useId, useState } from 'react';
 import { NavLink, useLocation } from 'react-router';
 
 import { useAuth } from '../../hooks/use-auth';
@@ -78,9 +78,12 @@ function SidebarGroup({
   const containsActive = group.children.some((child) => isPathActive(pathname, child.to));
   const [open, setOpen] = useState(containsActive);
 
-  useEffect(() => {
+  // Open the group when navigation enters it (adjust-state-during-render, not an effect).
+  const [wasActive, setWasActive] = useState(containsActive);
+  if (wasActive !== containsActive) {
+    setWasActive(containsActive);
     if (containsActive) setOpen(true);
-  }, [containsActive]);
+  }
 
   const onClick = () => {
     if (collapsed) {

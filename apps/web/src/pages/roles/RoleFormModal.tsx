@@ -6,7 +6,7 @@ import {
   type PermissionDefinition,
   type RoleDto,
 } from '@ai-preneur/shared';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 
 import { Button } from '../../components/ui/Button';
 import { TextAreaField, TextField } from '../../components/ui/fields';
@@ -29,7 +29,7 @@ function groupByCategory(
   return [...groups.entries()];
 }
 
-export function RoleFormModal({
+function RoleFormModalContent({
   open,
   role,
   onClose,
@@ -41,23 +41,14 @@ export function RoleFormModal({
   onSaved: (role: RoleDto) => void;
 }) {
   const { user: me } = useAuth();
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [selected, setSelected] = useState<Set<Permission>>(new Set());
+  const [name, setName] = useState(role?.name ?? '');
+  const [description, setDescription] = useState(role?.description ?? '');
+  const [selected, setSelected] = useState<Set<Permission>>(() => new Set(role?.permissions ?? []));
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const groups = useMemo(() => groupByCategory(PERMISSION_DEFINITIONS), []);
-
-  useEffect(() => {
-    if (!open) return;
-    setName(role?.name ?? '');
-    setDescription(role?.description ?? '');
-    setSelected(new Set(role?.permissions ?? []));
-    setErrors({});
-    setFormError(null);
-  }, [open, role]);
 
   /** You can only grant what you have (system roles have everything). */
   const canGrant = (permission: Permission) =>
@@ -197,4 +188,9 @@ export function RoleFormModal({
       </form>
     </Modal>
   );
+}
+
+/** Mounted only while open, so every opening starts from fresh form state (no reset effect). */
+export function RoleFormModal(props: Parameters<typeof RoleFormModalContent>[0]) {
+  return props.open ? <RoleFormModalContent key={props.role?.id ?? 'new'} {...props} /> : null;
 }

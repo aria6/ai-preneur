@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 import { cn } from '../../lib/cn';
@@ -37,10 +37,13 @@ export function Modal({
 }: ModalProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  // Latest callbacks for the document listeners; refs are written after render, never during it.
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
   const busyRef = useRef(busy);
-  busyRef.current = busy;
+  useLayoutEffect(() => {
+    onCloseRef.current = onClose;
+    busyRef.current = busy;
+  });
 
   useEffect(() => {
     if (!open) return;

@@ -48,25 +48,29 @@ export function AppLayout() {
   }, []);
 
   // Close the drawer on navigation and when growing past the phone breakpoint.
-  useEffect(() => setMobileOpen(false), [location.pathname]);
-  useEffect(() => {
-    if (isTabletUp) setMobileOpen(false);
-  }, [isTabletUp]);
+  // Close the drawer on navigation (adjust-state-during-render, not an effect).
+  const [drawerPath, setDrawerPath] = useState(location.pathname);
+  if (drawerPath !== location.pathname) {
+    setDrawerPath(location.pathname);
+    setMobileOpen(false);
+  }
+  // The drawer only exists on phones: derived, so growing past the breakpoint closes it.
+  const drawerOpen = mobileOpen && !isTabletUp;
 
   useEffect(() => {
-    if (!mobileOpen) return;
+    if (!drawerOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setMobileOpen(false);
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [mobileOpen]);
+  }, [drawerOpen]);
 
   return (
     <div className="flex h-dvh overflow-hidden bg-slate-50 text-slate-900">
       <Sidebar
         collapsed={collapsed && isTabletUp}
-        mobileOpen={mobileOpen}
+        mobileOpen={drawerOpen}
         isMobile={!isTabletUp}
         onToggleCollapsed={toggleCollapsed}
         onExpand={expand}
@@ -81,7 +85,7 @@ export function AppLayout() {
             type="button"
             onClick={() => setMobileOpen((value) => !value)}
             aria-controls={SIDEBAR_ID}
-            aria-expanded={mobileOpen}
+            aria-expanded={drawerOpen}
             aria-label="Buka menu"
             className="-ml-1.5 rounded-lg p-1.5 text-slate-600 hover:bg-slate-100"
           >

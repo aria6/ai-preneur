@@ -32,7 +32,7 @@ export function UsersPage() {
   const reload = useCallback(() => setReloadKey((k) => k + 1), []);
 
   const [data, setData] = useState<UserListResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -44,23 +44,32 @@ export function UsersPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  useEffect(() => setPage(1), [search]);
+  // A new search starts from page 1 (adjust-state-during-render, not an effect).
+  const [pageSearch, setPageSearch] = useState(search);
+  if (pageSearch !== search) {
+    setPageSearch(search);
+    setPage(1);
+  }
 
+  const requestKey = `${page}\u0000${search}\u0000${reloadKey}`;
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
-    setLoadError(null);
     usersService
       .listUsers({ page, pageSize: PAGE_SIZE, ...(search ? { search } : {}) }, controller.signal)
-      .then(setData)
+      .then((result) => {
+        setData(result);
+        setLoadError(null);
+      })
       .catch((error: unknown) => {
         if (!controller.signal.aborted) setLoadError(errorMessage(error));
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted) setLoadedKey(requestKey);
       });
     return () => controller.abort();
-  }, [page, search, reloadKey]);
+  }, [page, search, requestKey]);
+  // Loading = the latest request has not answered yet (derived, no setState at effect start).
+  const loading = loadedKey !== requestKey;
 
   useEffect(() => {
     if (!canCreate && !canUpdate) return;
