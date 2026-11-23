@@ -8,6 +8,13 @@
       "when": 1795335503291,
       "tag": "0000_nice_killraven",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795432717077,
+      "tag": "0001_strange_jack_power",
+      "breakpoints": true
     }
   ]
 }
