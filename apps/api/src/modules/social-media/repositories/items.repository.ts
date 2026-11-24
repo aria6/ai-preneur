@@ -4,6 +4,7 @@ import {
   eq,
   lte,
   smBatches,
+  smPublications,
   smQueueItems,
   sql,
   type DatabaseExecutor,
@@ -93,7 +94,11 @@ export function createItemsRepository(db: DatabaseExecutor) {
       await db.delete(smQueueItems).where(eq(smQueueItems.batchId, batchId));
     },
 
-    /** Rows due for upload: batch scheduled, row active, schedule reached. Oldest first. */
+    /**
+     * Rows due for their first upload: batch scheduled, row active, schedule reached,
+     * and at least one selected platform not attempted yet. Oldest first.
+     * (Retries of failed uploads are found through the publications repository.)
+     */
     async findDue(limit: number): Promise<{ item: SmQueueItemRow; batch: SmBatchRow }[]> {
       return db
         .select({ item: smQueueItems, batch: smBatches })
@@ -104,6 +109,14 @@ export function createItemsRepository(db: DatabaseExecutor) {
             eq(smBatches.status, 'scheduled'),
             eq(smQueueItems.isPaused, false),
             lte(smQueueItems.scheduledAt, sql`now()`),
+            sql`exists (
+              select 1 from unnest(${smBatches.platforms}) as selected(platform)
+              where not exists (
+                select 1 from ${smPublications}
+                where ${smPublications.itemId} = ${smQueueItems.id}
+                  and ${smPublications.platform}::text = selected.platform
+              )
+            )`,
           ),
         )
         .orderBy(asc(smQueueItems.scheduledAt))

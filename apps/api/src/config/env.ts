@@ -47,7 +47,7 @@ const envSchema = z.object({
     .refine((value) => !value || Buffer.from(value, 'base64').length === 32, {
       message: 'SOCIAL_CREDENTIALS_KEY must be 32 bytes, base64 encoded (openssl rand -base64 32)',
     }),
-  /** Runs the scheduled-upload worker. Keep false until a platform publisher is implemented. */
+  /** Runs the scheduled-upload worker (real uploads to Instagram at each row's schedule). */
   SOCIAL_PUBLISHER_ENABLED: booleanString.default(false),
   SOCIAL_PUBLISHER_INTERVAL_SECONDS: z.coerce.number().int().min(10).max(3600).default(30),
 });

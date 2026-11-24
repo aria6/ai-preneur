@@ -180,6 +180,10 @@ export const publicationSchema = z.object({
   externalUrl: z.string().nullable(),
   errorMessage: z.string().nullable(),
   publishedAt: z.string().nullable(),
+  /** Attempts made so far (first upload included). */
+  attempts: z.number().int(),
+  /** Failed only: when the next automatic (or requested) attempt runs; null = none. */
+  nextAttemptAt: z.string().nullable(),
 });
 export type PublicationDto = z.infer<typeof publicationSchema>;
 
@@ -314,6 +318,9 @@ export const resumeItemRequestSchema = z.object({
   scheduledAt: isoDateTimeSchema.nullable().optional(),
 });
 export type ResumeItemRequest = z.infer<typeof resumeItemRequestSchema>;
+
+export const retryPublicationRequestSchema = z.object({ platform: socialPlatformSchema });
+export type RetryPublicationRequest = z.infer<typeof retryPublicationRequestSchema>;
 
 export const reorderItemsRequestSchema = z.object({
   itemIds: z.array(z.uuid('ID tidak valid')).min(1).max(1000),

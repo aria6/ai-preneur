@@ -15,6 +15,13 @@
       "when": 1795432717077,
       "tag": "0001_strange_jack_power",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795502911516,
+      "tag": "0002_bent_swarm",
+      "breakpoints": true
     }
   ]
 }

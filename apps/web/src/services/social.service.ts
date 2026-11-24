@@ -9,6 +9,7 @@ import {
   type CreateBatchRequest,
   type CreateItemRequest,
   type ResumeItemRequest,
+  type RetryPublicationRequest,
   type ScanResponse,
   type SocialPlatform,
   type SocialSettings,
@@ -135,6 +136,20 @@ export function resumeItem(
   return batchCall(
     apiClient.post(`${itemUrl(batchId, itemId)}/resume`, {
       body: input,
+      schema: batchResponseSchema,
+    }),
+  );
+}
+
+/** "Coba lagi": retries a failed upload on the worker's next round. */
+export function retryPublication(
+  batchId: string,
+  itemId: string,
+  platform: SocialPlatform,
+): Promise<BatchDetailDto> {
+  return batchCall(
+    apiClient.post(`${itemUrl(batchId, itemId)}/retry`, {
+      body: { platform } satisfies RetryPublicationRequest,
       schema: batchResponseSchema,
     }),
   );

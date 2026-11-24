@@ -22,7 +22,7 @@ const database = createDatabaseClient({
 
 const app = createApp({ config, logger, database });
 
-// Scheduled uploads (Social Media AIgency). Off by default until a platform publisher is ready.
+// Scheduled uploads (Social Media AIgency). Off by default: enable with SOCIAL_PUBLISHER_ENABLED=true.
 const publisherWorker = config.social.publisherEnabled
   ? createSocialPublisherWorker({ db: database.db, logger, config: config.social })
   : null;

@@ -54,6 +54,8 @@ function toPublicationDto(publication: SmPublicationRow): PublicationDto {
     externalUrl: publication.externalUrl,
     errorMessage: publication.errorMessage,
     publishedAt: iso(publication.publishedAt),
+    attempts: publication.attempts,
+    nextAttemptAt: publication.status === 'failed' ? iso(publication.nextAttemptAt) : null,
   };
 }
 

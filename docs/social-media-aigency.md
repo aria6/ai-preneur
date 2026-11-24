@@ -2,7 +2,7 @@
 
 ```text
 Social Media AIgency
-├── Publisher AIgent      Tahap 1 done — queue, schedule, accounts (upload engine: Tahap 2)
+├── Publisher AIgent      Tahap 1 + 2 done — queue, schedule, accounts, real uploads to Instagram
 ├── Intelligence AIgency  later — comments, DMs, engagement, performance patterns
 └── Pengaturan            lock window, confirmation lead time
 ```
@@ -136,20 +136,56 @@ All under `/api/social`; responses use the standard envelope. Mutations return t
 | `POST /batches/:id/confirm` · `POST /batches/:id/cancel`                         | manage                                              |
 | `POST /batches/:id/items` · `PATCH`/`DELETE /batches/:id/items/:itemId`          | manage                                              |
 | `POST /batches/:id/items/:itemId/pause` · `/resume`                              | manage                                              |
+| `POST /batches/:id/items/:itemId/retry`                                          | manage — Coba lagi (`{ platform }`, Terjadwal only) |
 | `PUT /batches/:id/accounts/instagram` · `DELETE /batches/:id/accounts/:platform` | manage                                              |
 
 ## Upload engine (worker)
 
-`publishers/publisher.worker.ts` polls PostgreSQL every `SOCIAL_PUBLISHER_INTERVAL_SECONDS` for rows of
-scheduled batches whose time has come. Each (row, platform) upload is **claimed by inserting its
-`sm_publications` row** (unique index), so an upload can never run twice, even with several API
-instances. The worker is **off** (`SOCIAL_PUBLISHER_ENABLED=false`) until a publisher exists.
+Enabled with `SOCIAL_PUBLISHER_ENABLED=true` (needs `GOOGLE_API_KEY` and `SOCIAL_CREDENTIALS_KEY`).
+`publishers/publisher.worker.ts` runs inside the API process and polls PostgreSQL every
+`SOCIAL_PUBLISHER_INTERVAL_SECONDS`. Each round:
 
-### Tahap 2 — TODO
+1. **Recover** attempts left `processing` for > 45 min by a worker that died (see below).
+2. **Refresh tokens** (at most hourly): Instagram long-lived tokens of unfinished batches not checked
+   for 24 h and expiring within 30 days (or with unknown expiry) are extended by 60 days. A dead token
+   puts the account in `error`.
+3. **First uploads**: active rows of Terjadwal batches whose schedule has come and that have a
+   selected platform not attempted yet. Each (row, platform) is **claimed by inserting its
+   `sm_publications` row** (unique index), so it never runs twice, even with several API instances.
+4. **Retries**: failed uploads whose `next_attempt_at` has come, claimed with a guarded update.
+5. **Completion**: a Terjadwal batch whose every row is published on every selected platform becomes
+   **Selesai** (`completed`). Paused rows keep the batch open.
 
-- Instagram publisher (`publishers/instagram.publisher.ts`): download from Drive → resumable Reels
-  upload → poll container → publish → permalink; long-lived token refresh.
-- Retry policy for failed uploads; recovery of rows stuck in `processing`; mark batches `completed`.
+### Instagram publisher
+
+`publishers/instagram.publisher.ts` (Instagram API with Instagram Login, `graph.instagram.com`,
+version in `INSTAGRAM_API_VERSION`):
+
+Drive video → temp file (`$TMPDIR/ai-preneur-publisher`, max 1 GB, deleted right after) → Reels
+container (`upload_type=resumable`, caption + hashtag block cut to 2,200 characters, `share_to_feed`,
+`cover_url` = the Drive thumbnail) → bytes to `rupload.facebook.com` → poll every 10 s until
+`FINISHED` (max 15 min) → `media_publish` → permalink. If the container fails while a cover was set,
+it is created again **without the cover** (Instagram could not fetch it). One attempt is aborted
+after 30 min.
+
+### Retries and failures
+
+| Error                                                        | What happens                                                                                                                       |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Temporary (network, Instagram 5xx/rate limit, Drive down)    | Retry after 5 min, 30 min, 2 h — **4 attempts in total**                                                                           |
+| Permanent (video rejected, file missing/private, no account) | Failed, no automatic retry                                                                                                         |
+| Token invalid/expired                                        | Failed, account → `error`; other rows of the idea fail                                                                             |
+| Server stopped mid-upload, before "publish"                  | Retried on the next round                                                                                                          |
+| Server stopped during "publish"                              | Container checked: published → marked published (no link); otherwise retried; unknown → failed without retry ("periksa Instagram") |
+
+In the UI a failed chip is **amber** while a retry is pending and **red** when it gave up. Its dialog
+shows the error, the attempt number, the next retry and — in a Terjadwal batch — **Coba lagi
+sekarang** (`POST …/retry`). In Draft, giving the row a new schedule (edit or resume) clears its
+failed uploads so it uploads afresh. An account in `error` needs: Batalkan jadwal → hubungkan ulang →
+Konfirmasi.
+
+### Next
+
 - Generate caption & hashtag with AI (button present, disabled — `// TODO` in `QueueSection.tsx`).
 - TikTok, Facebook Reels, YouTube Shorts publishers and account connection.
 - "Login dengan Instagram" (OAuth) once the app has an HTTPS domain.

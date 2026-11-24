@@ -4,6 +4,7 @@ import {
   type BatchDetailDto,
   type CreateItemRequest,
   type ResumeItemRequest,
+  type RetryPublicationRequest,
   type UpdateItemRequest,
 } from '@ai-preneur/shared';
 
@@ -13,7 +14,9 @@ import type { AuthContext } from '../../iam/index.js';
 import { isImageFile, isVideoFile, type DriveFileRef } from '../domain/filename-parser.js';
 import { earliestEditableTime } from '../domain/queue-rules.js';
 import type { GoogleDriveClient } from '../integrations/google-drive.client.js';
+import { createAccountsRepository } from '../repositories/accounts.repository.js';
 import { createItemsRepository, type QueueItemPatch } from '../repositories/items.repository.js';
+import { createPublicationsRepository } from '../repositories/publications.repository.js';
 import {
   assertNotCompleted,
   driveToAppError,
@@ -163,13 +166,17 @@ export function createItemsService(deps: {
           patch.thumbnailFileId = thumbnail?.id ?? null;
           patch.thumbnailFileName = thumbnail?.name.slice(0, 300) ?? null;
         }
+        let rescheduled = false;
         if (input.scheduledAt !== undefined) {
           const scheduledAt = input.scheduledAt ? new Date(input.scheduledAt) : null;
           if (!entry.item.isPaused) assertSchedulable(working, scheduledAt, now);
           patch.scheduledAt = scheduledAt;
+          rescheduled = scheduledAt?.getTime() !== entry.item.scheduledAt?.getTime();
         }
 
         await createItemsRepository(tx).update(itemId, patch);
+        // A failed row given a new schedule uploads afresh at that time.
+        if (rescheduled) await createPublicationsRepository(tx).deleteFailedForItem(itemId);
       });
 
       logger.info('Publisher row updated', {
@@ -233,9 +240,52 @@ export function createItemsService(deps: {
         assertSchedulable(working, scheduledAt, now);
 
         await createItemsRepository(tx).update(itemId, { isPaused: false, scheduledAt });
+        await createPublicationsRepository(tx).deleteFailedForItem(itemId);
       });
 
       logger.info('Publisher row resumed', { actorId: ctx.user.id, batchId, itemId });
+      return loadBatchDetail(db, batchId);
+    },
+
+    /**
+     * "Coba lagi": a failed upload is attempted again on the worker's next round.
+     * Only while the batch is scheduled (in Draft, give the row a new schedule instead).
+     */
+    async retryPublication(
+      ctx: AuthContext,
+      batchId: string,
+      itemId: string,
+      input: RetryPublicationRequest,
+    ): Promise<BatchDetailDto> {
+      await db.transaction(async (tx) => {
+        const working = await loadWorkingSet(tx, batchId, new Date(), { forUpdate: true });
+        if (working.batch.status !== 'scheduled') {
+          throw conflict(
+            'Coba lagi hanya bisa saat batch Terjadwal. Di Draft, ubah jadwal baris ini agar diunggah ulang.',
+          );
+        }
+        const entry = findItem(working, itemId);
+        if (entry.item.isPaused) throw conflict('Baris ini sedang ditunda. Lanjutkan dulu.');
+
+        const account = await createAccountsRepository(tx).findForBatch(batchId, input.platform);
+        if (!account || account.status !== 'connected') {
+          throw conflict(
+            'Akun untuk platform ini bermasalah. Batalkan jadwal, hubungkan ulang akunnya, lalu konfirmasi lagi.',
+          );
+        }
+        const requested = await createPublicationsRepository(tx).requestRetry(
+          itemId,
+          input.platform,
+        );
+        if (!requested) throw conflict('Tidak ada unggahan gagal untuk diulang pada baris ini.');
+      });
+
+      logger.info('Publisher upload retry requested', {
+        actorId: ctx.user.id,
+        batchId,
+        itemId,
+        platform: input.platform,
+      });
       return loadBatchDetail(db, batchId);
     },
   };

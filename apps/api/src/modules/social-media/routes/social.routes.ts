@@ -6,6 +6,7 @@ import {
   PERMISSIONS,
   reorderItemsRequestSchema,
   resumeItemRequestSchema,
+  retryPublicationRequestSchema,
   socialPlatformSchema,
   updateBatchRequestSchema,
   updateItemRequestSchema,
@@ -53,6 +54,7 @@ const canManage = requirePermission(PERMISSIONS.SOCIAL_PUBLISHER_MANAGE);
  * DELETE /batches/:id/items/:itemId                  publisher.manage
  * POST   /batches/:id/items/:itemId/pause            publisher.manage  (Tunda)
  * POST   /batches/:id/items/:itemId/resume           publisher.manage
+ * POST   /batches/:id/items/:itemId/retry            publisher.manage  (Coba lagi unggahan gagal)
  * PUT    /batches/:id/accounts/instagram             publisher.manage
  * DELETE /batches/:id/accounts/:platform             publisher.manage
  */
@@ -187,6 +189,14 @@ export function createSocialRouter(deps: {
     const input = parseInput(resumeItemRequestSchema, req.body ?? {});
     sendSuccess<BatchResponse>(res, {
       batch: await items.resume(requireAuthContext(req), id, itemId, input),
+    });
+  });
+
+  router.post('/batches/:id/items/:itemId/retry', canManage, async (req, res) => {
+    const { id, itemId } = parseInput(itemParams, req.params);
+    const input = parseInput(retryPublicationRequestSchema, req.body ?? {});
+    sendSuccess<BatchResponse>(res, {
+      batch: await items.retryPublication(requireAuthContext(req), id, itemId, input),
     });
   });
 

@@ -36,7 +36,7 @@ export function PlatformTag({ platform }: { platform: SocialPlatform }) {
 /**
  * Upload state of one row on one platform:
  * - published  → active chip linking to the uploaded video
- * - failed     → red chip; click shows the error
+ * - failed     → red chip (amber while an automatic retry is pending); click shows the error
  * - processing → muted, pulsing chip
  * (No publication → nothing is rendered.)
  */
@@ -74,12 +74,22 @@ export function PublicationChip({
   }
 
   if (publication.status === 'failed') {
+    const retrying = publication.nextAttemptAt !== null;
     return (
       <button
         type="button"
         onClick={() => onShowError(publication)}
-        title={`Gagal diunggah ke ${label} — lihat error`}
-        className={cn(CHIP, 'bg-red-50 text-red-700 ring-1 ring-red-200 hover:bg-red-100')}
+        title={
+          retrying
+            ? `Gagal diunggah ke ${label}, akan dicoba lagi — lihat detail`
+            : `Gagal diunggah ke ${label} — lihat error`
+        }
+        className={cn(
+          CHIP,
+          retrying
+            ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200 hover:bg-amber-100'
+            : 'bg-red-50 text-red-700 ring-1 ring-red-200 hover:bg-red-100',
+        )}
       >
         {short}
         <Icon name="alert" className="size-3" />
