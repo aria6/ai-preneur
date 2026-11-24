@@ -155,8 +155,27 @@ export const socialSettingsResponseSchema = z.object({ settings: socialSettingsS
 export const BATCH_STATUSES = ['draft', 'scheduled', 'completed'] as const;
 export type BatchStatus = (typeof BATCH_STATUSES)[number];
 
-export const PUBLICATION_STATUSES = ['processing', 'published', 'failed'] as const;
+/** `queued` = manual upload ("Unggah sekarang") waiting for the worker. */
+export const PUBLICATION_STATUSES = ['queued', 'processing', 'published', 'failed'] as const;
 export type PublicationStatus = (typeof PUBLICATION_STATUSES)[number];
+
+/** Steps of an upload in progress, in order. */
+export const PUBLISH_STAGES = [
+  'queued',
+  'downloading',
+  'uploading',
+  'processing',
+  'publishing',
+] as const;
+export type PublishStage = (typeof PUBLISH_STAGES)[number];
+
+export const PUBLISH_STAGE_LABELS: Record<PublishStage, string> = {
+  queued: 'Antre',
+  downloading: 'Mengunduh dari Google Drive',
+  uploading: 'Mengunggah video',
+  processing: 'Diproses platform',
+  publishing: 'Mempublikasikan',
+};
 
 /** Why a queue row can no longer be edited. */
 export const ITEM_LOCK_REASONS = ['published', 'processing', 'imminent'] as const;
@@ -184,8 +203,11 @@ export const publicationSchema = z.object({
   publishedAt: z.string().nullable(),
   /** Attempts made so far (first upload included). */
   attempts: z.number().int(),
-  /** Failed only: when the next automatic (or requested) attempt runs; null = none. */
+  /** Failed only: when the next automatic attempt runs; null = none. */
   nextAttemptAt: z.string().nullable(),
+  /** Queued/processing only: current step and, when known, its percentage. */
+  progressStage: z.enum(PUBLISH_STAGES).nullable(),
+  progressPercent: z.number().int().nullable(),
 });
 export type PublicationDto = z.infer<typeof publicationSchema>;
 
@@ -206,6 +228,19 @@ export const queueItemSchema = z.object({
   locked: z.boolean(),
   lockReason: z.enum(ITEM_LOCK_REASONS).nullable(),
   publications: z.array(publicationSchema),
+  /** One entry per selected platform: can it be uploaded manually right now? */
+  uploadOptions: z.array(
+    z.object({
+      platform: socialPlatformSchema,
+      /** Null = "Unggah sekarang" allowed; otherwise why not (shown as a hint). */
+      blockedReason: z.string().nullable(),
+      /**
+       * Never attempted and scheduled before the batch was confirmed: it will not
+       * upload automatically (e.g. a platform added later) — manual upload only.
+       */
+      missed: z.boolean(),
+    }),
+  ),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -321,8 +356,8 @@ export const resumeItemRequestSchema = z.object({
 });
 export type ResumeItemRequest = z.infer<typeof resumeItemRequestSchema>;
 
-export const retryPublicationRequestSchema = z.object({ platform: socialPlatformSchema });
-export type RetryPublicationRequest = z.infer<typeof retryPublicationRequestSchema>;
+export const publishNowRequestSchema = z.object({ platform: socialPlatformSchema });
+export type PublishNowRequest = z.infer<typeof publishNowRequestSchema>;
 
 export const reorderItemsRequestSchema = z.object({
   itemIds: z.array(z.uuid('ID tidak valid')).min(1).max(1000),

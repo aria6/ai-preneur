@@ -9,7 +9,7 @@ import {
   type CreateBatchRequest,
   type CreateItemRequest,
   type ResumeItemRequest,
-  type RetryPublicationRequest,
+  type PublishNowRequest,
   type ScanResponse,
   type SocialPlatform,
   type SocialSettings,
@@ -141,15 +141,15 @@ export function resumeItem(
   );
 }
 
-/** "Coba lagi": retries a failed upload on the worker's next round. */
-export function retryPublication(
+/** "Unggah sekarang": queues the upload of one row to one platform. */
+export function publishNow(
   batchId: string,
   itemId: string,
   platform: SocialPlatform,
 ): Promise<BatchDetailDto> {
   return batchCall(
-    apiClient.post(`${itemUrl(batchId, itemId)}/retry`, {
-      body: { platform } satisfies RetryPublicationRequest,
+    apiClient.post(`${itemUrl(batchId, itemId)}/publish-now`, {
+      body: { platform } satisfies PublishNowRequest,
       schema: batchResponseSchema,
     }),
   );

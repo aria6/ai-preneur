@@ -136,7 +136,7 @@ All under `/api/social`; responses use the standard envelope. Mutations return t
 | `POST /batches/:id/confirm` · `POST /batches/:id/cancel`                         | manage                                              |
 | `POST /batches/:id/items` · `PATCH`/`DELETE /batches/:id/items/:itemId`          | manage                                              |
 | `POST /batches/:id/items/:itemId/pause` · `/resume`                              | manage                                              |
-| `POST /batches/:id/items/:itemId/retry`                                          | manage — Coba lagi (`{ platform }`, Terjadwal only) |
+| `POST /batches/:id/items/:itemId/publish-now`                                    | manage — Unggah sekarang (`{ platform }`)           |
 | `PUT /batches/:id/accounts/instagram` · `DELETE /batches/:id/accounts/:platform` | manage                                              |
 
 ## Upload engine (worker)
@@ -149,11 +149,12 @@ Enabled with `SOCIAL_PUBLISHER_ENABLED=true` (needs `GOOGLE_API_KEY` and `SOCIAL
 2. **Refresh tokens** (at most hourly): Instagram long-lived tokens of unfinished batches not checked
    for 24 h and expiring within 30 days (or with unknown expiry) are extended by 60 days. A dead token
    puts the account in `error`.
-3. **First uploads**: active rows of Terjadwal batches whose schedule has come and that have a
-   selected platform not attempted yet. Each (row, platform) is **claimed by inserting its
+3. **Manual uploads** ("Unggah sekarang", status `queued`) — before any scheduled work.
+4. **First uploads**: active rows of Terjadwal batches whose schedule has come — and is **not before
+   the batch's confirmation** — that have a selected platform not attempted yet. Each (row, platform) is **claimed by inserting its
    `sm_publications` row** (unique index), so it never runs twice, even with several API instances.
-4. **Retries**: failed uploads whose `next_attempt_at` has come, claimed with a guarded update.
-5. **Completion**: a Terjadwal batch whose every row is published on every selected platform becomes
+5. **Retries**: failed uploads whose `next_attempt_at` has come, claimed with a guarded update.
+6. **Completion**: a Terjadwal batch whose every row is published on every selected platform becomes
    **Selesai** (`completed`). Paused rows keep the batch open.
 
 ### Instagram publisher
@@ -183,11 +184,39 @@ platform chip explains what the user should check — the video went up **withou
 (Instagram could not fetch the Drive thumbnail) and/or **the link could not be retrieved**. Instagram
 gives no explicit confirmation that a cover was applied; only a rejected cover is detectable.
 
-In the UI a failed chip is **amber** while a retry is pending and **red** when it gave up. Its dialog
-shows the error, the attempt number, the next retry and — in a Terjadwal batch — **Coba lagi
-sekarang** (`POST …/retry`). In Draft, giving the row a new schedule (edit or resume) clears its
-failed uploads so it uploads afresh. An account in `error` needs: Batalkan jadwal → hubungkan ulang →
-Konfirmasi.
+In Draft, giving a failed row a new schedule (edit or resume) clears its failed uploads so it uploads
+afresh. An account in `error` needs: Batalkan jadwal → hubungkan ulang → Konfirmasi.
+
+### Unggah manual ("Unggah sekarang")
+
+Every row shows a chip **per selected platform**. Clicking it opens one dialog that follows the
+upload live (the page polls every 3 s while something uploads):
+
+| Chip                | Meaning                                   | Click                                  |
+| ------------------- | ----------------------------------------- | -------------------------------------- |
+| Brand colour + link | Published                                 | Opens the video ("!" = caveat)         |
+| Grey, spinning      | Queued / uploading                        | Progress (steps, download %)           |
+| Red / amber         | Failed (amber = automatic retry pending)  | Error, retry info, **Unggah sekarang** |
+| White, dashed       | **Terlewat**: never uploads automatically | **Unggah sekarang?** (title + confirm) |
+| White               | Not uploaded yet                          | **Unggah sekarang?** when allowed      |
+
+Rules (`manualUploadBlock` in `domain/queue-rules.ts`, enforced by `POST …/publish-now`):
+
+- Batch **Terjadwal or Selesai** (not Draft); worker enabled (`SOCIAL_PUBLISHER_ENABLED=true`).
+- Row **not paused**, has a video, account connected; not published/queued/uploading there.
+- A **future** schedule less than `lockMinutes` away locks it (like every edit). A past schedule
+  does not — that is the failed/missed case. A future schedule further away = upload early; the
+  schedule then no longer triggers an upload.
+- No re-upload of a published row (it would post twice).
+- If a manual upload **fails ahead of a future schedule**, the row uploads automatically at that
+  schedule; with a past schedule the normal retry policy applies.
+- **Terlewat**: a row never attempted on a platform whose schedule is before the batch's
+  confirmation (e.g. a platform added later, on rows already published elsewhere) is skipped by the
+  worker and only uploads manually.
+- "Batalkan jadwal" is refused while an upload is queued or running.
+
+Progress steps (`sm_publications.progress_stage` / `progress_percent`): Antre → Mengunduh dari Google
+Drive (%) → Mengunggah video → Diproses platform → Mempublikasikan.
 
 ### Next
 

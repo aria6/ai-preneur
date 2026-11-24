@@ -16,7 +16,7 @@ import {
 } from '@ai-preneur/shared';
 
 import { AppError, conflict, fieldError, notFound } from '../../../core/errors.js';
-import { computeItemLock } from '../domain/queue-rules.js';
+import { computeItemLock, isMissedUpload, manualUploadBlock } from '../domain/queue-rules.js';
 import { DriveError } from '../integrations/google-drive.client.js';
 import { createAccountsRepository } from '../repositories/accounts.repository.js';
 import { createBatchesRepository } from '../repositories/batches.repository.js';
@@ -62,9 +62,7 @@ export function assertDraft(batch: SmBatchRow, action: string): void {
 }
 
 export function hasUploads(items: readonly LockedItem[]): boolean {
-  return items.some((entry) =>
-    entry.publications.some((p) => p.status === 'published' || p.status === 'processing'),
-  );
+  return items.some((entry) => entry.publications.some((p) => p.status !== 'failed'));
 }
 
 /**
@@ -126,7 +124,33 @@ export async function loadBatchDetail(
     batch: working.batch,
     stats: stats.get(batchId),
     items: working.items.map((entry) =>
-      toQueueItemDto(entry.item, entry.publications, platforms, entry.lockReason),
+      toQueueItemDto(
+        entry.item,
+        entry.publications,
+        platforms,
+        entry.lockReason,
+        platforms.map((platform) => {
+          const status = entry.publications.find((p) => p.platform === platform)?.status ?? null;
+          return {
+            platform,
+            blockedReason: manualUploadBlock(
+              {
+                batchStatus: working.batch.status,
+                isPaused: entry.item.isPaused,
+                scheduledAt: entry.item.scheduledAt,
+                hasVideo: entry.item.videoFileId !== '',
+                accountConnected: accounts.some(
+                  (a) => a.platform === platform && a.status === 'connected',
+                ),
+                publicationStatus: status,
+              },
+              working.settings.lockMinutes,
+              now,
+            ),
+            missed: isMissedUpload(entry.item.scheduledAt, working.batch.confirmedAt, status),
+          };
+        }),
+      ),
     ),
     accounts,
     settings: working.settings,

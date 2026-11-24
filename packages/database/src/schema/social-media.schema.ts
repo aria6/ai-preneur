@@ -35,6 +35,8 @@ export const smPublicationStatus = pgEnum('sm_publication_status', [
   'processing',
   'published',
   'failed',
+  /** Manual upload ("Unggah sekarang") waiting for the worker. */
+  'queued',
 ]);
 
 // ---- Settings (single row) ---------------------------------------------------------
@@ -165,6 +167,10 @@ export const smPublications = pgTable(
     attempts: integer().notNull().default(0),
     startedAt: timestamp({ withTimezone: true }),
     publishedAt: timestamp({ withTimezone: true }),
+    /** Current step of a queued/processing upload (shown as progress). */
+    progressStage: varchar({ length: 20 }),
+    /** 0–100 for steps that report it (download), else null. */
+    progressPercent: integer(),
     /** Failed rows only: when the worker tries again. Null = no automatic retry. */
     nextAttemptAt: timestamp({ withTimezone: true }),
     /** The platform's upload container of the current attempt (crash recovery). */

@@ -62,7 +62,12 @@ export interface GoogleDriveClient {
   downloadToFile(
     fileId: string,
     destination: string,
-    options: { maxBytes: number; signal: AbortSignal },
+    options: {
+      maxBytes: number;
+      signal: AbortSignal;
+      /** Bytes received so far and the total when Drive announces it. */
+      onProgress?: (received: number, total: number | null) => void;
+    },
   ): Promise<number>;
 }
 
@@ -202,7 +207,11 @@ export function createGoogleDriveClient(apiKey: string | null): GoogleDriveClien
   async function downloadToFile(
     fileId: string,
     destination: string,
-    options: { maxBytes: number; signal: AbortSignal },
+    options: {
+      maxBytes: number;
+      signal: AbortSignal;
+      onProgress?: (received: number, total: number | null) => void;
+    },
   ): Promise<number> {
     const response = await send(`/${fileId}`, { alt: 'media' }, options.signal);
     const tooLarge = () =>
@@ -222,8 +231,9 @@ export function createGoogleDriveClient(apiKey: string | null): GoogleDriveClien
     const limiter = new Transform({
       transform(chunk: Buffer, _encoding, callback) {
         total += chunk.byteLength;
-        if (total > options.maxBytes) callback(tooLarge());
-        else callback(null, chunk);
+        if (total > options.maxBytes) return callback(tooLarge());
+        options.onProgress?.(total, declared > 0 ? declared : null);
+        callback(null, chunk);
       },
     });
 

@@ -5,11 +5,13 @@ import type {
   SmQueueItemRow,
 } from '@ai-preneur/database';
 import {
+  PUBLISH_STAGES,
   SOCIAL_PLATFORMS,
   type BatchDetailDto,
   type BatchSummaryDto,
   type ItemLockReason,
   type PublicationDto,
+  type PublishStage,
   type QueueItemDto,
   type SocialAccountDto,
   type SocialPlatform,
@@ -57,7 +59,19 @@ function toPublicationDto(publication: SmPublicationRow): PublicationDto {
     publishedAt: iso(publication.publishedAt),
     attempts: publication.attempts,
     nextAttemptAt: publication.status === 'failed' ? iso(publication.nextAttemptAt) : null,
+    progressStage: inProgress(publication.status) ? toStage(publication.progressStage) : null,
+    progressPercent: inProgress(publication.status) ? publication.progressPercent : null,
   };
+}
+
+function inProgress(status: SmPublicationRow['status']): boolean {
+  return status === 'queued' || status === 'processing';
+}
+
+function toStage(stage: string | null): PublishStage | null {
+  return (PUBLISH_STAGES as readonly string[]).includes(stage ?? '')
+    ? (stage as PublishStage)
+    : null;
 }
 
 export function toQueueItemDto(
@@ -65,6 +79,7 @@ export function toQueueItemDto(
   publications: readonly SmPublicationRow[],
   platforms: readonly SocialPlatform[],
   lockReason: ItemLockReason | null,
+  uploadOptions: QueueItemDto['uploadOptions'],
 ): QueueItemDto {
   return {
     id: item.id,
@@ -84,6 +99,7 @@ export function toQueueItemDto(
     lockReason,
     // Platforms not selected for this idea are never shown.
     publications: publications.filter((p) => platforms.includes(p.platform)).map(toPublicationDto),
+    uploadOptions,
     createdAt: item.createdAt.toISOString(),
     updatedAt: item.updatedAt.toISOString(),
   };

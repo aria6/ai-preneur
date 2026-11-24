@@ -4,7 +4,7 @@ import {
   type BatchDetailDto,
   type CreateItemRequest,
   type ResumeItemRequest,
-  type RetryPublicationRequest,
+  type PublishNowRequest,
   type UpdateItemRequest,
 } from '@ai-preneur/shared';
 
@@ -12,11 +12,12 @@ import { conflict, fieldError, notFound } from '../../../core/errors.js';
 import type { Logger } from '../../../core/logger.js';
 import type { AuthContext } from '../../iam/index.js';
 import { isImageFile, isVideoFile, type DriveFileRef } from '../domain/filename-parser.js';
-import { earliestEditableTime } from '../domain/queue-rules.js';
+import { earliestEditableTime, manualUploadBlock } from '../domain/queue-rules.js';
 import type { GoogleDriveClient } from '../integrations/google-drive.client.js';
 import { createAccountsRepository } from '../repositories/accounts.repository.js';
 import { createItemsRepository, type QueueItemPatch } from '../repositories/items.repository.js';
 import { createPublicationsRepository } from '../repositories/publications.repository.js';
+import { batchPlatforms } from '../social.mappers.js';
 import {
   assertNotCompleted,
   driveToAppError,
@@ -62,8 +63,10 @@ export function createItemsService(deps: {
   db: Database;
   drive: GoogleDriveClient;
   logger: Logger;
+  /** The running upload worker, or null when SOCIAL_PUBLISHER_ENABLED=false. */
+  publisher: { wake(): void } | null;
 }) {
-  const { db, drive, logger } = deps;
+  const { db, drive, logger, publisher } = deps;
 
   async function resolveDriveFile(
     url: string,
@@ -248,39 +251,51 @@ export function createItemsService(deps: {
     },
 
     /**
-     * "Coba lagi": a failed upload is attempted again on the worker's next round.
-     * Only while the batch is scheduled (in Draft, give the row a new schedule instead).
+     * "Unggah sekarang": queues the upload of one row to one platform and wakes the
+     * worker. Rules: see `manualUploadBlock` (confirmed batch, active row, connected
+     * account, not uploaded/uploading, not inside the lock window of a future schedule).
      */
-    async retryPublication(
+    async publishNow(
       ctx: AuthContext,
       batchId: string,
       itemId: string,
-      input: RetryPublicationRequest,
+      input: PublishNowRequest,
     ): Promise<BatchDetailDto> {
+      if (!publisher) {
+        throw conflict(
+          'Unggah otomatis sedang nonaktif di server (SOCIAL_PUBLISHER_ENABLED=false).',
+        );
+      }
+
       await db.transaction(async (tx) => {
-        const working = await loadWorkingSet(tx, batchId, new Date(), { forUpdate: true });
-        if (working.batch.status !== 'scheduled') {
-          throw conflict(
-            'Coba lagi hanya bisa saat batch Terjadwal. Di Draft, ubah jadwal baris ini agar diunggah ulang.',
-          );
+        const now = new Date();
+        const working = await loadWorkingSet(tx, batchId, now, { forUpdate: true });
+        if (!batchPlatforms(working.batch).includes(input.platform)) {
+          throw conflict('Platform ini tidak dipilih untuk ide ini.');
         }
         const entry = findItem(working, itemId);
-        if (entry.item.isPaused) throw conflict('Baris ini sedang ditunda. Lanjutkan dulu.');
-
         const account = await createAccountsRepository(tx).findForBatch(batchId, input.platform);
-        if (!account || account.status !== 'connected') {
-          throw conflict(
-            'Akun untuk platform ini bermasalah. Batalkan jadwal, hubungkan ulang akunnya, lalu konfirmasi lagi.',
-          );
-        }
-        const requested = await createPublicationsRepository(tx).requestRetry(
-          itemId,
-          input.platform,
+        const blocked = manualUploadBlock(
+          {
+            batchStatus: working.batch.status,
+            isPaused: entry.item.isPaused,
+            scheduledAt: entry.item.scheduledAt,
+            hasVideo: entry.item.videoFileId !== '',
+            accountConnected: account?.status === 'connected',
+            publicationStatus:
+              entry.publications.find((p) => p.platform === input.platform)?.status ?? null,
+          },
+          working.settings.lockMinutes,
+          now,
         );
-        if (!requested) throw conflict('Tidak ada unggahan gagal untuk diulang pada baris ini.');
+        if (blocked) throw conflict(blocked);
+
+        const queued = await createPublicationsRepository(tx).queueManual(itemId, input.platform);
+        if (!queued) throw conflict('Baris ini sedang atau sudah diunggah.');
       });
 
-      logger.info('Publisher upload retry requested', {
+      publisher.wake();
+      logger.info('Publisher manual upload queued', {
         actorId: ctx.user.id,
         batchId,
         itemId,

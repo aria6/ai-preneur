@@ -2,7 +2,7 @@ import { readdir, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import type { Database, SmAccountRow, SmBatchRow, SmQueueItemRow } from '@ai-preneur/database';
-import type { SocialPlatform } from '@ai-preneur/shared';
+import type { PublishStage, SocialPlatform } from '@ai-preneur/shared';
 
 import type { Logger } from '../../../core/logger.js';
 import { createAccountsRepository } from '../repositories/accounts.repository.js';
@@ -11,7 +11,7 @@ import { createItemsRepository } from '../repositories/items.repository.js';
 import { createPublicationsRepository } from '../repositories/publications.repository.js';
 import { credentialsContext, type CredentialsCipher } from '../security/credentials-cipher.js';
 import { batchPlatforms } from '../social.mappers.js';
-import { PublishError, type PlatformPublisher } from './publisher.js';
+import { PublishError, type PlatformPublisher, type PublishHooks } from './publisher.js';
 
 const MINUTE = 60_000;
 const BATCH_SIZE = 20;
@@ -40,6 +40,8 @@ export function nextRetryAt(attemptsDone: number, now: Date): Date | null {
 
 export interface PublisherWorker {
   start(): void;
+  /** Runs a round now (e.g. after "Unggah sekarang") instead of waiting for the interval. */
+  wake(): void;
   /** Stops polling, aborts the in-flight upload (it is retried on next start) and waits. */
   stop(): Promise<void>;
 }
@@ -47,6 +49,8 @@ export interface PublisherWorker {
 interface Attempt {
   publicationId: string;
   attempts: number;
+  /** Started with "Unggah sekarang". */
+  manual: boolean;
   item: SmQueueItemRow;
   batch: SmBatchRow;
   platform: SocialPlatform;
@@ -83,6 +87,7 @@ export function createPublisherWorker(deps: {
   let stopped = true;
   let shutdown = new AbortController();
   let lastTokenCheck = 0;
+  let wakeRequested = false;
 
   function decrypt(account: SmAccountRow): unknown {
     return cipher.decrypt(
@@ -100,6 +105,39 @@ export function createPublisherWorker(deps: {
       retryAt,
       message,
     });
+  }
+
+  /**
+   * Persists progress without slowing the upload: only on a new step or every 5 %,
+   * one write at a time, in order; while a write runs, only the latest value is kept.
+   */
+  function progressReporter(publicationId: string): PublishHooks['onProgress'] {
+    let lastKey = '';
+    let next: { stage: PublishStage; percent: number | null } | null = null;
+    let writing = false;
+
+    async function flush(): Promise<void> {
+      writing = true;
+      while (next) {
+        const { stage, percent } = next;
+        next = null;
+        await publications
+          .setProgress(publicationId, stage, percent)
+          .catch((error: unknown) =>
+            logger.warn('Progress update failed', { publicationId, error }),
+          );
+      }
+      writing = false;
+    }
+
+    return (stage, percent) => {
+      const value = percent === null ? null : Math.min(100, Math.floor(percent / 5) * 5);
+      const key = `${stage}:${value ?? ''}`;
+      if (key === lastKey) return;
+      lastKey = key;
+      next = { stage, percent: value };
+      if (!writing) void flush();
+    };
   }
 
   async function runAttempt(attempt: Attempt): Promise<void> {
@@ -153,6 +191,7 @@ export function createPublisherWorker(deps: {
           onContainerCreated: (containerId) =>
             publications.setContainer(attempt.publicationId, containerId),
           onPublishRequested: () => publications.setPublishRequested(attempt.publicationId),
+          onProgress: progressReporter(attempt.publicationId),
         },
       );
       await publications.markPublished(attempt.publicationId, result);
@@ -168,6 +207,9 @@ export function createPublisherWorker(deps: {
         await fail(attempt, 'Unggahan dihentikan karena server dimatikan; akan diulang.', now);
         return;
       }
+      // A manual upload ahead of a future schedule falls back to that schedule.
+      const scheduled =
+        attempt.manual && item.scheduledAt && item.scheduledAt > now ? item.scheduledAt : null;
       if (error instanceof PublishError) {
         if (error.tokenInvalid) {
           await accounts.markError(account.id, error.message, account.encryptedCredentials);
@@ -175,7 +217,7 @@ export function createPublisherWorker(deps: {
         await fail(
           attempt,
           error.message,
-          error.retryable ? nextRetryAt(attempt.attempts, now) : null,
+          scheduled ?? (error.retryable ? nextRetryAt(attempt.attempts, now) : null),
         );
         return;
       }
@@ -185,7 +227,7 @@ export function createPublisherWorker(deps: {
         signal.aborted
           ? 'Unggahan melebihi batas waktu 30 menit.'
           : 'Terjadi kesalahan saat mengunggah video.',
-        nextRetryAt(attempt.attempts, now),
+        scheduled ?? nextRetryAt(attempt.attempts, now),
       );
     }
   }
@@ -286,7 +328,7 @@ export function createPublisherWorker(deps: {
         if (shutdown.signal.aborted) return;
         const publicationId = await publications.claim(item.id, platform);
         if (!publicationId) continue; // already attempted
-        await runAttempt({ publicationId, attempts: 1, item, batch, platform });
+        await runAttempt({ publicationId, attempts: 1, manual: false, item, batch, platform });
       }
     }
   }
@@ -299,6 +341,24 @@ export function createPublisherWorker(deps: {
       await runAttempt({
         publicationId: publication.id,
         attempts: publication.attempts + 1,
+        manual: false,
+        item,
+        batch,
+        platform: publication.platform,
+      });
+    }
+  }
+
+  /** "Unggah sekarang" requests, before any scheduled work. */
+  async function runQueued(): Promise<void> {
+    const due = await publications.findQueued(BATCH_SIZE);
+    for (const { publication, item, batch } of due) {
+      if (shutdown.signal.aborted) return;
+      if (!(await publications.claimQueued(publication.id))) continue;
+      await runAttempt({
+        publicationId: publication.id,
+        attempts: publication.attempts + 1,
+        manual: true,
         item,
         batch,
         platform: publication.platform,
@@ -319,6 +379,7 @@ export function createPublisherWorker(deps: {
 
   async function tick(): Promise<void> {
     await recoverStale();
+    await runQueued();
     await refreshTokens();
     await runFirstUploads();
     await runRetries();
@@ -326,16 +387,21 @@ export function createPublisherWorker(deps: {
     for (const batchId of completed) logger.info('Publisher batch completed', { batchId });
   }
 
+  function runTick(): void {
+    wakeRequested = false;
+    inFlight = tick()
+      .catch((error: unknown) => logger.error('Publisher tick failed', { error }))
+      .finally(() => {
+        inFlight = null;
+        // A wake during the round means new work arrived: go again right away.
+        if (wakeRequested && !stopped) runTick();
+        else scheduleNext();
+      });
+  }
+
   function scheduleNext(): void {
     if (stopped) return;
-    timer = setTimeout(() => {
-      inFlight = tick()
-        .catch((error: unknown) => logger.error('Publisher tick failed', { error }))
-        .finally(() => {
-          inFlight = null;
-          scheduleNext();
-        });
-    }, intervalMs);
+    timer = setTimeout(runTick, intervalMs);
   }
 
   return {
@@ -346,6 +412,15 @@ export function createPublisherWorker(deps: {
       logger.info('Social publisher worker started', { intervalMs });
       void cleanTempDir();
       scheduleNext();
+    },
+    wake() {
+      if (stopped) return;
+      if (inFlight) {
+        wakeRequested = true;
+        return;
+      }
+      if (timer) clearTimeout(timer);
+      runTick();
     },
     async stop() {
       stopped = true;

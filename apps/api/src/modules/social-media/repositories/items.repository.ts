@@ -96,7 +96,8 @@ export function createItemsRepository(db: DatabaseExecutor) {
 
     /**
      * Rows due for their first upload: batch scheduled, row active, schedule reached,
-     * and at least one selected platform not attempted yet. Oldest first.
+     * not before the batch's confirmation, and at least one selected platform not
+     * attempted yet. Oldest first.
      * (Retries of failed uploads are found through the publications repository.)
      */
     async findDue(limit: number): Promise<{ item: SmQueueItemRow; batch: SmBatchRow }[]> {
@@ -109,6 +110,8 @@ export function createItemsRepository(db: DatabaseExecutor) {
             eq(smBatches.status, 'scheduled'),
             eq(smQueueItems.isPaused, false),
             lte(smQueueItems.scheduledAt, sql`now()`),
+            // Rows scheduled before the batch was confirmed are "missed" (manual only).
+            sql`(${smBatches.confirmedAt} is null or ${smQueueItems.scheduledAt} >= ${smBatches.confirmedAt})`,
             sql`exists (
               select 1 from unnest(${smBatches.platforms}) as selected(platform)
               where not exists (

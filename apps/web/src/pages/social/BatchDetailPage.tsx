@@ -17,6 +17,7 @@ import { PlatformsCard } from './components/PlatformsCard';
 import { QueueSection } from './components/QueueSection';
 
 const REFRESH_MS = 60_000;
+const PROGRESS_REFRESH_MS = 3_000;
 
 type PendingAction = 'confirm' | 'cancel' | 'delete' | null;
 
@@ -56,12 +57,20 @@ export function BatchDetailPage() {
     return () => controller.abort();
   }, [load]);
 
-  // Locks depend on time: refresh while uploads are scheduled.
+  // Locks depend on time: refresh while uploads are scheduled — every few seconds
+  // while an upload runs, so its progress shows up live.
+  const uploading =
+    batch?.items.some((item) =>
+      item.publications.some((p) => p.status === 'queued' || p.status === 'processing'),
+    ) ?? false;
   useEffect(() => {
-    if (batch?.status !== 'scheduled') return;
-    const timer = window.setInterval(() => void load(), REFRESH_MS);
+    if (!uploading && batch?.status !== 'scheduled') return;
+    const timer = window.setInterval(
+      () => void load(),
+      uploading ? PROGRESS_REFRESH_MS : REFRESH_MS,
+    );
     return () => window.clearInterval(timer);
-  }, [batch?.status, load]);
+  }, [batch?.status, uploading, load]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 30_000);

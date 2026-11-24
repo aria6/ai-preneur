@@ -20,6 +20,8 @@ type Platform = SmPublicationRow['platform'];
 const freshAttempt = {
   status: 'processing' as const,
   startedAt: sql`now()`,
+  progressStage: 'downloading',
+  progressPercent: null,
   errorMessage: null,
   warningMessage: null,
   nextAttemptAt: null,
@@ -116,6 +118,8 @@ export function createPublicationsRepository(db: DatabaseExecutor) {
           errorMessage: null,
           warningMessage: result.warning?.slice(0, 500) ?? null,
           nextAttemptAt: null,
+          progressStage: null,
+          progressPercent: null,
           publishedAt: sql`now()`,
         })
         .where(and(eq(smPublications.id, id), eq(smPublications.status, 'processing')));
@@ -125,7 +129,13 @@ export function createPublicationsRepository(db: DatabaseExecutor) {
     async markFailed(id: string, message: string, nextAttemptAt: Date | null): Promise<void> {
       await db
         .update(smPublications)
-        .set({ status: 'failed', errorMessage: message.slice(0, 1000), nextAttemptAt })
+        .set({
+          status: 'failed',
+          errorMessage: message.slice(0, 1000),
+          nextAttemptAt,
+          progressStage: null,
+          progressPercent: null,
+        })
         .where(and(eq(smPublications.id, id), eq(smPublications.status, 'processing')));
     },
 
@@ -149,20 +159,60 @@ export function createPublicationsRepository(db: DatabaseExecutor) {
         );
     },
 
-    /** Manual "Coba lagi": the failed upload is taken by the worker on its next round. */
-    async requestRetry(itemId: string, platform: Platform): Promise<boolean> {
+    /**
+     * "Unggah sekarang": queues the upload of a row to a platform — a new row, or a
+     * failed one taken over. False when it is already queued, uploading or published.
+     */
+    async queueManual(itemId: string, platform: Platform): Promise<boolean> {
+      const queued = {
+        status: 'queued' as const,
+        progressStage: 'queued',
+        progressPercent: null,
+        errorMessage: null,
+        warningMessage: null,
+        nextAttemptAt: null,
+      };
       const rows = await db
-        .update(smPublications)
-        .set({ nextAttemptAt: sql`now()` })
-        .where(
-          and(
-            eq(smPublications.itemId, itemId),
-            eq(smPublications.platform, platform),
-            eq(smPublications.status, 'failed'),
-          ),
-        )
+        .insert(smPublications)
+        .values({ itemId, platform, attempts: 0, ...queued })
+        .onConflictDoUpdate({
+          target: [smPublications.itemId, smPublications.platform],
+          set: queued,
+          setWhere: eq(smPublications.status, 'failed'),
+        })
         .returning({ id: smPublications.id });
       return rows.length > 0;
+    },
+
+    /** Manual uploads waiting for the worker, oldest first. */
+    async findQueued(
+      limit: number,
+    ): Promise<{ publication: SmPublicationRow; item: SmQueueItemRow; batch: SmBatchRow }[]> {
+      return db
+        .select({ publication: smPublications, item: smQueueItems, batch: smBatches })
+        .from(smPublications)
+        .innerJoin(smQueueItems, eq(smPublications.itemId, smQueueItems.id))
+        .innerJoin(smBatches, eq(smQueueItems.batchId, smBatches.id))
+        .where(eq(smPublications.status, 'queued'))
+        .orderBy(smPublications.updatedAt)
+        .limit(limit);
+    },
+
+    /** Atomically starts a queued manual upload. False when someone else did. */
+    async claimQueued(id: string): Promise<boolean> {
+      const rows = await db
+        .update(smPublications)
+        .set({ ...freshAttempt, attempts: sql`${smPublications.attempts} + 1` })
+        .where(and(eq(smPublications.id, id), eq(smPublications.status, 'queued')))
+        .returning({ id: smPublications.id });
+      return rows.length > 0;
+    },
+
+    async setProgress(id: string, stage: string, percent: number | null): Promise<void> {
+      await db
+        .update(smPublications)
+        .set({ progressStage: stage, progressPercent: percent })
+        .where(and(eq(smPublications.id, id), eq(smPublications.status, 'processing')));
     },
 
     /** Forgets failed uploads of a row (it uploads afresh at its new schedule). */

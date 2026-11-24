@@ -393,6 +393,12 @@ export function createBatchesService(deps: {
         const working = await loadWorkingSet(tx, id, new Date(), { forUpdate: true });
         if (working.batch.status !== 'scheduled')
           throw conflict('Batch ini tidak sedang terjadwal.');
+        const uploading = working.items.some((entry) =>
+          entry.publications.some((p) => p.status === 'queued' || p.status === 'processing'),
+        );
+        if (uploading) {
+          throw conflict('Ada video yang sedang diunggah. Tunggu sampai selesai, lalu coba lagi.');
+        }
         await createBatchesRepository(tx).update(id, { status: 'draft', confirmedAt: null });
       });
 

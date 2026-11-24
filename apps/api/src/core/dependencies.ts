@@ -12,4 +12,9 @@ export interface AppDependencies {
   config: AppConfig;
   logger: Logger;
   database: DatabaseClient;
+  /**
+   * Scheduled-upload worker of the Social Media AIgency (only `wake` is needed by
+   * the HTTP side); null when SOCIAL_PUBLISHER_ENABLED=false.
+   */
+  socialPublisher: { wake(): void } | null;
 }

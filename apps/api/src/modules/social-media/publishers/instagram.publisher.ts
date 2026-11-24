@@ -182,6 +182,7 @@ async function uploadToContainer(input: {
     coverUrl: input.coverUrl,
   });
   await input.hooks.onContainerCreated(containerId);
+  input.hooks.onProgress('uploading', null);
   await uploadReelsVideo({
     accessToken: input.accessToken,
     containerId,
@@ -189,6 +190,7 @@ async function uploadToContainer(input: {
     fileSize: input.fileSize,
     signal: input.hooks.signal,
   });
+  input.hooks.onProgress('processing', null);
   const processed = await waitUntilProcessed(input.accessToken, containerId, input.hooks.signal);
   return processed.ok ? { ok: true, containerId } : processed;
 }
@@ -213,9 +215,12 @@ export function createInstagramPublisher(deps: {
     const filePath = join(tempDir, `${randomUUID()}.mp4`);
 
     try {
+      hooks.onProgress('downloading', 0);
       const fileSize = await drive.downloadToFile(job.videoFileId, filePath, {
         maxBytes: MAX_VIDEO_BYTES,
         signal: hooks.signal,
+        onProgress: (received, total) =>
+          hooks.onProgress('downloading', total ? Math.floor((received / total) * 100) : null),
       });
       const caption = buildInstagramCaption(job.caption, job.hashtags);
       const coverUrl = job.thumbnailFileId ? driveCoverUrl(job.thumbnailFileId) : undefined;
@@ -253,6 +258,7 @@ export function createInstagramPublisher(deps: {
         );
       }
 
+      hooks.onProgress('publishing', null);
       await hooks.onPublishRequested();
       let mediaId: string;
       try {

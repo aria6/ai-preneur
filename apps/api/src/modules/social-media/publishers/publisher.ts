@@ -1,4 +1,4 @@
-import type { SocialPlatform } from '@ai-preneur/shared';
+import type { PublishStage, SocialPlatform } from '@ai-preneur/shared';
 
 /** Everything a platform publisher needs to upload one queue row. */
 export interface PublishJob {
@@ -27,6 +27,8 @@ export interface PublishHooks {
   onContainerCreated(containerId: string): Promise<void>;
   /** Called right before the final, irreversible "publish" request. */
   onPublishRequested(): Promise<void>;
+  /** Reports the current step (and its percentage when known). Never throws. */
+  onProgress(stage: PublishStage, percent: number | null): void;
 }
 
 export interface PublishResult {

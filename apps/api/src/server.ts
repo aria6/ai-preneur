@@ -20,12 +20,12 @@ const database = createDatabaseClient({
   onError: (error) => logger.error('Idle database client error', { error }),
 });
 
-const app = createApp({ config, logger, database });
-
 // Scheduled uploads (Social Media AIgency). Off by default: enable with SOCIAL_PUBLISHER_ENABLED=true.
 const publisherWorker = config.social.publisherEnabled
   ? createSocialPublisherWorker({ db: database.db, logger, config: config.social })
   : null;
+
+const app = createApp({ config, logger, database, socialPublisher: publisherWorker });
 publisherWorker?.start();
 
 const server = app.listen(config.server.port, config.server.host, (error?: Error) => {

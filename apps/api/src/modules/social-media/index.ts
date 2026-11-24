@@ -34,7 +34,12 @@ interface SocialMediaDeps {
   config: SocialMediaConfig;
 }
 
-export function createSocialMediaRouter(deps: SocialMediaDeps): Router {
+export function createSocialMediaRouter(
+  deps: SocialMediaDeps & {
+    /** The running upload worker (for "Unggah sekarang"), or null when disabled. */
+    publisher: Pick<PublisherWorker, 'wake'> | null;
+  },
+): Router {
   const drive = createGoogleDriveClient(deps.config.googleApiKey);
   const cipher = createCredentialsCipher(
     parseCredentialsKey(deps.config.credentialsKey ?? undefined),
@@ -43,7 +48,7 @@ export function createSocialMediaRouter(deps: SocialMediaDeps): Router {
 
   return createSocialRouter({
     batches: createBatchesService({ ...services, drive }),
-    items: createItemsService({ ...services, drive }),
+    items: createItemsService({ ...services, drive, publisher: deps.publisher }),
     accounts: createAccountsService({ ...services, cipher }),
     settings: createSettingsService(services),
   });

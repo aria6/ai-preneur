@@ -15,25 +15,21 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import {
-  SOCIAL_PLATFORM_LABELS,
-  type BatchDetailDto,
-  type PublicationDto,
-  type QueueItemDto,
-} from '@ai-preneur/shared';
+import { type BatchDetailDto, type SocialPlatform, type QueueItemDto } from '@ai-preneur/shared';
 import { useState } from 'react';
 
 import { Button } from '../../../components/ui/Button';
 import { Alert, Badge, Card, EmptyState } from '../../../components/ui/feedback';
 import { Icon } from '../../../components/ui/Icon';
-import { ConfirmDialog, Modal } from '../../../components/ui/Modal';
+import { ConfirmDialog } from '../../../components/ui/Modal';
 import { cn } from '../../../lib/cn';
 import { formatSchedule, relativeFromNow } from '../../../lib/datetime';
 import { driveThumbnailUrl } from '../../../lib/drive';
 import { errorMessage } from '../../../lib/errors';
 import * as socialService from '../../../services/social.service';
 import { ItemFormModal } from './ItemFormModal';
-import { PublicationChip } from './PlatformChip';
+import { PlatformStatusChip } from './PlatformChip';
+import { PublishDialog, type PublishTarget } from './PublishDialog';
 import { AutoScheduleModal, ResumeItemModal } from './ScheduleModals';
 import { VideoPreviewModal } from './VideoPreviewModal';
 
@@ -97,7 +93,8 @@ interface RowProps {
   onPause: (item: QueueItemDto) => void;
   onResume: (item: QueueItemDto) => void;
   onDelete: (item: QueueItemDto) => void;
-  onShowError: (item: QueueItemDto, publication: PublicationDto) => void;
+  canManage: boolean;
+  onOpenPlatform: (item: QueueItemDto, platform: SocialPlatform) => void;
 }
 
 function QueueRow({
@@ -111,7 +108,8 @@ function QueueRow({
   onPause,
   onResume,
   onDelete,
-  onShowError,
+  canManage,
+  onOpenPlatform,
 }: RowProps) {
   const {
     attributes,
@@ -216,13 +214,16 @@ function QueueRow({
           )}
         </div>
 
-        {/* Upload status per platform (nothing shown until an upload happened) */}
+        {/* Upload status per selected platform; click = upload now / progress / details */}
         <div className="flex flex-wrap gap-1">
-          {item.publications.map((publication) => (
-            <PublicationChip
-              key={publication.platform}
-              publication={publication}
-              onShowError={(target) => onShowError(item, target)}
+          {batch.platforms.map((platform) => (
+            <PlatformStatusChip
+              key={platform}
+              platform={platform}
+              publication={item.publications.find((p) => p.platform === platform) ?? null}
+              option={item.uploadOptions.find((o) => o.platform === platform)}
+              canManage={canManage}
+              onOpen={() => onOpenPlatform(item, platform)}
             />
           ))}
         </div>
@@ -300,12 +301,7 @@ export function QueueSection({ batch, canManage, now, onChange, onNotice }: Queu
   const [deleteTarget, setDeleteTarget] = useState<QueueItemDto | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [failedPublication, setFailedPublication] = useState<{
-    item: QueueItemDto;
-    publication: PublicationDto;
-  } | null>(null);
-  const [retrying, setRetrying] = useState(false);
-  const [retryError, setRetryError] = useState<string | null>(null);
+  const [publishTarget, setPublishTarget] = useState<PublishTarget | null>(null);
 
   // Adopt fresh server data when it changes (adjust-state-during-render, not an effect).
   const [sourceItems, setSourceItems] = useState(batch.items);
@@ -398,29 +394,6 @@ export function QueueSection({ batch, canManage, now, onChange, onNotice }: Queu
       );
   };
 
-  const closeFailed = () => {
-    setFailedPublication(null);
-    setRetryError(null);
-  };
-
-  const retryFailed = async () => {
-    if (!failedPublication) return;
-    const { item, publication } = failedPublication;
-    setRetrying(true);
-    setRetryError(null);
-    try {
-      onChange(await socialService.retryPublication(batch.id, item.id, publication.platform));
-      onNotice(
-        `"${item.title}" akan diunggah ulang ke ${SOCIAL_PLATFORM_LABELS[publication.platform]} dalam beberapa saat.`,
-      );
-      closeFailed();
-    } catch (err) {
-      setRetryError(errorMessage(err));
-    } finally {
-      setRetrying(false);
-    }
-  };
-
   // TODO: Generate caption & hashtag with AI for every row (next phase, after Publisher Tahap 1).
   const onGenerateCaption = () => undefined;
 
@@ -511,8 +484,9 @@ export function QueueSection({ batch, canManage, now, onChange, onNotice }: Queu
                       setDeleteError(null);
                       setDeleteTarget(target);
                     }}
-                    onShowError={(target, publication) =>
-                      setFailedPublication({ item: target, publication })
+                    canManage={canManage}
+                    onOpenPlatform={(target, platform) =>
+                      setPublishTarget({ itemId: target.id, platform })
                     }
                   />
                 ))}
@@ -568,109 +542,13 @@ export function QueueSection({ batch, canManage, now, onChange, onNotice }: Queu
         onConfirm={confirmDelete}
         onClose={() => setDeleteTarget(null)}
       />
-      <FailedPublicationModal
-        failed={failedPublication}
+      <PublishDialog
         batch={batch}
-        canRetry={canManage}
-        retrying={retrying}
-        error={retryError}
-        onRetry={retryFailed}
-        onClose={closeFailed}
+        target={publishTarget}
+        canManage={canManage}
+        onChange={onChange}
+        onClose={() => setPublishTarget(null)}
       />
     </Card>
-  );
-}
-
-function FailedPublicationModal({
-  failed,
-  batch,
-  canRetry,
-  retrying,
-  error,
-  onRetry,
-  onClose,
-}: {
-  failed: { item: QueueItemDto; publication: PublicationDto } | null;
-  batch: BatchDetailDto;
-  canRetry: boolean;
-  retrying: boolean;
-  error: string | null;
-  onRetry: () => void;
-  onClose: () => void;
-}) {
-  const publication = failed?.publication;
-  const label = publication ? SOCIAL_PLATFORM_LABELS[publication.platform] : '';
-  const published = publication?.status === 'published';
-  const retryable =
-    !published && canRetry && batch.status === 'scheduled' && failed?.item.isPaused === false;
-
-  if (published) {
-    return (
-      <Modal
-        open={failed !== null}
-        onClose={onClose}
-        title={`Terunggah ke ${label} dengan catatan`}
-        description={failed?.item.title}
-        footer={
-          <>
-            <Button variant="secondary" onClick={onClose}>
-              Tutup
-            </Button>
-            {publication.externalUrl && (
-              <Button
-                onClick={() =>
-                  window.open(publication.externalUrl ?? '', '_blank', 'noopener,noreferrer')
-                }
-              >
-                <Icon name="external" className="size-4" /> Buka video
-              </Button>
-            )}
-          </>
-        }
-      >
-        <Alert variant="warning">{publication.warningMessage}</Alert>
-      </Modal>
-    );
-  }
-
-  return (
-    <Modal
-      open={failed !== null}
-      onClose={onClose}
-      busy={retrying}
-      title={`Gagal diunggah ke ${label}`}
-      description={failed?.item.title}
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose} disabled={retrying}>
-            Tutup
-          </Button>
-          {retryable && (
-            <Button onClick={onRetry} disabled={retrying}>
-              <Icon name="refresh" className="size-4" />
-              {retrying ? 'Memproses…' : 'Coba lagi sekarang'}
-            </Button>
-          )}
-        </>
-      }
-    >
-      <div className="space-y-3 text-sm">
-        <Alert>{publication?.errorMessage ?? 'Terjadi kesalahan saat mengunggah.'}</Alert>
-        {publication && (
-          <p className="text-slate-600">
-            Percobaan ke-{publication.attempts}.{' '}
-            {publication.nextAttemptAt
-              ? `Akan dicoba lagi otomatis ${formatSchedule(publication.nextAttemptAt)}.`
-              : 'Tidak dicoba lagi otomatis.'}
-          </p>
-        )}
-        {batch.status === 'draft' && (
-          <p className="text-slate-600">
-            Batch sedang Draft: ubah jadwal baris ini agar diunggah ulang setelah dikonfirmasi.
-          </p>
-        )}
-        {error && <Alert>{error}</Alert>}
-      </div>
-    </Modal>
   );
 }

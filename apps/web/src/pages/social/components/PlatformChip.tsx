@@ -1,4 +1,4 @@
-import type { PublicationDto, SocialPlatform } from '@ai-preneur/shared';
+import type { PublicationDto, QueueItemDto, SocialPlatform } from '@ai-preneur/shared';
 import { SOCIAL_PLATFORM_LABELS } from '@ai-preneur/shared';
 
 import { Icon } from '../../../components/ui/Icon';
@@ -33,42 +33,47 @@ export function PlatformTag({ platform }: { platform: SocialPlatform }) {
   );
 }
 
-/**
- * Upload state of one row on one platform:
- * - published  → active chip linking to the uploaded video
- *                 (+ amber "!" button when it was published with a caveat)
- * - failed     → red chip (amber while an automatic retry is pending); click shows the error
- * - processing → muted, pulsing chip
- * (No publication → nothing is rendered.)
- */
-export function PublicationChip({
-  publication,
-  onShowError,
-}: {
-  publication: PublicationDto;
-  /** Opens the details: the error of a failed upload or the caveat of a published one. */
-  onShowError: (publication: PublicationDto) => void;
-}) {
-  const label = SOCIAL_PLATFORM_LABELS[publication.platform];
-  const short = PLATFORM_SHORT[publication.platform];
+type UploadOption = QueueItemDto['uploadOptions'][number];
 
-  if (publication.status === 'published') {
+/**
+ * Upload state of one row on one selected platform (always rendered):
+ * - published  → active chip linking to the video (+ amber "!" when published with a caveat)
+ * - queued / processing → pulsing chip; click shows the progress
+ * - failed     → red chip (amber while an automatic retry is pending); click shows the error
+ * - none       → muted chip; dashed when "terlewat" (never uploads automatically).
+ *                Clickable when "Unggah sekarang" is allowed.
+ */
+export function PlatformStatusChip({
+  platform,
+  publication,
+  option,
+  canManage,
+  onOpen,
+}: {
+  platform: SocialPlatform;
+  publication: PublicationDto | null;
+  option: UploadOption | undefined;
+  canManage: boolean;
+  /** Opens the upload dialog (confirm, progress, error or caveat). */
+  onOpen: () => void;
+}) {
+  const label = SOCIAL_PLATFORM_LABELS[platform];
+  const short = PLATFORM_SHORT[platform];
+
+  if (publication?.status === 'published') {
     const chip = publication.externalUrl ? (
       <a
         href={publication.externalUrl}
         target="_blank"
         rel="noopener noreferrer"
         title={`Terunggah ke ${label} — buka video`}
-        className={cn(CHIP, PLATFORM_ACTIVE[publication.platform])}
+        className={cn(CHIP, PLATFORM_ACTIVE[platform])}
       >
         {short}
         <Icon name="external" className="size-3" />
       </a>
     ) : (
-      <span
-        title={`Terunggah ke ${label}`}
-        className={cn(CHIP, PLATFORM_ACTIVE[publication.platform])}
-      >
+      <span title={`Terunggah ke ${label}`} className={cn(CHIP, PLATFORM_ACTIVE[platform])}>
         {short}
         <Icon name="check" className="size-3" />
       </span>
@@ -79,7 +84,7 @@ export function PublicationChip({
         {chip}
         <button
           type="button"
-          onClick={() => onShowError(publication)}
+          onClick={onOpen}
           title={`Terunggah ke ${label} dengan catatan — lihat`}
           aria-label={`Catatan unggahan ${label}`}
           className={cn(
@@ -93,12 +98,26 @@ export function PublicationChip({
     );
   }
 
-  if (publication.status === 'failed') {
+  if (publication?.status === 'queued' || publication?.status === 'processing') {
+    return (
+      <button
+        type="button"
+        onClick={onOpen}
+        title={`Sedang diunggah ke ${label} — lihat progres`}
+        className={cn(CHIP, 'animate-pulse bg-slate-200 text-slate-700 hover:bg-slate-300')}
+      >
+        {short}
+        <Icon name="refresh" className="size-3 animate-spin" />
+      </button>
+    );
+  }
+
+  if (publication?.status === 'failed') {
     const retrying = publication.nextAttemptAt !== null;
     return (
       <button
         type="button"
-        onClick={() => onShowError(publication)}
+        onClick={onOpen}
         title={
           retrying
             ? `Gagal diunggah ke ${label}, akan dicoba lagi — lihat detail`
@@ -117,12 +136,33 @@ export function PublicationChip({
     );
   }
 
+  // Not uploaded yet.
+  const missed = option?.missed ?? false;
+  const allowed = canManage && option !== undefined && option.blockedReason === null;
+  const state = missed ? 'terlewat, tidak diunggah otomatis' : 'belum diunggah';
+  const style = cn(
+    CHIP,
+    'border bg-white',
+    missed ? 'border-dashed border-slate-400 text-slate-500' : 'border-slate-200 text-slate-400',
+  );
+
+  if (!allowed) {
+    const reason = canManage && option?.blockedReason ? ` (${option.blockedReason})` : '';
+    return (
+      <span title={`${label}: ${state}${reason}`} className={style}>
+        {short}
+      </span>
+    );
+  }
   return (
-    <span
-      title={`Sedang diunggah ke ${label}`}
-      className={cn(CHIP, 'animate-pulse bg-slate-100 text-slate-500')}
+    <button
+      type="button"
+      onClick={onOpen}
+      title={`${label}: ${state} — klik untuk unggah sekarang`}
+      className={cn(style, 'hover:bg-slate-50 hover:text-slate-700')}
     >
       {short}
-    </span>
+      <Icon name="play" className="size-3" />
+    </button>
   );
 }
