@@ -36,6 +36,7 @@ export function PlatformTag({ platform }: { platform: SocialPlatform }) {
 /**
  * Upload state of one row on one platform:
  * - published  → active chip linking to the uploaded video
+ *                 (+ amber "!" button when it was published with a caveat)
  * - failed     → red chip (amber while an automatic retry is pending); click shows the error
  * - processing → muted, pulsing chip
  * (No publication → nothing is rendered.)
@@ -45,13 +46,14 @@ export function PublicationChip({
   onShowError,
 }: {
   publication: PublicationDto;
+  /** Opens the details: the error of a failed upload or the caveat of a published one. */
   onShowError: (publication: PublicationDto) => void;
 }) {
   const label = SOCIAL_PLATFORM_LABELS[publication.platform];
   const short = PLATFORM_SHORT[publication.platform];
 
   if (publication.status === 'published') {
-    return publication.externalUrl ? (
+    const chip = publication.externalUrl ? (
       <a
         href={publication.externalUrl}
         target="_blank"
@@ -69,6 +71,24 @@ export function PublicationChip({
       >
         {short}
         <Icon name="check" className="size-3" />
+      </span>
+    );
+    if (!publication.warningMessage) return chip;
+    return (
+      <span className="inline-flex items-center gap-0.5">
+        {chip}
+        <button
+          type="button"
+          onClick={() => onShowError(publication)}
+          title={`Terunggah ke ${label} dengan catatan — lihat`}
+          aria-label={`Catatan unggahan ${label}`}
+          className={cn(
+            CHIP,
+            'bg-amber-50 px-1 text-amber-700 ring-1 ring-amber-200 hover:bg-amber-100',
+          )}
+        >
+          <Icon name="alert" className="size-3" />
+        </button>
       </span>
     );
   }

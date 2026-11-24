@@ -179,6 +179,8 @@ export const publicationSchema = z.object({
   status: z.enum(PUBLICATION_STATUSES),
   externalUrl: z.string().nullable(),
   errorMessage: z.string().nullable(),
+  /** Published with a caveat (e.g. uploaded without cover, link not found). */
+  warningMessage: z.string().nullable(),
   publishedAt: z.string().nullable(),
   /** Attempts made so far (first upload included). */
   attempts: z.number().int(),

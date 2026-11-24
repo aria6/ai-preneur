@@ -170,13 +170,18 @@ after 30 min.
 
 ### Retries and failures
 
-| Error                                                        | What happens                                                                                                                       |
-| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Temporary (network, Instagram 5xx/rate limit, Drive down)    | Retry after 5 min, 30 min, 2 h — **4 attempts in total**                                                                           |
-| Permanent (video rejected, file missing/private, no account) | Failed, no automatic retry                                                                                                         |
-| Token invalid/expired                                        | Failed, account → `error`; other rows of the idea fail                                                                             |
-| Server stopped mid-upload, before "publish"                  | Retried on the next round                                                                                                          |
-| Server stopped during "publish"                              | Container checked: published → marked published (no link); otherwise retried; unknown → failed without retry ("periksa Instagram") |
+| Error                                                        | What happens                                                                                                                                                                                  |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Temporary (network, Instagram 5xx/rate limit, Drive down)    | Retry after 5 min, 30 min, 2 h — **4 attempts in total**                                                                                                                                      |
+| Permanent (video rejected, file missing/private, no account) | Failed, no automatic retry                                                                                                                                                                    |
+| Token invalid/expired                                        | Failed, account → `error`; other rows of the idea fail                                                                                                                                        |
+| Server stopped mid-upload, before "publish"                  | Retried on the next round                                                                                                                                                                     |
+| Server stopped during "publish"                              | Container checked: published → the post is looked up among the account's latest media (same caption) to get its link; otherwise retried; unknown → failed without retry ("periksa Instagram") |
+
+**Published with a caveat** (`warning_message`): the row is published, and an amber "!" next to the
+platform chip explains what the user should check — the video went up **without the cover**
+(Instagram could not fetch the Drive thumbnail) and/or **the link could not be retrieved**. Instagram
+gives no explicit confirmation that a cover was applied; only a rejected cover is detectable.
 
 In the UI a failed chip is **amber** while a retry is pending and **red** when it gave up. Its dialog
 shows the error, the attempt number, the next retry and — in a Terjadwal batch — **Coba lagi

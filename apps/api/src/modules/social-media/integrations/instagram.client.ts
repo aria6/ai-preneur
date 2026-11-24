@@ -302,6 +302,52 @@ export async function getMediaPermalink(
   }
 }
 
+const recentMediaSchema = z.object({
+  data: z
+    .array(
+      z.object({
+        id: z.union([z.string(), z.number()]).transform(String),
+        caption: z.string().optional(),
+        permalink: z.string().optional(),
+        timestamp: z.string().optional(),
+      }),
+    )
+    .default([]),
+});
+
+export interface RecentMedia {
+  id: string;
+  caption: string;
+  permalink: string | null;
+  timestamp: Date | null;
+}
+
+/** The account's latest posts, newest first (used to find a post whose ID got lost). */
+export async function listRecentMedia(
+  accessToken: string,
+  igUserId: string,
+  limit = 25,
+): Promise<RecentMedia[]> {
+  const body = await graphRequest(
+    'GET',
+    `/${igUserId}/media`,
+    accessToken,
+    { fields: 'id,caption,permalink,timestamp', limit: String(limit) },
+    'membaca postingan terbaru',
+  );
+  const parsed = recentMediaSchema.safeParse(body);
+  if (!parsed.success) throw new InstagramApiError('Respons Instagram tidak dikenali (media).');
+  return parsed.data.data.map((media) => {
+    const time = media.timestamp ? new Date(media.timestamp) : null;
+    return {
+      id: media.id,
+      caption: media.caption ?? '',
+      permalink: media.permalink ?? null,
+      timestamp: time && !Number.isNaN(time.getTime()) ? time : null,
+    };
+  });
+}
+
 // ---- Token refresh ---------------------------------------------------------------------
 
 const refreshSchema = z.object({

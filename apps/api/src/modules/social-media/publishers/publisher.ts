@@ -33,6 +33,18 @@ export interface PublishResult {
   externalMediaId: string;
   /** Public link to the uploaded video (shown as the active platform icon). */
   externalUrl: string | null;
+  /** Published, but with something the user should know (e.g. no cover, no link). */
+  warning?: string | null;
+}
+
+/** What a recovery check needs to recognise the post on the platform. */
+export interface RecoveryContext {
+  containerId: string;
+  externalAccountId: string;
+  caption: string;
+  hashtags: string[];
+  /** When the interrupted attempt started; the post cannot be older. */
+  since: Date;
 }
 
 /** Outcome of checking a container left behind by a crashed attempt. */
@@ -43,7 +55,7 @@ export interface PlatformPublisher {
   readonly platform: SocialPlatform;
   publish(job: PublishJob, hooks: PublishHooks): Promise<PublishResult>;
   /** Tells whether a container from an interrupted attempt ended up published. */
-  recover(credentials: unknown, containerId: string): Promise<RecoveryOutcome>;
+  recover(credentials: unknown, context: RecoveryContext): Promise<RecoveryOutcome>;
   /**
    * Extends a long-lived token (optional per platform). Throws PublishError with
    * `tokenInvalid` when the token is dead.

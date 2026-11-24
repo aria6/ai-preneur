@@ -21,6 +21,7 @@ const freshAttempt = {
   status: 'processing' as const,
   startedAt: sql`now()`,
   errorMessage: null,
+  warningMessage: null,
   nextAttemptAt: null,
   containerId: null,
   publishRequestedAt: null,
@@ -104,7 +105,7 @@ export function createPublicationsRepository(db: DatabaseExecutor) {
 
     async markPublished(
       id: string,
-      result: { externalMediaId: string; externalUrl: string | null },
+      result: { externalMediaId: string; externalUrl: string | null; warning?: string | null },
     ): Promise<void> {
       await db
         .update(smPublications)
@@ -113,6 +114,7 @@ export function createPublicationsRepository(db: DatabaseExecutor) {
           externalMediaId: result.externalMediaId.slice(0, 128),
           externalUrl: result.externalUrl?.slice(0, 500) ?? null,
           errorMessage: null,
+          warningMessage: result.warning?.slice(0, 500) ?? null,
           nextAttemptAt: null,
           publishedAt: sql`now()`,
         })
@@ -131,11 +133,11 @@ export function createPublicationsRepository(db: DatabaseExecutor) {
     async findStale(startedBefore: Date): Promise<
       {
         publication: SmPublicationRow;
-        batchId: string;
+        item: SmQueueItemRow;
       }[]
     > {
       return db
-        .select({ publication: smPublications, batchId: smQueueItems.batchId })
+        .select({ publication: smPublications, item: smQueueItems })
         .from(smPublications)
         .innerJoin(smQueueItems, eq(smPublications.itemId, smQueueItems.id))
         .where(

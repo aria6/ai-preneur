@@ -160,6 +160,8 @@ export const smPublications = pgTable(
     externalMediaId: varchar({ length: 128 }),
     externalUrl: varchar({ length: 500 }),
     errorMessage: varchar({ length: 1000 }),
+    /** Published with a caveat the user should know (e.g. no cover, no link). */
+    warningMessage: varchar({ length: 500 }),
     attempts: integer().notNull().default(0),
     startedAt: timestamp({ withTimezone: true }),
     publishedAt: timestamp({ withTimezone: true }),

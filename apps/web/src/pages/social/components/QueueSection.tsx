@@ -600,7 +600,38 @@ function FailedPublicationModal({
 }) {
   const publication = failed?.publication;
   const label = publication ? SOCIAL_PLATFORM_LABELS[publication.platform] : '';
-  const retryable = canRetry && batch.status === 'scheduled' && failed?.item.isPaused === false;
+  const published = publication?.status === 'published';
+  const retryable =
+    !published && canRetry && batch.status === 'scheduled' && failed?.item.isPaused === false;
+
+  if (published) {
+    return (
+      <Modal
+        open={failed !== null}
+        onClose={onClose}
+        title={`Terunggah ke ${label} dengan catatan`}
+        description={failed?.item.title}
+        footer={
+          <>
+            <Button variant="secondary" onClick={onClose}>
+              Tutup
+            </Button>
+            {publication.externalUrl && (
+              <Button
+                onClick={() =>
+                  window.open(publication.externalUrl ?? '', '_blank', 'noopener,noreferrer')
+                }
+              >
+                <Icon name="external" className="size-4" /> Buka video
+              </Button>
+            )}
+          </>
+        }
+      >
+        <Alert variant="warning">{publication.warningMessage}</Alert>
+      </Modal>
+    );
+  }
 
   return (
     <Modal

@@ -53,6 +53,7 @@ function toPublicationDto(publication: SmPublicationRow): PublicationDto {
     status: publication.status,
     externalUrl: publication.externalUrl,
     errorMessage: publication.errorMessage,
+    warningMessage: publication.status === 'published' ? publication.warningMessage : null,
     publishedAt: iso(publication.publishedAt),
     attempts: publication.attempts,
     nextAttemptAt: publication.status === 'failed' ? iso(publication.nextAttemptAt) : null,

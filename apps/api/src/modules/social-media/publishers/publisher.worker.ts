@@ -156,7 +156,12 @@ export function createPublisherWorker(deps: {
         },
       );
       await publications.markPublished(attempt.publicationId, result);
-      logger.info('Video published', { itemId: item.id, platform, url: result.externalUrl });
+      logger.info('Video published', {
+        itemId: item.id,
+        platform,
+        url: result.externalUrl,
+        warning: result.warning ?? undefined,
+      });
     } catch (error) {
       const now = new Date();
       if (shutdown.signal.aborted) {
@@ -188,7 +193,7 @@ export function createPublisherWorker(deps: {
   /** Attempts left "processing" by a worker that died (crash, kill, deploy). */
   async function recoverStale(): Promise<void> {
     const stale = await publications.findStale(new Date(Date.now() - STALE_AFTER_MS));
-    for (const { publication, batchId } of stale) {
+    for (const { publication, item } of stale) {
       const now = new Date();
       const failWith = (message: string, retryAt: Date | null) =>
         publications.markFailed(publication.id, message, retryAt);
@@ -201,11 +206,17 @@ export function createPublisherWorker(deps: {
       }
 
       const publisher = publishers.get(publication.platform);
-      const account = await accounts.findForBatch(batchId, publication.platform);
+      const account = await accounts.findForBatch(item.batchId, publication.platform);
       let outcome: Awaited<ReturnType<PlatformPublisher['recover']>> = { state: 'unknown' };
       if (publisher && account && publication.containerId) {
         try {
-          outcome = await publisher.recover(decrypt(account), publication.containerId);
+          outcome = await publisher.recover(decrypt(account), {
+            containerId: publication.containerId,
+            externalAccountId: account.externalAccountId,
+            caption: item.caption,
+            hashtags: item.hashtags,
+            since: publication.startedAt ?? publication.publishRequestedAt,
+          });
         } catch (error) {
           logger.error('Recovery check failed', { publicationId: publication.id, error });
         }

@@ -12,6 +12,7 @@ import {
   getContainerStatus,
   getMediaPermalink,
   InstagramApiError,
+  listRecentMedia,
   publishContainer,
   refreshLongLivedToken,
   uploadReelsVideo,
@@ -22,6 +23,7 @@ import {
   type PublishHooks,
   type PublishJob,
   type PublishResult,
+  type RecoveryContext,
   type RecoveryOutcome,
 } from './publisher.js';
 
@@ -101,20 +103,67 @@ async function waitUntilProcessed(
   }
 }
 
+export const WARNING_NO_COVER =
+  'Video terunggah tanpa cover: Instagram tidak bisa mengambil thumbnail dari Google Drive. Pastikan file thumbnail dibagikan "Siapa saja yang memiliki link" dan berformat JPG/PNG, lalu ganti cover langsung di aplikasi Instagram bila perlu.';
+export const WARNING_NO_LINK =
+  'Video sudah tayang di Instagram, tetapi link-nya tidak dapat diambil. Periksa profil Instagram untuk memastikan.';
+
+const normalizeSpaces = (text: string) => text.replace(/\s+/g, ' ').trim();
+
+/** Same text, ignoring whitespace differences Instagram may introduce. */
+function sameCaption(a: string, b: string): boolean {
+  return normalizeSpaces(a) === normalizeSpaces(b);
+}
+
+/**
+ * Checks a container whose publish answer was lost. When it was published, looks
+ * for the post among the account's latest media (same caption, not older than the
+ * attempt) to recover its ID and link.
+ */
 async function recoverContainer(
   accessToken: string,
-  containerId: string,
+  context: RecoveryContext,
 ): Promise<RecoveryOutcome> {
+  let published: boolean;
   try {
-    const status = await getContainerStatus(accessToken, containerId);
-    if (status.code === 'PUBLISHED') {
-      // The media ID is not exposed by the container; the post is live without a link.
-      return { state: 'published', result: { externalMediaId: containerId, externalUrl: null } };
-    }
-    return { state: 'not_published' };
+    published = (await getContainerStatus(accessToken, context.containerId)).code === 'PUBLISHED';
   } catch {
     return { state: 'unknown' };
   }
+  if (!published) return { state: 'not_published' };
+
+  const caption = buildInstagramCaption(context.caption, context.hashtags);
+  const earliest = context.since.getTime() - 5 * 60_000; // clock skew margin
+  try {
+    const media = await listRecentMedia(accessToken, context.externalAccountId);
+    const match = media.find(
+      (entry) =>
+        sameCaption(entry.caption, caption) &&
+        (entry.timestamp === null || entry.timestamp.getTime() >= earliest),
+    );
+    if (match) {
+      return {
+        state: 'published',
+        result: {
+          externalMediaId: match.id,
+          externalUrl: match.permalink,
+          warning: match.permalink ? null : WARNING_NO_LINK,
+        },
+      };
+    }
+  } catch {
+    // fall through: published, but the post could not be identified
+  }
+  return {
+    state: 'published',
+    // The container ID stands in for the unknown media ID.
+    result: { externalMediaId: context.containerId, externalUrl: null, warning: WARNING_NO_LINK },
+  };
+}
+
+function joinWarnings(...warnings: (string | false | null | undefined)[]): string | null {
+  const list = warnings.filter((warning): warning is string => Boolean(warning));
+  return list.length > 0 ? list.join(' ') : null;
 }
 
 async function uploadToContainer(input: {
@@ -159,6 +208,7 @@ export function createInstagramPublisher(deps: {
     const { accessToken } = parseInstagramCredentials(job.credentials);
     if (!job.videoFileId) throw new PublishError('Baris ini belum punya video.');
 
+    const attemptStartedAt = new Date();
     await mkdir(tempDir, { recursive: true });
     const filePath = join(tempDir, `${randomUUID()}.mp4`);
 
@@ -179,7 +229,9 @@ export function createInstagramPublisher(deps: {
         filePath,
         fileSize,
       });
+      let coverDropped = false;
       if (!uploaded.ok && coverUrl) {
+        coverDropped = true;
         // A cover Instagram cannot fetch fails the whole container: retry without it.
         logger.warn('Instagram container failed with a cover; retrying without it', {
           itemId: job.itemId,
@@ -207,8 +259,19 @@ export function createInstagramPublisher(deps: {
         mediaId = await publishContainer(accessToken, job.externalAccountId, uploaded.containerId);
       } catch (error) {
         // The request may have reached Instagram even though the answer got lost.
-        const outcome = await recoverContainer(accessToken, uploaded.containerId);
-        if (outcome.state === 'published') return outcome.result;
+        const outcome = await recoverContainer(accessToken, {
+          containerId: uploaded.containerId,
+          externalAccountId: job.externalAccountId,
+          caption: job.caption,
+          hashtags: job.hashtags,
+          since: attemptStartedAt,
+        });
+        if (outcome.state === 'published') {
+          return {
+            ...outcome.result,
+            warning: joinWarnings(coverDropped && WARNING_NO_COVER, outcome.result.warning),
+          };
+        }
         if (outcome.state === 'not_published') throw error; // safe to try again
         throw new PublishError(
           'Status publikasi tidak pasti (koneksi terputus saat memublikasikan). Periksa Instagram sebelum mencoba lagi.',
@@ -216,7 +279,11 @@ export function createInstagramPublisher(deps: {
       }
 
       const permalink = await getMediaPermalink(accessToken, mediaId);
-      return { externalMediaId: mediaId, externalUrl: permalink };
+      return {
+        externalMediaId: mediaId,
+        externalUrl: permalink,
+        warning: joinWarnings(coverDropped && WARNING_NO_COVER, !permalink && WARNING_NO_LINK),
+      };
     } catch (error) {
       throw toPublishError(error);
     } finally {
@@ -227,9 +294,9 @@ export function createInstagramPublisher(deps: {
   return {
     platform: 'instagram',
     publish,
-    async recover(credentials, containerId) {
+    async recover(credentials, context) {
       const { accessToken } = parseInstagramCredentials(credentials);
-      return recoverContainer(accessToken, containerId);
+      return recoverContainer(accessToken, context);
     },
     async refreshCredentials(credentials) {
       const { accessToken } = parseInstagramCredentials(credentials);

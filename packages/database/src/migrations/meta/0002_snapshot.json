@@ -1,5 +1,5 @@
 {
-  "id": "bb096af0-5b1f-4ec5-8904-984fa406a325",
+  "id": "2764c234-f58c-4a54-bb2c-e752aa36711f",
   "prevId": "9c325f56-d6da-4536-b885-7bd9d7af1b04",
   "version": "7",
   "dialect": "postgresql",
@@ -794,6 +794,12 @@
         "error_message": {
           "name": "error_message",
           "type": "varchar(1000)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "warning_message": {
+          "name": "warning_message",
+          "type": "varchar(500)",
           "primaryKey": false,
           "notNull": false
         },
