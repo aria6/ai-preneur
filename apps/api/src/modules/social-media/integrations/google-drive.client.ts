@@ -12,9 +12,16 @@ const DRIVE_FILES_API = 'https://www.googleapis.com/drive/v3/files';
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
 const REQUEST_TIMEOUT_MS = 15_000;
 const MAX_PAGES = 10; // 10 × 1000 files is far beyond any realistic content folder
+/** Caption files are a few KB; anything far larger is not a caption. */
+const MAX_TEXT_BYTES = 64 * 1024;
 
 export type DriveErrorKind =
-  'not_configured' | 'not_found' | 'forbidden' | 'invalid' | 'unavailable';
+  | 'not_configured'
+  | 'not_found'
+  | 'forbidden'
+  | 'invalid'
+  | 'unavailable'
+  | 'too_large';
 
 export class DriveError extends Error {
   readonly kind: DriveErrorKind;
@@ -46,6 +53,8 @@ export interface GoogleDriveClient {
   getFile(fileId: string): Promise<DriveFileRef>;
   /** Direct children (files and sub-folders) of a public folder. */
   listFolder(folderId: string): Promise<DriveFolderContents>;
+  /** Content of a public plain-text file (UTF-8). Throws DriveError `too_large` above 64 KB. */
+  readTextFile(fileId: string): Promise<string>;
 }
 
 export function isDriveFolder(file: DriveFileRef): boolean {
@@ -53,7 +62,7 @@ export function isDriveFolder(file: DriveFileRef): boolean {
 }
 
 export function createGoogleDriveClient(apiKey: string | null): GoogleDriveClient {
-  async function request(path: string, params: Record<string, string>): Promise<unknown> {
+  async function send(path: string, params: Record<string, string>): Promise<Response> {
     if (!apiKey) {
       throw new DriveError(
         'not_configured',
@@ -100,7 +109,11 @@ export function createGoogleDriveClient(apiKey: string | null): GoogleDriveClien
         `Google Drive sedang bermasalah (HTTP ${response.status}).`,
       );
     }
-    return response.json();
+    return response;
+  }
+
+  async function request(path: string, params: Record<string, string>): Promise<unknown> {
+    return (await send(path, params)).json();
   }
 
   async function getFile(fileId: string): Promise<DriveFileRef> {
@@ -143,5 +156,35 @@ export function createGoogleDriveClient(apiKey: string | null): GoogleDriveClien
     return { files, folders };
   }
 
-  return { getFile, listFolder };
+  async function readTextFile(fileId: string): Promise<string> {
+    const response = await send(`/${fileId}`, { alt: 'media' });
+    const tooLarge = () =>
+      new DriveError('too_large', `File lebih dari ${MAX_TEXT_BYTES / 1024} KB.`);
+
+    const declared = Number(response.headers.get('content-length'));
+    if (declared > MAX_TEXT_BYTES) {
+      await response.body?.cancel();
+      throw tooLarge();
+    }
+
+    // Read with a hard cap: the declared length may be missing or wrong.
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    if (response.body) {
+      const reader = response.body.getReader();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.byteLength;
+        if (total > MAX_TEXT_BYTES) {
+          await reader.cancel();
+          throw tooLarge();
+        }
+        chunks.push(value);
+      }
+    }
+    return new TextDecoder('utf-8').decode(Buffer.concat(chunks));
+  }
+
+  return { getFile, listFolder, readTextFile };
 }

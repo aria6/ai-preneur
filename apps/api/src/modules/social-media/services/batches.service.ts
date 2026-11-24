@@ -17,14 +17,23 @@ import {
 import { conflict, fieldError } from '../../../core/errors.js';
 import type { Logger } from '../../../core/logger.js';
 import type { AuthContext } from '../../iam/index.js';
-import { buildQueueFromFolder } from '../domain/filename-parser.js';
+import {
+  buildQueueFromFolder,
+  isTextFile,
+  type CaptionSource,
+  type DriveFileRef,
+} from '../domain/filename-parser.js';
 import {
   autoSchedule,
   confirmationProblems,
   earliestEditableTime,
   reorderWithSlots,
 } from '../domain/queue-rules.js';
-import { isDriveFolder, type GoogleDriveClient } from '../integrations/google-drive.client.js';
+import {
+  DriveError,
+  isDriveFolder,
+  type GoogleDriveClient,
+} from '../integrations/google-drive.client.js';
 import { createAccountsRepository } from '../repositories/accounts.repository.js';
 import { createBatchesRepository } from '../repositories/batches.repository.js';
 import { createItemsRepository } from '../repositories/items.repository.js';
@@ -39,6 +48,35 @@ import {
 } from './batch-context.js';
 
 const THUMBNAIL_FOLDER = /^thumbnails?$/i;
+const CAPTION_FOLDER = /^captions?$/i;
+/** Parallel caption downloads, to stay well inside Drive's per-user rate limit. */
+const CAPTION_DOWNLOAD_CONCURRENCY = 5;
+
+/**
+ * Downloads every .txt file of the caption folder. A file that fails (too large, private,
+ * timeout) is reported through `errors` instead of failing the whole scan.
+ */
+async function readCaptionFiles(
+  drive: GoogleDriveClient,
+  files: readonly DriveFileRef[],
+): Promise<CaptionSource> {
+  const texts = new Map<string, string>();
+  const errors = new Map<string, string>();
+  const queue = files.filter(isTextFile);
+
+  async function worker(): Promise<void> {
+    for (let file = queue.shift(); file; file = queue.shift()) {
+      try {
+        texts.set(file.id, await drive.readTextFile(file.id));
+      } catch (error) {
+        if (!(error instanceof DriveError)) throw error;
+        errors.set(file.id, error.message);
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: CAPTION_DOWNLOAD_CONCURRENCY }, worker));
+  return { files, texts, errors };
+}
 
 function assertAvailablePlatforms(platforms: readonly SocialPlatform[]): void {
   const unavailable = platforms.filter(
@@ -183,7 +221,22 @@ export function createBatchesService(deps: {
             message: 'Folder thumbnail/ tidak ditemukan; baris dibuat tanpa thumbnail.',
           });
         }
-        result = buildQueueFromFolder(contents.files, thumbnails, current.batch.ideaNumber);
+        const captionFolder = contents.folders.find((f) => CAPTION_FOLDER.test(f.name.trim()));
+        const captions = captionFolder
+          ? await readCaptionFiles(drive, (await drive.listFolder(captionFolder.id)).files)
+          : null;
+        if (!captionFolder) {
+          warnings.push({
+            fileName: 'caption/',
+            message: 'Folder caption/ tidak ditemukan; caption & hashtag dikosongkan.',
+          });
+        }
+        result = buildQueueFromFolder(
+          contents.files,
+          thumbnails,
+          current.batch.ideaNumber,
+          captions,
+        );
       } catch (error) {
         throw driveToAppError(error, 'driveFolderUrl');
       }
@@ -203,8 +256,6 @@ export function createBatchesService(deps: {
           id,
           result.items.map((item) => ({
             ...item,
-            caption: '',
-            hashtags: [],
             scheduledAt: null,
             isPaused: false,
           })),

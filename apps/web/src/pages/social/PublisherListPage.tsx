@@ -80,7 +80,7 @@ function CreateBatchModalContent({ open, onClose }: { open: boolean; onClose: ()
           value={driveFolderUrl}
           onChange={(event) => setDriveFolderUrl(event.target.value)}
           error={errors.driveFolderUrl}
-          hint='Akses folder harus "Siapa saja yang memiliki link". Video di folder utama, thumbnail di subfolder thumbnail/.'
+          hint='Akses folder harus "Siapa saja yang memiliki link". Video di folder utama, thumbnail di subfolder thumbnail/, caption (.txt) di subfolder caption/.'
         />
       </form>
     </Modal>

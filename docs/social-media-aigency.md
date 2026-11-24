@@ -20,17 +20,33 @@ Backend module: `apps/api/src/modules/social-media` · tables: `packages/databas
    ├── 2.1-apa-akuaponik.mp4
    ├── 2.2-model-akuaponik-part1.mp4
    ├── 2.2-model-akuaponik-part2.mp4
-   └── thumbnail/
-       ├── 2.1-apa-akuaponik.png
-       └── 2.2-model-akuaponik-part1.png …
+   ├── thumbnail/
+   │   ├── 2.1-apa-akuaponik.png
+   │   └── 2.2-model-akuaponik-part1.png …
+   └── caption/
+       ├── 2.1-apa-akuaponik.txt
+       └── 2.2-model-akuaponik-part1.txt …
    ```
 
    `2.2-model-akuaponik-part1` → IDEA_ID `2`, TOPIC_ID `2`, part `1`, title "Model akuaponik".
    - IDEA_ID of the batch = the most common prefix; when no file has one, the next free number.
    - Files that don't follow the pattern are still added, with an automatic TOPIC_ID.
    - Thumbnails match videos by identical name (any of png/jpg/jpeg/webp).
-   - Every oddity (non-video file, missing thumbnail, unused thumbnail, IDEA_ID mismatch, duplicate
-     topic/part) is reported back — nothing is skipped silently.
+   - Captions match videos the same way (`.txt`, UTF-8, max 64 KB; folder `caption/` or
+     `captions/`, optional). The **hashtag block at the end of the file** (lines containing only
+     hashtags) goes to the hashtag list — de-duplicated, max 30; hashtags inside a sentence stay in
+     the caption. The caption is cut at 2,200 characters.
+
+     ```text
+     Akuaponik menggabungkan budidaya ikan dan sayur. #hemat air tetap di caption
+
+     #akuaponik #urbanfarming
+     #ikan
+     ```
+
+   - Every oddity (non-video file, missing/unused thumbnail or caption, non-.txt or unreadable
+     caption, caption cut, more than 30 hashtags, IDEA_ID mismatch, duplicate topic/part) is reported
+     back — nothing is skipped silently.
    - Regenerating replaces the queue (draft only, and never once something was uploaded).
 
 3. Each row: thumbnail, playable video (Drive player), caption, hashtags (max 30), schedule, and

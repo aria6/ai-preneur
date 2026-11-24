@@ -169,7 +169,7 @@ export function IdeaCard({
             disabled={!editable || !isDraft}
             hint={
               isDraft
-                ? 'Struktur: video di folder utama (mis. 2.1-apa-akuaponik.mp4), thumbnail bernama sama di subfolder thumbnail/.'
+                ? 'Struktur: video di folder utama (mis. 2.1-apa-akuaponik.mp4), thumbnail bernama sama di subfolder thumbnail/, caption .txt bernama sama di subfolder caption/.'
                 : 'Link folder dan IDEA_ID hanya bisa diubah saat Draft.'
             }
           />
