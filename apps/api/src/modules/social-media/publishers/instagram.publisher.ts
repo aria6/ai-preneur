@@ -12,6 +12,8 @@ import {
   getContainerStatus,
   getMediaPermalink,
   InstagramApiError,
+  instagramTokenKind,
+  listInstagramAccounts,
   listRecentMedia,
   publishContainer,
   refreshLongLivedToken,
@@ -196,7 +198,8 @@ async function uploadToContainer(input: {
 }
 
 /**
- * Instagram Reels publisher (Instagram API with Instagram Login):
+ * Instagram Reels publisher (Instagram API with Instagram Login or Unified login — the
+ * host follows the token, see instagram.client.ts):
  * Drive → temp file → resumable container → upload → wait FINISHED → publish → permalink.
  */
 export function createInstagramPublisher(deps: {
@@ -307,6 +310,11 @@ export function createInstagramPublisher(deps: {
     async refreshCredentials(credentials) {
       const { accessToken } = parseInstagramCredentials(credentials);
       try {
+        if (instagramTokenKind(accessToken) === 'unified_login') {
+          // Never expires: only check that it still works and still reaches an account.
+          await listInstagramAccounts(accessToken);
+          return { credentials: { accessToken } satisfies InstagramCredentials, expiresAt: null };
+        }
         const refreshed = await refreshLongLivedToken(accessToken);
         return {
           credentials: { accessToken: refreshed.accessToken } satisfies InstagramCredentials,

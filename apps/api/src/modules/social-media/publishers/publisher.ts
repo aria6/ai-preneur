@@ -59,10 +59,14 @@ export interface PlatformPublisher {
   /** Tells whether a container from an interrupted attempt ended up published. */
   recover(credentials: unknown, context: RecoveryContext): Promise<RecoveryOutcome>;
   /**
-   * Extends a long-lived token (optional per platform). Throws PublishError with
-   * `tokenInvalid` when the token is dead.
+   * Extends a long-lived token, or just checks one that never expires (optional per
+   * platform). `expiresAt: null` means the token does not expire; such accounts are
+   * checked again every 24 h. Throws PublishError with `tokenInvalid` when the token
+   * is dead.
    */
-  refreshCredentials?(credentials: unknown): Promise<{ credentials: unknown; expiresAt: Date }>;
+  refreshCredentials?(
+    credentials: unknown,
+  ): Promise<{ credentials: unknown; expiresAt: Date | null }>;
 }
 
 /** Error whose message is safe to show to users in the row's status. */

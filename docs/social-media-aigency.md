@@ -98,15 +98,34 @@ are never returned by the API.
 
 ### Instagram account (per idea)
 
-Requirements: an **Instagram professional account** (Business or Creator). No Facebook Page needed
-(Instagram API with Instagram Login).
+Requirements: an **Instagram professional account** (Business or Creator). No Facebook Page needed.
+Two kinds of token work; the API tells them apart by prefix (`instagramTokenKind`):
 
-1. developers.facebook.com → create an app → add the **Instagram** product (API setup with Instagram login).
-2. Add the account as an **Instagram Tester**; accept the invite in the Instagram app
-   (Settings → Apps and websites → Tester invites).
-3. App dashboard → Instagram → API setup → **Generate token** for that account.
-4. In the batch: tick Instagram, paste the token, click **Tes & hubungkan**. The API checks the token
-   with Instagram and stores the account's username and ID.
+| Token  | Setup in the Meta app                       | Host                  | Expiry                                   |
+| ------ | ------------------------------------------- | --------------------- | ---------------------------------------- |
+| `EAA…` | **API setup with Unified login** (new apps) | `graph.facebook.com`  | Never (system-user token), checked daily |
+| `IG…`  | API setup with Instagram login (legacy)     | `graph.instagram.com` | 60 days, refreshed automatically         |
+
+Since late October 2026 Meta no longer offers "API setup with Instagram login" to new apps, so new
+apps use **Unified login**:
+
+1. Create a **business portfolio** (business.facebook.com) and add the Instagram account to it
+   (Settings → Accounts → Instagram accounts), with yourself assigned to it.
+2. developers.facebook.com → create an app with the use case **"Manage messaging & content on
+   Instagram"** and connect it to that portfolio.
+3. Use cases → Customize → **API setup with Unified login** → **Create configuration**: system-user
+   access token, never expires, asset = Instagram account, permissions `instagram_basic` and
+   `instagram_content_publish` (add `instagram_manage_comments` / `instagram_manage_messages` for
+   the Intelligence AIgency later). The redirect URL is only needed for a future OAuth button.
+4. App roles → Roles → add the account as **Instagram Tester**; accept the invite at
+   instagram.com/accounts/manage_access (Tester invites).
+5. Back in step 2 of that page ("Buat token akses") → **Add account** → generate the token (`EAA…`).
+   Check it with
+   `curl "https://graph.facebook.com/v25.0/me/assigned_instagram_accounts?fields=id,username&access_token=TOKEN"`.
+6. In the batch: tick Instagram, paste the token, click **Tes & hubungkan**. The API lists the
+   accounts the token can reach (`POST …/accounts/instagram/lookup`, nothing stored). One account →
+   connected right away; several (one portfolio token, many accounts) → pick one in the dropdown,
+   then **Hubungkan**. Accounts already used by another idea are disabled in the list.
 
 When the app has a public HTTPS domain, this can be replaced by a "Login dengan Instagram" button.
 
@@ -137,7 +156,8 @@ All under `/api/social`; responses use the standard envelope. Mutations return t
 | `POST /batches/:id/items` · `PATCH`/`DELETE /batches/:id/items/:itemId`          | manage                                              |
 | `POST /batches/:id/items/:itemId/pause` · `/resume`                              | manage                                              |
 | `POST /batches/:id/items/:itemId/publish-now`                                    | manage — Unggah sekarang (`{ platform }`)           |
-| `PUT /batches/:id/accounts/instagram` · `DELETE /batches/:id/accounts/:platform` | manage                                              |
+| `POST /batches/:id/accounts/instagram/lookup`                                    | manage — Tes token (`{ accessToken }` → accounts)   |
+| `PUT /batches/:id/accounts/instagram` · `DELETE /batches/:id/accounts/:platform` | manage (`{ accessToken, instagramAccountId? }`)     |
 
 ## Upload engine (worker)
 
@@ -146,9 +166,10 @@ Enabled with `SOCIAL_PUBLISHER_ENABLED=true` (needs `GOOGLE_API_KEY` and `SOCIAL
 `SOCIAL_PUBLISHER_INTERVAL_SECONDS`. Each round:
 
 1. **Recover** attempts left `processing` for > 45 min by a worker that died (see below).
-2. **Refresh tokens** (at most hourly): Instagram long-lived tokens of unfinished batches not checked
-   for 24 h and expiring within 30 days (or with unknown expiry) are extended by 60 days. A dead token
-   puts the account in `error`.
+2. **Refresh tokens** (at most hourly): Instagram Login tokens (`IG…`) of unfinished batches not
+   checked for 24 h and expiring within 30 days (or with unknown expiry) are extended by 60 days.
+   Unified login tokens (`EAA…`) never expire; they are only checked every 24 h (token still valid and
+   still reaching an account). A dead token puts the account in `error`.
 3. **Manual uploads** ("Unggah sekarang", status `queued`) — before any scheduled work.
 4. **First uploads**: active rows of Terjadwal batches whose schedule has come — and is **not before
    the batch's confirmation** — that have a selected platform not attempted yet. Each (row, platform) is **claimed by inserting its
@@ -159,8 +180,9 @@ Enabled with `SOCIAL_PUBLISHER_ENABLED=true` (needs `GOOGLE_API_KEY` and `SOCIAL
 
 ### Instagram publisher
 
-`publishers/instagram.publisher.ts` (Instagram API with Instagram Login, `graph.instagram.com`,
-version in `INSTAGRAM_API_VERSION`):
+`publishers/instagram.publisher.ts` (`graph.facebook.com` for Unified login tokens,
+`graph.instagram.com` for Instagram Login tokens — same endpoints; version in
+`INSTAGRAM_API_VERSION`):
 
 Drive video → temp file (`$TMPDIR/ai-preneur-publisher`, max 1 GB, deleted right after) → Reels
 container (`upload_type=resumable`, caption + hashtag block cut to 2,200 characters, `share_to_feed`,

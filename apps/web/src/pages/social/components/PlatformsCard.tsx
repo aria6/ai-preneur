@@ -4,13 +4,14 @@ import {
   SOCIAL_PLATFORM_LABELS,
   SOCIAL_PLATFORMS,
   type BatchDetailDto,
+  type InstagramAccountOption,
   type SocialAccountDto,
   type SocialPlatform,
 } from '@ai-preneur/shared';
 import { useState, type FormEvent } from 'react';
 
 import { Button } from '../../../components/ui/Button';
-import { PasswordField } from '../../../components/ui/fields';
+import { PasswordField, SelectField } from '../../../components/ui/fields';
 import { Alert, Badge, Card } from '../../../components/ui/feedback';
 import { ConfirmDialog } from '../../../components/ui/Modal';
 import { cn } from '../../../lib/cn';
@@ -36,6 +37,24 @@ function InstagramAccountPanel({
   const [saving, setSaving] = useState(false);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  /** Accounts of a token that reaches several (business portfolio); null = not tested yet. */
+  const [options, setOptions] = useState<InstagramAccountOption[] | null>(null);
+  const [selectedId, setSelectedId] = useState('');
+
+  const changeToken = (value: string) => {
+    setToken(value);
+    setOptions(null);
+    setSelectedId('');
+  };
+
+  const finishConnect = async (accessToken: string, instagramAccountId?: string) => {
+    const updated = await socialService.connectInstagram(batch.id, accessToken, instagramAccountId);
+    setToken('');
+    setOptions(null);
+    setSelectedId('');
+    onChange(updated);
+    onNotice('Akun Instagram terhubung.');
+  };
 
   const connect = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -44,15 +63,29 @@ function InstagramAccountPanel({
       setError(zodFieldErrors(parsed.error).accessToken ?? 'Access token tidak valid.');
       return;
     }
+    if (options && !selectedId) {
+      setError('Pilih akun Instagram yang akan dihubungkan.');
+      return;
+    }
     setError(null);
     setSaving(true);
     try {
-      const updated = await socialService.connectInstagram(batch.id, parsed.data.accessToken);
-      setToken('');
-      onChange(updated);
-      onNotice('Akun Instagram terhubung.');
+      const { accessToken } = parsed.data;
+      if (options) {
+        await finishConnect(accessToken, selectedId);
+        return;
+      }
+      const accounts = await socialService.lookupInstagramAccounts(batch.id, accessToken);
+      const [only] = accounts;
+      if (accounts.length === 1 && only) {
+        await finishConnect(accessToken, only.id);
+        return;
+      }
+      setOptions(accounts);
+      setSelectedId(accounts.find((option) => !option.usedByOtherBatch)?.id ?? '');
     } catch (err) {
-      setError(apiFieldErrors(err).accessToken ?? errorMessage(err));
+      const fields = apiFieldErrors(err);
+      setError(fields.accessToken ?? fields.instagramAccountId ?? errorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -122,10 +155,29 @@ function InstagramAccountPanel({
         label="Access token Instagram"
         autoComplete="off"
         value={token}
-        onChange={(event) => setToken(event.target.value)}
-        error={error ?? undefined}
+        onChange={(event) => changeToken(event.target.value)}
+        error={options ? undefined : (error ?? undefined)}
         hint="Token disimpan terenkripsi dan tidak pernah ditampilkan lagi. Satu akun hanya untuk satu ide."
       />
+      {options && (
+        <SelectField
+          label="Akun Instagram"
+          value={selectedId}
+          onChange={(event) => setSelectedId(event.target.value)}
+          error={error ?? undefined}
+          hint="Token ini bisa mengakses beberapa akun. Pilih akun untuk ide ini."
+        >
+          <option value="" disabled>
+            Pilih akun…
+          </option>
+          {options.map((option) => (
+            <option key={option.id} value={option.id} disabled={option.usedByOtherBatch}>
+              @{option.username}
+              {option.usedByOtherBatch ? ' — sudah dipakai ide lain' : ''}
+            </option>
+          ))}
+        </SelectField>
+      )}
       <details className="text-xs text-slate-600">
         <summary className="cursor-pointer font-medium text-primary-700">
           Cara mendapatkan access token
@@ -133,21 +185,37 @@ function InstagramAccountPanel({
         <ol className="mt-2 list-decimal space-y-1 pl-5">
           <li>Pastikan akun Instagram berjenis Profesional (Bisnis atau Kreator).</li>
           <li>
-            Di Meta for Developers, buat app lalu tambahkan produk Instagram (API dengan login
-            Instagram).
+            Buat business portfolio di Meta Business Suite, lalu tambahkan akun Instagram ke
+            portfolio tersebut.
           </li>
           <li>
-            Tambahkan akun sebagai Instagram Tester, lalu terima undangannya di aplikasi Instagram.
+            Di Meta for Developers, buat app dengan kasus penggunaan &quot;Kelola pesan &amp; konten
+            di Instagram&quot; dan hubungkan ke business portfolio.
           </li>
           <li>
-            Di dashboard app → Instagram → API setup, klik Generate token untuk akun tersebut.
+            Buka Kasus penggunaan → Sesuaikan → API setup with Unified login, lalu buat konfigurasi
+            (token pengguna sistem, tidak kedaluwarsa, aset akun Instagram, izin instagram_basic dan
+            instagram_content_publish).
           </li>
-          <li>Salin token, tempel di sini, lalu klik Tes & hubungkan.</li>
+          <li>
+            Tambahkan akun sebagai Penguji Instagram di Peran aplikasi, lalu terima undangannya di
+            instagram.com/accounts/manage_access.
+          </li>
+          <li>Di langkah &quot;Buat token akses&quot;, klik Tambahkan akun lalu buat token.</li>
+          <li>
+            Salin token (berawalan EAA…), tempel di sini, lalu klik Tes & hubungkan. Token lama dari
+            &quot;API dengan login Instagram&quot; (berawalan IG…) juga tetap bisa dipakai.
+          </li>
         </ol>
       </details>
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {options && (
+          <Button type="button" variant="ghost" size="sm" onClick={() => changeToken(token)}>
+            Batal
+          </Button>
+        )}
         <Button type="submit" size="sm" loading={saving}>
-          Tes & hubungkan
+          {options ? 'Hubungkan' : 'Tes & hubungkan'}
         </Button>
       </div>
     </form>

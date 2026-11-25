@@ -383,12 +383,43 @@ export const autoScheduleRequestSchema = z.object({
 });
 export type AutoScheduleRequest = z.infer<typeof autoScheduleRequestSchema>;
 
+const instagramAccessTokenSchema = z
+  .string({ error: 'Access token wajib diisi' })
+  .trim()
+  .min(20, 'Access token terlalu pendek')
+  .max(2048, 'Access token terlalu panjang')
+  .regex(/^[A-Za-z0-9._|-]+$/, 'Access token mengandung karakter yang tidak valid');
+
+/** "Tes token": lists the Instagram accounts a token can publish to (nothing is stored). */
+export const lookupInstagramAccountsRequestSchema = z.object({
+  accessToken: instagramAccessTokenSchema,
+});
+export type LookupInstagramAccountsRequest = z.infer<typeof lookupInstagramAccountsRequestSchema>;
+
+export const instagramAccountOptionSchema = z.object({
+  /** Instagram professional account ID. */
+  id: z.string(),
+  username: z.string(),
+  /** Already connected to another idea (one account serves one idea). */
+  usedByOtherBatch: z.boolean(),
+});
+export type InstagramAccountOption = z.infer<typeof instagramAccountOptionSchema>;
+
+export const instagramAccountsResponseSchema = z.object({
+  accounts: z.array(instagramAccountOptionSchema),
+});
+export type InstagramAccountsResponse = z.infer<typeof instagramAccountsResponseSchema>;
+
 export const connectInstagramRequestSchema = z.object({
-  accessToken: z
-    .string({ error: 'Access token wajib diisi' })
+  accessToken: instagramAccessTokenSchema,
+  /**
+   * Which account to connect. Required when the token reaches several accounts (a
+   * Unified login token of a business portfolio); otherwise its only account is used.
+   */
+  instagramAccountId: z
+    .string()
     .trim()
-    .min(20, 'Access token terlalu pendek')
-    .max(2048, 'Access token terlalu panjang')
-    .regex(/^[A-Za-z0-9._|-]+$/, 'Access token mengandung karakter yang tidak valid'),
+    .regex(/^\d{1,32}$/, 'ID akun Instagram tidak valid')
+    .optional(),
 });
 export type ConnectInstagramRequest = z.infer<typeof connectInstagramRequestSchema>;

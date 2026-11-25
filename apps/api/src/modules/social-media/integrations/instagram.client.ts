@@ -3,18 +3,38 @@ import { openAsBlob } from 'node:fs';
 import { z } from 'zod';
 
 /**
- * Instagram API with Instagram Login (graph.instagram.com). Works for Instagram
- * professional accounts (Business/Creator) without a linked Facebook Page.
+ * Instagram API for professional accounts (Business/Creator), no Facebook Page needed.
+ * Two kinds of access token are supported, told apart by their prefix:
  *
- * Covers the connection check, Reels publishing (resumable upload) and the
- * long-lived token refresh. Tokens travel in the request body or headers and are
- * never put into error messages or logs.
+ * - `IG…` — Instagram API with Instagram Login (graph.instagram.com). Long-lived user
+ *   token, valid 60 days and refreshable. Meta no longer offers this setup to new apps.
+ * - `EAA…` — Instagram API with Unified login (graph.facebook.com). System-user token of
+ *   a business portfolio that never expires; the Instagram accounts it can use are the
+ *   ones assigned to it in that portfolio.
+ *
+ * Publishing endpoints are the same on both hosts. Covers the connection check, Reels
+ * publishing (resumable upload) and the token refresh. Tokens travel in the request
+ * body or headers and are never put into error messages or logs.
  */
-const GRAPH_HOST = 'https://graph.instagram.com';
+const INSTAGRAM_GRAPH_HOST = 'https://graph.instagram.com';
+const FACEBOOK_GRAPH_HOST = 'https://graph.facebook.com';
 const UPLOAD_HOST = 'https://rupload.facebook.com/ig-api-upload';
 /** Graph API version for publishing calls. Meta keeps each version ~2 years. */
 export const INSTAGRAM_API_VERSION = 'v25.0';
 const REQUEST_TIMEOUT_MS = 30_000;
+
+export type InstagramTokenKind = 'instagram_login' | 'unified_login';
+
+/** Which setup issued the token: Unified login tokens are Facebook tokens (`EAA…`). */
+export function instagramTokenKind(accessToken: string): InstagramTokenKind {
+  return accessToken.startsWith('EAA') ? 'unified_login' : 'instagram_login';
+}
+
+function graphHost(accessToken: string): string {
+  return instagramTokenKind(accessToken) === 'unified_login'
+    ? FACEBOOK_GRAPH_HOST
+    : INSTAGRAM_GRAPH_HOST;
+}
 
 export class InstagramApiError extends Error {
   /** True when the same request may succeed later (network, server, rate limit). */
@@ -94,7 +114,7 @@ async function graphRequest(
   action: string,
 ): Promise<unknown> {
   const query = new URLSearchParams({ ...params, access_token: accessToken });
-  const url = `${GRAPH_HOST}/${INSTAGRAM_API_VERSION}${path}`;
+  const url = `${graphHost(accessToken)}/${INSTAGRAM_API_VERSION}${path}`;
 
   let response: Response;
   try {
@@ -127,35 +147,61 @@ async function graphRequest(
 
 const idSchema = z.object({ id: z.union([z.string(), z.number()]).transform(String) });
 
-export async function fetchInstagramAccount(accessToken: string): Promise<InstagramAccount> {
-  const query = new URLSearchParams({
-    fields: 'user_id,username,account_type',
-    access_token: accessToken,
-  });
+const assignedAccountsSchema = z.object({
+  data: z
+    .array(
+      z.object({
+        id: z.union([z.string(), z.number()]).transform(String),
+        username: z.string().optional(),
+      }),
+    )
+    .default([]),
+});
 
+/** Turns a failed connection check into a message for the token field. */
+function connectionError(status: number, body: unknown): InstagramApiError {
+  const parsedError = errorSchema.safeParse(body);
+  const code = parsedError.success ? parsedError.data.error.code : undefined;
+  if (code === 190 || status === 401) {
+    return new InstagramApiError('Access token tidak valid atau sudah kedaluwarsa.', {
+      tokenInvalid: true,
+    });
+  }
+  const apiError = toApiError(status, body, 'memeriksa token');
+  if (apiError.retryable) return apiError;
+  return new InstagramApiError(
+    'Instagram menolak access token ini. Pastikan token dibuat untuk akun Instagram Profesional.',
+  );
+}
+
+async function getJson(url: string, action: string): Promise<{ status: number; body: unknown }> {
   let response: Response;
   try {
-    response = await fetch(`${GRAPH_HOST}/me?${query.toString()}`, {
+    response = await fetch(url, {
       headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch {
     // The URL contains the token — never surface it.
-    throw new InstagramApiError('Tidak dapat menghubungi Instagram. Coba lagi beberapa saat lagi.');
+    throw new InstagramApiError(`Tidak dapat menghubungi Instagram saat ${action}.`, {
+      retryable: true,
+    });
   }
-
   const body: unknown = await response.json().catch(() => null);
+  return { status: response.ok ? 200 : response.status, body };
+}
 
-  if (!response.ok) {
-    const parsedError = errorSchema.safeParse(body);
-    const code = parsedError.success ? parsedError.data.error.code : undefined;
-    if (code === 190 || response.status === 401) {
-      throw new InstagramApiError('Access token tidak valid atau sudah kedaluwarsa.');
-    }
-    throw new InstagramApiError(
-      'Instagram menolak access token ini. Pastikan token dibuat untuk akun Instagram Profesional.',
-    );
-  }
+/** Instagram Login token: the token belongs to exactly one account (`/me`). */
+async function fetchInstagramLoginAccount(accessToken: string): Promise<InstagramAccount> {
+  const query = new URLSearchParams({
+    fields: 'user_id,username,account_type',
+    access_token: accessToken,
+  });
+  const { status, body } = await getJson(
+    `${INSTAGRAM_GRAPH_HOST}/me?${query.toString()}`,
+    'memeriksa token',
+  );
+  if (status !== 200) throw connectionError(status, body);
 
   const parsed = meSchema.safeParse(body);
   if (!parsed.success) throw new InstagramApiError('Respons Instagram tidak dikenali.');
@@ -166,8 +212,47 @@ export async function fetchInstagramAccount(accessToken: string): Promise<Instag
       'Akun ini akun pribadi. Ubah ke akun Instagram Profesional (Bisnis atau Kreator).',
     );
   }
-
   return { userId: parsed.data.user_id, username: parsed.data.username, accountType };
+}
+
+/** Unified login token: the Instagram accounts assigned to the system user. */
+async function fetchAssignedAccounts(accessToken: string): Promise<InstagramAccount[]> {
+  const query = new URLSearchParams({
+    fields: 'id,username',
+    limit: '100',
+    access_token: accessToken,
+  });
+  const { status, body } = await getJson(
+    `${FACEBOOK_GRAPH_HOST}/${INSTAGRAM_API_VERSION}/me/assigned_instagram_accounts?${query.toString()}`,
+    'memeriksa token',
+  );
+  if (status !== 200) throw connectionError(status, body);
+
+  const parsed = assignedAccountsSchema.safeParse(body);
+  if (!parsed.success) throw new InstagramApiError('Respons Instagram tidak dikenali.');
+  return parsed.data.data.map((account) => ({
+    userId: account.id,
+    username: account.username ?? account.id,
+    accountType: null,
+  }));
+}
+
+/**
+ * The Instagram accounts this token can publish to: always one for an Instagram Login
+ * token, one or more for a Unified login token. Throws when there are none.
+ */
+export async function listInstagramAccounts(accessToken: string): Promise<InstagramAccount[]> {
+  if (instagramTokenKind(accessToken) === 'instagram_login') {
+    return [await fetchInstagramLoginAccount(accessToken)];
+  }
+  const accounts = await fetchAssignedAccounts(accessToken);
+  if (accounts.length === 0) {
+    throw new InstagramApiError(
+      'Token ini tidak punya akses ke akun Instagram mana pun. Pastikan token dibuat dari "API setup with Unified login" dan akun Instagram sudah ada di business portfolio.',
+      { tokenInvalid: true },
+    );
+  }
+  return accounts;
 }
 
 // ---- Reels publishing ------------------------------------------------------------------
@@ -356,8 +441,9 @@ const refreshSchema = z.object({
 });
 
 /**
- * Extends a long-lived token by 60 days. Instagram only accepts tokens that are at
- * least 24 hours old and not yet expired.
+ * Extends a long-lived Instagram Login token by 60 days. Instagram only accepts tokens
+ * that are at least 24 hours old and not yet expired. (Unified login tokens never
+ * expire and are not refreshed.)
  */
 export async function refreshLongLivedToken(
   accessToken: string,
@@ -366,7 +452,7 @@ export async function refreshLongLivedToken(
 
   let response: Response;
   try {
-    response = await fetch(`${GRAPH_HOST}/refresh_access_token?${query.toString()}`, {
+    response = await fetch(`${INSTAGRAM_GRAPH_HOST}/refresh_access_token?${query.toString()}`, {
       headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });

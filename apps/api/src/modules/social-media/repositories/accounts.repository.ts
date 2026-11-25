@@ -32,6 +32,23 @@ export function createAccountsRepository(db: DatabaseExecutor) {
       return row;
     },
 
+    /** Accounts of a platform with one of these platform account IDs (any idea). */
+    async findByExternalIds(
+      platform: AccountPlatform,
+      externalAccountIds: readonly string[],
+    ): Promise<SmAccountRow[]> {
+      if (externalAccountIds.length === 0) return [];
+      return db
+        .select()
+        .from(smAccounts)
+        .where(
+          and(
+            eq(smAccounts.platform, platform),
+            inArray(smAccounts.externalAccountId, [...externalAccountIds]),
+          ),
+        );
+    },
+
     /**
      * Connects (or reconnects) the idea's account for a platform. Throws a unique
      * violation when that platform account already belongs to another idea.
@@ -63,9 +80,9 @@ export function createAccountsRepository(db: DatabaseExecutor) {
     },
 
     /**
-     * Accounts of unfinished batches whose long-lived token should be refreshed:
-     * not checked for 24 h (Instagram refuses younger tokens) and with an unknown
-     * expiry or one closer than `refreshWithinDays`.
+     * Accounts of unfinished batches whose token should be refreshed or checked: not
+     * checked for 24 h (Instagram refuses younger tokens) and with no known expiry
+     * (unknown, or a token that never expires) or one closer than `refreshWithinDays`.
      */
     async findDueForRefresh(
       platform: AccountPlatform,
@@ -93,12 +110,15 @@ export function createAccountsRepository(db: DatabaseExecutor) {
         .then((rows) => rows.map((row) => row.account));
     },
 
-    /** Stores a refreshed token — only if nobody reconnected the account meanwhile. */
+    /**
+     * Stores a refreshed (or re-checked) token — only if nobody reconnected the account
+     * meanwhile. `tokenExpiresAt: null` = the token never expires.
+     */
     async replaceCredentials(
       id: string,
       previousEncrypted: string,
       encryptedCredentials: string,
-      tokenExpiresAt: Date,
+      tokenExpiresAt: Date | null,
     ): Promise<void> {
       await db
         .update(smAccounts)
