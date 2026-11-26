@@ -1,6 +1,7 @@
 import {
   batchListResponseSchema,
   batchResponseSchema,
+  instagramAccountsResponseSchema,
   scanResponseSchema,
   socialSettingsResponseSchema,
   type AutoScheduleRequest,
@@ -8,7 +9,11 @@ import {
   type BatchSummaryDto,
   type CreateBatchRequest,
   type CreateItemRequest,
+  type ConnectInstagramRequest,
+  type InstagramAccountOption,
+  type LookupInstagramAccountsRequest,
   type ResumeItemRequest,
+  type PublishNowRequest,
   type ScanResponse,
   type SocialPlatform,
   type SocialSettings,
@@ -140,12 +145,46 @@ export function resumeItem(
   );
 }
 
+/** "Unggah sekarang": queues the upload of one row to one platform. */
+export function publishNow(
+  batchId: string,
+  itemId: string,
+  platform: SocialPlatform,
+): Promise<BatchDetailDto> {
+  return batchCall(
+    apiClient.post(`${itemUrl(batchId, itemId)}/publish-now`, {
+      body: { platform } satisfies PublishNowRequest,
+      schema: batchResponseSchema,
+    }),
+  );
+}
+
 // ---- Accounts ----
 
-export function connectInstagram(batchId: string, accessToken: string): Promise<BatchDetailDto> {
+/** "Tes token": the Instagram accounts a token can publish to (nothing is stored). */
+export async function lookupInstagramAccounts(
+  batchId: string,
+  accessToken: string,
+): Promise<InstagramAccountOption[]> {
+  return (
+    await apiClient.post(`${batchUrl(batchId)}/accounts/instagram/lookup`, {
+      body: { accessToken } satisfies LookupInstagramAccountsRequest,
+      schema: instagramAccountsResponseSchema,
+    })
+  ).accounts;
+}
+
+export function connectInstagram(
+  batchId: string,
+  accessToken: string,
+  instagramAccountId?: string,
+): Promise<BatchDetailDto> {
+  const body: ConnectInstagramRequest = instagramAccountId
+    ? { accessToken, instagramAccountId }
+    : { accessToken };
   return batchCall(
     apiClient.put(`${batchUrl(batchId)}/accounts/instagram`, {
-      body: { accessToken },
+      body,
       schema: batchResponseSchema,
     }),
   );

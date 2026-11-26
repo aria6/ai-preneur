@@ -155,8 +155,27 @@ export const socialSettingsResponseSchema = z.object({ settings: socialSettingsS
 export const BATCH_STATUSES = ['draft', 'scheduled', 'completed'] as const;
 export type BatchStatus = (typeof BATCH_STATUSES)[number];
 
-export const PUBLICATION_STATUSES = ['processing', 'published', 'failed'] as const;
+/** `queued` = manual upload ("Unggah sekarang") waiting for the worker. */
+export const PUBLICATION_STATUSES = ['queued', 'processing', 'published', 'failed'] as const;
 export type PublicationStatus = (typeof PUBLICATION_STATUSES)[number];
+
+/** Steps of an upload in progress, in order. */
+export const PUBLISH_STAGES = [
+  'queued',
+  'downloading',
+  'uploading',
+  'processing',
+  'publishing',
+] as const;
+export type PublishStage = (typeof PUBLISH_STAGES)[number];
+
+export const PUBLISH_STAGE_LABELS: Record<PublishStage, string> = {
+  queued: 'Antre',
+  downloading: 'Mengunduh dari Google Drive',
+  uploading: 'Mengunggah video',
+  processing: 'Diproses platform',
+  publishing: 'Mempublikasikan',
+};
 
 /** Why a queue row can no longer be edited. */
 export const ITEM_LOCK_REASONS = ['published', 'processing', 'imminent'] as const;
@@ -179,7 +198,16 @@ export const publicationSchema = z.object({
   status: z.enum(PUBLICATION_STATUSES),
   externalUrl: z.string().nullable(),
   errorMessage: z.string().nullable(),
+  /** Published with a caveat (e.g. uploaded without cover, link not found). */
+  warningMessage: z.string().nullable(),
   publishedAt: z.string().nullable(),
+  /** Attempts made so far (first upload included). */
+  attempts: z.number().int(),
+  /** Failed only: when the next automatic attempt runs; null = none. */
+  nextAttemptAt: z.string().nullable(),
+  /** Queued/processing only: current step and, when known, its percentage. */
+  progressStage: z.enum(PUBLISH_STAGES).nullable(),
+  progressPercent: z.number().int().nullable(),
 });
 export type PublicationDto = z.infer<typeof publicationSchema>;
 
@@ -200,6 +228,19 @@ export const queueItemSchema = z.object({
   locked: z.boolean(),
   lockReason: z.enum(ITEM_LOCK_REASONS).nullable(),
   publications: z.array(publicationSchema),
+  /** One entry per selected platform: can it be uploaded manually right now? */
+  uploadOptions: z.array(
+    z.object({
+      platform: socialPlatformSchema,
+      /** Null = "Unggah sekarang" allowed; otherwise why not (shown as a hint). */
+      blockedReason: z.string().nullable(),
+      /**
+       * Never attempted and scheduled before the batch was confirmed: it will not
+       * upload automatically (e.g. a platform added later) — manual upload only.
+       */
+      missed: z.boolean(),
+    }),
+  ),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -315,6 +356,9 @@ export const resumeItemRequestSchema = z.object({
 });
 export type ResumeItemRequest = z.infer<typeof resumeItemRequestSchema>;
 
+export const publishNowRequestSchema = z.object({ platform: socialPlatformSchema });
+export type PublishNowRequest = z.infer<typeof publishNowRequestSchema>;
+
 export const reorderItemsRequestSchema = z.object({
   itemIds: z.array(z.uuid('ID tidak valid')).min(1).max(1000),
 });
@@ -339,12 +383,43 @@ export const autoScheduleRequestSchema = z.object({
 });
 export type AutoScheduleRequest = z.infer<typeof autoScheduleRequestSchema>;
 
+const instagramAccessTokenSchema = z
+  .string({ error: 'Access token wajib diisi' })
+  .trim()
+  .min(20, 'Access token terlalu pendek')
+  .max(2048, 'Access token terlalu panjang')
+  .regex(/^[A-Za-z0-9._|-]+$/, 'Access token mengandung karakter yang tidak valid');
+
+/** "Tes token": lists the Instagram accounts a token can publish to (nothing is stored). */
+export const lookupInstagramAccountsRequestSchema = z.object({
+  accessToken: instagramAccessTokenSchema,
+});
+export type LookupInstagramAccountsRequest = z.infer<typeof lookupInstagramAccountsRequestSchema>;
+
+export const instagramAccountOptionSchema = z.object({
+  /** Instagram professional account ID. */
+  id: z.string(),
+  username: z.string(),
+  /** Already connected to another idea (one account serves one idea). */
+  usedByOtherBatch: z.boolean(),
+});
+export type InstagramAccountOption = z.infer<typeof instagramAccountOptionSchema>;
+
+export const instagramAccountsResponseSchema = z.object({
+  accounts: z.array(instagramAccountOptionSchema),
+});
+export type InstagramAccountsResponse = z.infer<typeof instagramAccountsResponseSchema>;
+
 export const connectInstagramRequestSchema = z.object({
-  accessToken: z
-    .string({ error: 'Access token wajib diisi' })
+  accessToken: instagramAccessTokenSchema,
+  /**
+   * Which account to connect. Required when the token reaches several accounts (a
+   * Unified login token of a business portfolio); otherwise its only account is used.
+   */
+  instagramAccountId: z
+    .string()
     .trim()
-    .min(20, 'Access token terlalu pendek')
-    .max(2048, 'Access token terlalu panjang')
-    .regex(/^[A-Za-z0-9._|-]+$/, 'Access token mengandung karakter yang tidak valid'),
+    .regex(/^\d{1,32}$/, 'ID akun Instagram tidak valid')
+    .optional(),
 });
 export type ConnectInstagramRequest = z.infer<typeof connectInstagramRequestSchema>;

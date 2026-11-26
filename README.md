@@ -5,8 +5,8 @@ business development, software house, IoT, digital marketing, education, digital
 food estate, …).
 
 > **Status:** foundation, **authentication & user management** (login/logout, role-based
-> access control, profile) and **Social Media AIgency → Publisher AIgent, Tahap 1** (content queue
-> from Google Drive, scheduling, accounts; the upload engine comes in Tahap 2).
+> access control, profile) and **Social Media AIgency → Publisher AIgent, Tahap 1 + 2** (content
+> queue from Google Drive, scheduling, accounts, automatic uploads to Instagram).
 > See [`docs/architecture.md`](docs/architecture.md), [`docs/auth-and-access.md`](docs/auth-and-access.md)
 > and [`docs/social-media-aigency.md`](docs/social-media-aigency.md).
 
@@ -137,7 +137,7 @@ and by Vite (`envDir: '../..'`). Real environment variables always override the 
 | `DATABASE_POOL_MAX`            | api          | `10`                    |                                                              |
 | `GOOGLE_API_KEY`               | api          | —                       | Reads public Drive folders (Publisher AIgent)                |
 | `SOCIAL_CREDENTIALS_KEY`       | api          | —                       | `openssl rand -base64 32`; encrypts social tokens            |
-| `SOCIAL_PUBLISHER_ENABLED`     | api          | `false`                 | Scheduled-upload worker (Tahap 2)                            |
+| `SOCIAL_PUBLISHER_ENABLED`     | api          | `false`                 | Scheduled-upload worker (real uploads to Instagram)          |
 | `SEED_ADMIN_EMAIL`             | seed         | `admin@example.com`     | First Super Admin                                            |
 | `SEED_ADMIN_NAME`              | seed         | `Super Admin`           |                                                              |
 | `SEED_ADMIN_PASSWORD`          | seed         | random (printed once)   | Min 8 chars                                                  |

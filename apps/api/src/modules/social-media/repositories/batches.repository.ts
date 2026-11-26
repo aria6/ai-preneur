@@ -122,6 +122,37 @@ export function createBatchesRepository(db: DatabaseExecutor) {
       await db.update(smBatches).set(patch).where(eq(smBatches.id, id));
     },
 
+    /**
+     * Scheduled batches whose every row (paused ones included) is published on every
+     * selected platform become "completed". Returns the IDs that changed.
+     */
+    async completeFinished(): Promise<string[]> {
+      const rows = await db
+        .update(smBatches)
+        .set({ status: 'completed' })
+        .where(
+          and(
+            eq(smBatches.status, 'scheduled'),
+            sql`cardinality(${smBatches.platforms}) > 0`,
+            sql`exists (select 1 from ${smQueueItems} where ${smQueueItems.batchId} = ${smBatches.id})`,
+            sql`not exists (
+              select 1
+              from ${smQueueItems}
+              cross join unnest(${smBatches.platforms}) as selected(platform)
+              where ${smQueueItems.batchId} = ${smBatches.id}
+                and not exists (
+                  select 1 from ${smPublications}
+                  where ${smPublications.itemId} = ${smQueueItems.id}
+                    and ${smPublications.platform}::text = selected.platform
+                    and ${smPublications.status} = 'published'
+                )
+            )`,
+          ),
+        )
+        .returning({ id: smBatches.id });
+      return rows.map((row) => row.id);
+    },
+
     async delete(id: string): Promise<void> {
       await db.delete(smBatches).where(eq(smBatches.id, id));
     },

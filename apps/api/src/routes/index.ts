@@ -45,6 +45,7 @@ export function createApiRouter(deps: AppDependencies): Router {
       db: deps.database.db,
       logger: deps.logger,
       config: deps.config.social,
+      publisher: deps.socialPublisher,
     }),
   );
 

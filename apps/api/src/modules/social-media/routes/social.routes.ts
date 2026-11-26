@@ -1,11 +1,13 @@
 import {
   autoScheduleRequestSchema,
   connectInstagramRequestSchema,
+  lookupInstagramAccountsRequestSchema,
   createBatchRequestSchema,
   createItemRequestSchema,
   PERMISSIONS,
   reorderItemsRequestSchema,
   resumeItemRequestSchema,
+  publishNowRequestSchema,
   socialPlatformSchema,
   updateBatchRequestSchema,
   updateItemRequestSchema,
@@ -13,6 +15,7 @@ import {
   uuidSchema,
   type BatchListResponse,
   type BatchResponse,
+  type InstagramAccountsResponse,
   type ScanResponse,
 } from '@ai-preneur/shared';
 import express, { type Router } from 'express';
@@ -53,6 +56,8 @@ const canManage = requirePermission(PERMISSIONS.SOCIAL_PUBLISHER_MANAGE);
  * DELETE /batches/:id/items/:itemId                  publisher.manage
  * POST   /batches/:id/items/:itemId/pause            publisher.manage  (Tunda)
  * POST   /batches/:id/items/:itemId/resume           publisher.manage
+ * POST   /batches/:id/items/:itemId/publish-now      publisher.manage  (Unggah sekarang)
+ * POST   /batches/:id/accounts/instagram/lookup      publisher.manage  (Tes token: daftar akun)
  * PUT    /batches/:id/accounts/instagram             publisher.manage
  * DELETE /batches/:id/accounts/:platform             publisher.manage
  */
@@ -190,7 +195,23 @@ export function createSocialRouter(deps: {
     });
   });
 
+  router.post('/batches/:id/items/:itemId/publish-now', canManage, async (req, res) => {
+    const { id, itemId } = parseInput(itemParams, req.params);
+    const input = parseInput(publishNowRequestSchema, req.body ?? {});
+    sendSuccess<BatchResponse>(res, {
+      batch: await items.publishNow(requireAuthContext(req), id, itemId, input),
+    });
+  });
+
   // ---- Accounts ----
+  router.post('/batches/:id/accounts/instagram/lookup', canManage, async (req, res) => {
+    const { id } = parseInput(batchParams, req.params);
+    const input = parseInput(lookupInstagramAccountsRequestSchema, req.body);
+    sendSuccess<InstagramAccountsResponse>(res, {
+      accounts: await accounts.lookupInstagramAccounts(requireAuthContext(req), id, input),
+    });
+  });
+
   router.put('/batches/:id/accounts/instagram', canManage, async (req, res) => {
     const { id } = parseInput(batchParams, req.params);
     const input = parseInput(connectInstagramRequestSchema, req.body);

@@ -35,6 +35,8 @@ export const smPublicationStatus = pgEnum('sm_publication_status', [
   'processing',
   'published',
   'failed',
+  /** Manual upload ("Unggah sekarang") waiting for the worker. */
+  'queued',
 ]);
 
 // ---- Settings (single row) ---------------------------------------------------------
@@ -160,15 +162,33 @@ export const smPublications = pgTable(
     externalMediaId: varchar({ length: 128 }),
     externalUrl: varchar({ length: 500 }),
     errorMessage: varchar({ length: 1000 }),
+    /** Published with a caveat the user should know (e.g. no cover, no link). */
+    warningMessage: varchar({ length: 500 }),
     attempts: integer().notNull().default(0),
     startedAt: timestamp({ withTimezone: true }),
     publishedAt: timestamp({ withTimezone: true }),
+    /** Current step of a queued/processing upload (shown as progress). */
+    progressStage: varchar({ length: 20 }),
+    /** 0–100 for steps that report it (download), else null. */
+    progressPercent: integer(),
+    /** Failed rows only: when the worker tries again. Null = no automatic retry. */
+    nextAttemptAt: timestamp({ withTimezone: true }),
+    /** The platform's upload container of the current attempt (crash recovery). */
+    containerId: varchar({ length: 128 }),
+    /**
+     * Set right before the final "publish" call of the current attempt. A crashed
+     * attempt without it is safe to repeat; with it the post may already be live.
+     */
+    publishRequestedAt: timestamp({ withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   // The unique pair is also the publisher's claim: inserting the row atomically
   // reserves the upload, so two workers can never publish the same item twice.
-  (t) => [uniqueIndex('sm_publications_item_platform_unique').on(t.itemId, t.platform)],
+  (t) => [
+    uniqueIndex('sm_publications_item_platform_unique').on(t.itemId, t.platform),
+    index('sm_publications_status_idx').on(t.status),
+  ],
 );
 
 export type SmBatchRow = typeof smBatches.$inferSelect;

@@ -1,3 +1,8 @@
+import { createWriteStream } from 'node:fs';
+import { Readable, Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import type { ReadableStream as WebReadableStream } from 'node:stream/web';
+
 import { z } from 'zod';
 
 import type { DriveFileRef } from '../domain/filename-parser.js';
@@ -16,12 +21,7 @@ const MAX_PAGES = 10; // 10 × 1000 files is far beyond any realistic content fo
 const MAX_TEXT_BYTES = 64 * 1024;
 
 export type DriveErrorKind =
-  | 'not_configured'
-  | 'not_found'
-  | 'forbidden'
-  | 'invalid'
-  | 'unavailable'
-  | 'too_large';
+  'not_configured' | 'not_found' | 'forbidden' | 'invalid' | 'unavailable' | 'too_large';
 
 export class DriveError extends Error {
   readonly kind: DriveErrorKind;
@@ -55,6 +55,20 @@ export interface GoogleDriveClient {
   listFolder(folderId: string): Promise<DriveFolderContents>;
   /** Content of a public plain-text file (UTF-8). Throws DriveError `too_large` above 64 KB. */
   readTextFile(fileId: string): Promise<string>;
+  /**
+   * Streams a public file to `destination` and returns its size in bytes.
+   * Throws DriveError `too_large` above `maxBytes` (the partial file is left for the caller to delete).
+   */
+  downloadToFile(
+    fileId: string,
+    destination: string,
+    options: {
+      maxBytes: number;
+      signal: AbortSignal;
+      /** Bytes received so far and the total when Drive announces it. */
+      onProgress?: (received: number, total: number | null) => void;
+    },
+  ): Promise<number>;
 }
 
 export function isDriveFolder(file: DriveFileRef): boolean {
@@ -62,7 +76,11 @@ export function isDriveFolder(file: DriveFileRef): boolean {
 }
 
 export function createGoogleDriveClient(apiKey: string | null): GoogleDriveClient {
-  async function send(path: string, params: Record<string, string>): Promise<Response> {
+  async function send(
+    path: string,
+    params: Record<string, string>,
+    signal: AbortSignal = AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  ): Promise<Response> {
     if (!apiKey) {
       throw new DriveError(
         'not_configured',
@@ -75,7 +93,7 @@ export function createGoogleDriveClient(apiKey: string | null): GoogleDriveClien
     try {
       response = await fetch(`${DRIVE_FILES_API}${path}?${query.toString()}`, {
         headers: { Accept: 'application/json' },
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        signal,
       });
     } catch {
       // Never include the URL: it carries the API key.
@@ -186,5 +204,56 @@ export function createGoogleDriveClient(apiKey: string | null): GoogleDriveClien
     return new TextDecoder('utf-8').decode(Buffer.concat(chunks));
   }
 
-  return { getFile, listFolder, readTextFile };
+  async function downloadToFile(
+    fileId: string,
+    destination: string,
+    options: {
+      maxBytes: number;
+      signal: AbortSignal;
+      onProgress?: (received: number, total: number | null) => void;
+    },
+  ): Promise<number> {
+    const response = await send(`/${fileId}`, { alt: 'media' }, options.signal);
+    const tooLarge = () =>
+      new DriveError(
+        'too_large',
+        `File video lebih dari ${Math.round(options.maxBytes / (1024 * 1024))} MB.`,
+      );
+
+    const declared = Number(response.headers.get('content-length'));
+    if (declared > options.maxBytes) {
+      await response.body?.cancel();
+      throw tooLarge();
+    }
+    if (!response.body) throw new DriveError('unavailable', 'Google Drive mengirim file kosong.');
+
+    let total = 0;
+    const limiter = new Transform({
+      transform(chunk: Buffer, _encoding, callback) {
+        total += chunk.byteLength;
+        if (total > options.maxBytes) return callback(tooLarge());
+        options.onProgress?.(total, declared > 0 ? declared : null);
+        callback(null, chunk);
+      },
+    });
+
+    try {
+      await pipeline(
+        Readable.fromWeb(response.body as WebReadableStream<Uint8Array>),
+        limiter,
+        createWriteStream(destination),
+        { signal: options.signal },
+      );
+    } catch (error) {
+      if (error instanceof DriveError) throw error;
+      throw new DriveError(
+        'unavailable',
+        'Unduhan video dari Google Drive terputus. Coba lagi beberapa saat lagi.',
+      );
+    }
+    if (total === 0) throw new DriveError('invalid', 'File video di Google Drive kosong.');
+    return total;
+  }
+
+  return { getFile, listFolder, readTextFile, downloadToFile };
 }

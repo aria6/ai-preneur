@@ -15,25 +15,21 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import {
-  SOCIAL_PLATFORM_LABELS,
-  type BatchDetailDto,
-  type PublicationDto,
-  type QueueItemDto,
-} from '@ai-preneur/shared';
+import { type BatchDetailDto, type SocialPlatform, type QueueItemDto } from '@ai-preneur/shared';
 import { useState } from 'react';
 
 import { Button } from '../../../components/ui/Button';
 import { Alert, Badge, Card, EmptyState } from '../../../components/ui/feedback';
 import { Icon } from '../../../components/ui/Icon';
-import { ConfirmDialog, Modal } from '../../../components/ui/Modal';
+import { ConfirmDialog } from '../../../components/ui/Modal';
 import { cn } from '../../../lib/cn';
 import { formatSchedule, relativeFromNow } from '../../../lib/datetime';
 import { driveThumbnailUrl } from '../../../lib/drive';
 import { errorMessage } from '../../../lib/errors';
 import * as socialService from '../../../services/social.service';
 import { ItemFormModal } from './ItemFormModal';
-import { PublicationChip } from './PlatformChip';
+import { PlatformStatusChip } from './PlatformChip';
+import { PublishDialog, type PublishTarget } from './PublishDialog';
 import { AutoScheduleModal, ResumeItemModal } from './ScheduleModals';
 import { VideoPreviewModal } from './VideoPreviewModal';
 
@@ -97,7 +93,8 @@ interface RowProps {
   onPause: (item: QueueItemDto) => void;
   onResume: (item: QueueItemDto) => void;
   onDelete: (item: QueueItemDto) => void;
-  onShowError: (publication: PublicationDto) => void;
+  canManage: boolean;
+  onOpenPlatform: (item: QueueItemDto, platform: SocialPlatform) => void;
 }
 
 function QueueRow({
@@ -111,7 +108,8 @@ function QueueRow({
   onPause,
   onResume,
   onDelete,
-  onShowError,
+  canManage,
+  onOpenPlatform,
 }: RowProps) {
   const {
     attributes,
@@ -216,13 +214,16 @@ function QueueRow({
           )}
         </div>
 
-        {/* Upload status per platform (nothing shown until an upload happened) */}
+        {/* Upload status per selected platform; click = upload now / progress / details */}
         <div className="flex flex-wrap gap-1">
-          {item.publications.map((publication) => (
-            <PublicationChip
-              key={publication.platform}
-              publication={publication}
-              onShowError={onShowError}
+          {batch.platforms.map((platform) => (
+            <PlatformStatusChip
+              key={platform}
+              platform={platform}
+              publication={item.publications.find((p) => p.platform === platform) ?? null}
+              option={item.uploadOptions.find((o) => o.platform === platform)}
+              canManage={canManage}
+              onOpen={() => onOpenPlatform(item, platform)}
             />
           ))}
         </div>
@@ -300,7 +301,7 @@ export function QueueSection({ batch, canManage, now, onChange, onNotice }: Queu
   const [deleteTarget, setDeleteTarget] = useState<QueueItemDto | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [failedPublication, setFailedPublication] = useState<PublicationDto | null>(null);
+  const [publishTarget, setPublishTarget] = useState<PublishTarget | null>(null);
 
   // Adopt fresh server data when it changes (adjust-state-during-render, not an effect).
   const [sourceItems, setSourceItems] = useState(batch.items);
@@ -483,7 +484,10 @@ export function QueueSection({ batch, canManage, now, onChange, onNotice }: Queu
                       setDeleteError(null);
                       setDeleteTarget(target);
                     }}
-                    onShowError={setFailedPublication}
+                    canManage={canManage}
+                    onOpenPlatform={(target, platform) =>
+                      setPublishTarget({ itemId: target.id, platform })
+                    }
                   />
                 ))}
               </ul>
@@ -538,13 +542,13 @@ export function QueueSection({ batch, canManage, now, onChange, onNotice }: Queu
         onConfirm={confirmDelete}
         onClose={() => setDeleteTarget(null)}
       />
-      <Modal
-        open={failedPublication !== null}
-        onClose={() => setFailedPublication(null)}
-        title={`Gagal diunggah ke ${failedPublication ? SOCIAL_PLATFORM_LABELS[failedPublication.platform] : ''}`}
-      >
-        <Alert>{failedPublication?.errorMessage ?? 'Terjadi kesalahan saat mengunggah.'}</Alert>
-      </Modal>
+      <PublishDialog
+        batch={batch}
+        target={publishTarget}
+        canManage={canManage}
+        onChange={onChange}
+        onClose={() => setPublishTarget(null)}
+      />
     </Card>
   );
 }

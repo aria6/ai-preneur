@@ -4,12 +4,15 @@
  * Today: Publisher AIgent (content queue from Google Drive, scheduling, accounts)
  * and its settings. Later: Intelligence AIgency (comments, DMs, engagement).
  */
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import type { Database } from '@ai-preneur/database';
 import type { Router } from 'express';
 
 import type { Logger } from '../../core/logger.js';
 import { createGoogleDriveClient } from './integrations/google-drive.client.js';
-import { instagramPublisher } from './publishers/instagram.publisher.js';
+import { createInstagramPublisher } from './publishers/instagram.publisher.js';
 import { createPublisherWorker, type PublisherWorker } from './publishers/publisher.worker.js';
 import { createSocialRouter } from './routes/social.routes.js';
 import { createCredentialsCipher, parseCredentialsKey } from './security/credentials-cipher.js';
@@ -31,7 +34,12 @@ interface SocialMediaDeps {
   config: SocialMediaConfig;
 }
 
-export function createSocialMediaRouter(deps: SocialMediaDeps): Router {
+export function createSocialMediaRouter(
+  deps: SocialMediaDeps & {
+    /** The running upload worker (for "Unggah sekarang"), or null when disabled. */
+    publisher: Pick<PublisherWorker, 'wake'> | null;
+  },
+): Router {
   const drive = createGoogleDriveClient(deps.config.googleApiKey);
   const cipher = createCredentialsCipher(
     parseCredentialsKey(deps.config.credentialsKey ?? undefined),
@@ -40,7 +48,7 @@ export function createSocialMediaRouter(deps: SocialMediaDeps): Router {
 
   return createSocialRouter({
     batches: createBatchesService({ ...services, drive }),
-    items: createItemsService({ ...services, drive }),
+    items: createItemsService({ ...services, drive, publisher: deps.publisher }),
     accounts: createAccountsService({ ...services, cipher }),
     settings: createSettingsService(services),
   });
@@ -48,12 +56,16 @@ export function createSocialMediaRouter(deps: SocialMediaDeps): Router {
 
 /** Background uploader. Started by server.ts only when SOCIAL_PUBLISHER_ENABLED=true. */
 export function createSocialPublisherWorker(deps: SocialMediaDeps): PublisherWorker {
+  // Videos are downloaded here for the upload and deleted right after.
+  const tempDir = join(tmpdir(), 'ai-preneur-publisher');
+  const drive = createGoogleDriveClient(deps.config.googleApiKey);
   return createPublisherWorker({
     db: deps.db,
     logger: deps.logger,
     cipher: createCredentialsCipher(parseCredentialsKey(deps.config.credentialsKey ?? undefined)),
     intervalMs: deps.config.publisherIntervalMs,
-    publishers: [instagramPublisher],
+    publishers: [createInstagramPublisher({ drive, logger: deps.logger, tempDir })],
+    tempDir,
   });
 }
 

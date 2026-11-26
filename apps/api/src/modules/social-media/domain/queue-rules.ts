@@ -25,7 +25,12 @@ export function computeItemLock(
   now: Date,
 ): ItemLockReason | null {
   if (input.publicationStatuses.includes('published')) return 'published';
-  if (input.publicationStatuses.includes('processing')) return 'processing';
+  if (
+    input.publicationStatuses.includes('processing') ||
+    input.publicationStatuses.includes('queued')
+  ) {
+    return 'processing';
+  }
   if (
     input.batchStatus === 'scheduled' &&
     !input.isPaused &&
@@ -35,6 +40,63 @@ export function computeItemLock(
     return 'imminent';
   }
   return null;
+}
+
+export interface ManualUploadInput {
+  batchStatus: BatchStatus;
+  isPaused: boolean;
+  scheduledAt: Date | null;
+  hasVideo: boolean;
+  accountConnected: boolean;
+  /** This row's publication on the platform, if any. */
+  publicationStatus: PublicationStatus | null;
+}
+
+/**
+ * "Unggah sekarang" for one row on one platform. Returns null when allowed, else the
+ * reason. Allowed once the batch is confirmed (Terjadwal/Selesai), for an active row
+ * with a video and a connected account that is not uploaded or uploading on that
+ * platform. A future schedule closer than `lockMinutes` locks it (like every edit);
+ * a past schedule does not — that is the failed/missed row this feature is for.
+ */
+export function manualUploadBlock(
+  input: ManualUploadInput,
+  lockMinutes: number,
+  now: Date,
+): string | null {
+  if (input.batchStatus === 'draft') return 'Konfirmasi jadwal dulu untuk mengunggah manual.';
+  if (input.publicationStatus === 'published') return 'Sudah terunggah.';
+  if (input.publicationStatus === 'queued' || input.publicationStatus === 'processing') {
+    return 'Sedang diunggah.';
+  }
+  if (input.isPaused) return 'Baris ditunda. Lanjutkan dulu untuk mengunggah.';
+  if (!input.hasVideo) return 'Baris ini belum punya video.';
+  if (!input.accountConnected) return 'Akun platform ini belum terhubung atau bermasalah.';
+  if (input.scheduledAt) {
+    const untilSchedule = input.scheduledAt.getTime() - now.getTime();
+    if (untilSchedule >= 0 && untilSchedule < lockMinutes * MINUTE) {
+      return `Jadwal unggah kurang dari ${lockMinutes} menit lagi; baris terkunci.`;
+    }
+  }
+  return null;
+}
+
+/**
+ * A row never attempted on a platform whose schedule lies before the batch's
+ * confirmation (e.g. the platform was added later). The worker skips it; only a
+ * manual upload sends it.
+ */
+export function isMissedUpload(
+  scheduledAt: Date | null,
+  confirmedAt: Date | null,
+  publicationStatus: PublicationStatus | null,
+): boolean {
+  return (
+    publicationStatus === null &&
+    scheduledAt !== null &&
+    confirmedAt !== null &&
+    scheduledAt.getTime() < confirmedAt.getTime()
+  );
 }
 
 /** Earliest moment a new or edited schedule may point to while a batch is scheduled. */
