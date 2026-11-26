@@ -3,12 +3,14 @@
 ```text
 Social Media AIgency
 ├── Publisher AIgent      Tahap 1 + 2 done — queue, schedule, accounts, real uploads to Instagram
+├── Performance AIgent    lite — live account & post insights per idea (Instagram; others "Segera hadir")
 ├── Intelligence AIgency  later — comments, DMs, engagement, performance patterns
 └── Pengaturan            lock window, confirmation lead time
 ```
 
 Backend module: `apps/api/src/modules/social-media` · tables: `packages/database/src/schema/social-media.schema.ts`
-· contracts: `packages/shared/src/schemas/social.ts` · UI: `apps/web/src/pages/social`.
+· contracts: `packages/shared/src/schemas/social.ts`, `social-performance.ts` · UI: `apps/web/src/pages/social`
+(Performance AIgent: `pages/social/performance`).
 
 ## Publisher AIgent — how it works
 
@@ -82,6 +84,45 @@ Backend module: `apps/api/src/modules/social-media` · tables: `packages/databas
 Both numbers live in **Social Media AIgency → Pengaturan** (`sm_settings`, single row;
 `minConfirmLeadMinutes ≥ lockMinutes`).
 
+## Performance AIgent (lite)
+
+Shows how each idea's connected accounts perform, read **live from the platform — nothing is
+stored** (no tables, no worker). The accounts are the ones connected per idea in Publisher AIgent.
+
+- **List** (`/social/performance`): one card per idea with its account per platform (connected /
+  needs reconnecting / not connected / "Segera hadir") and, for Instagram, followers plus 7-day
+  views and interactions.
+- **Detail** (`/social/performance/:id`): tabs Instagram · TikTok · Facebook Reels · YouTube
+  Shorts. Only Instagram works; the other tabs say "Segera hadir".
+- **Instagram tab**: range 7 / 14 / 30 days (Instagram accepts at most 30 days per account
+  request), "Perbarui", and the time the data was fetched.
+  - Profile: username, name, followers, following, posts.
+  - Totals over the range: views, reach, accounts engaged, total interactions, likes, comments,
+    shares, saves, profile link taps, new follows and unfollows (`follows_and_unfollows` by
+    `follow_type`).
+  - Daily charts: reach (`metric_type=time_series`) and new followers (`follower_count`).
+  - **Every post** of the account (not only Publisher uploads), 20 per page with "Muat lebih
+    banyak": views, reach, likes, comments, shares, saves, average watch time and 3-second skip
+    rate (Reels), plus a "views per post" chart. Posts uploaded by Publisher AIgent are matched
+    through `sm_publications.external_media_id` and show their topic/part and title.
+- "—" means Instagram returned nothing for that metric. Several account metrics (e.g. new
+  followers) are missing for accounts with fewer than 100 followers; account data only goes back
+  ~90 days. A metric Instagram refuses never hides the others: metrics are asked for together and,
+  if Instagram rejects the combination, one by one. Newer post metrics (`reels_skip_rate`,
+  `reposts`) are asked for separately. A post without insights (e.g. posted before the account
+  became professional) keeps its likes/comments and shows "Insight tidak tersedia".
+- Answers are cached **5 minutes in memory** per account (and per token, so reconnecting starts
+  fresh); "Perbarui" bypasses the cache. Failures are not cached.
+
+**Token permission.** Reading insights needs `instagram_manage_insights` (Unified login, `EAA…`)
+or `instagram_business_manage_insights` (Instagram Login, `IG…`). Without it the page says so:
+create a new token with that permission and reconnect the account in Publisher AIgent (a
+scheduled batch: Batalkan jadwal → hubungkan ulang → Konfirmasi). Accounts in `error` are not
+queried.
+
+Code: `integrations/instagram-insights.client.ts` (Graph calls),
+`services/performance.service.ts` (accounts, cache, errors), routes in `routes/social.routes.ts`.
+
 ## Setup
 
 ### Google Drive (read public folders)
@@ -123,7 +164,8 @@ apps use **Unified login**:
    Instagram"** and connect it to that portfolio.
 3. Use cases → Customize → **API setup with Unified login** → **Create configuration**: system-user
    access token, never expires, asset = Instagram account, permissions `instagram_basic` and
-   `instagram_content_publish` (add `instagram_manage_comments` / `instagram_manage_messages` for
+   `instagram_content_publish`, plus `instagram_manage_insights` for Performance AIgent (add
+   `instagram_manage_comments` / `instagram_manage_messages` for
    the Intelligence AIgency later). The redirect URL is only needed for a future OAuth button.
 4. App roles → Roles → add the account as **Instagram Tester**; accept the invite at
    instagram.com/accounts/manage_access (Tester invites).
@@ -146,7 +188,8 @@ pnpm db:seed       # syncs the new social.* permissions
 ```
 
 Then grant the permissions to roles in **Role & Akses**:
-`social.publisher.view`, `social.publisher.manage`, `social.settings.manage`.
+`social.publisher.view`, `social.publisher.manage`, `social.settings.manage`,
+`social.performance.view` (Performance AIgent). Super Admin has every permission automatically.
 
 ## API
 
@@ -166,6 +209,9 @@ All under `/api/social`; responses use the standard envelope. Mutations return t
 | `POST /batches/:id/items/:itemId/publish-now`                                    | manage — Unggah sekarang (`{ platform }`)           |
 | `POST /batches/:id/accounts/instagram/lookup`                                    | manage — Tes token (`{ accessToken }` → accounts)   |
 | `PUT /batches/:id/accounts/instagram` · `DELETE /batches/:id/accounts/:platform` | manage (`{ accessToken, instagramAccountId? }`)     |
+| `GET /performance/ideas` · `GET /performance/ideas/:id`                          | performance.view                                    |
+| `GET /performance/ideas/:id/instagram/overview?days=7\|14\|30&refresh=true`      | performance.view — profile, totals, daily charts    |
+| `GET /performance/ideas/:id/instagram/media?after=<cursor>&refresh=true`         | performance.view — posts with metrics (20/page)     |
 
 ## Upload engine (worker)
 
@@ -256,4 +302,6 @@ Drive (%) → Mengunggah video → Diproses platform → Mempublikasikan.
 - Generate caption & hashtag with AI (button present, disabled — `// TODO` in `QueueSection.tsx`).
 - TikTok, Facebook Reels, YouTube Shorts publishers and account connection.
 - "Login dengan Instagram" (OAuth) once the app has an HTTPS domain.
+- Performance AIgent: TikTok / Facebook / YouTube tabs once those accounts can be connected;
+  stored snapshots (history beyond Instagram's ~90 days) to be re-evaluated later.
 - Intelligence AIgency.

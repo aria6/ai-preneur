@@ -20,6 +20,14 @@ export function createAccountsRepository(db: DatabaseExecutor) {
       return db.select().from(smAccounts).where(eq(smAccounts.batchId, batchId));
     },
 
+    async listByBatches(batchIds: readonly string[]): Promise<SmAccountRow[]> {
+      if (batchIds.length === 0) return [];
+      return db
+        .select()
+        .from(smAccounts)
+        .where(inArray(smAccounts.batchId, [...batchIds]));
+    },
+
     async findForBatch(
       batchId: string,
       platform: AccountPlatform,

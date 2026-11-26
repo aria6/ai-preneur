@@ -16,6 +16,12 @@ import {
   type BatchListResponse,
   type BatchResponse,
   type InstagramAccountsResponse,
+  type InstagramMediaPageDto,
+  type InstagramOverviewResponse,
+  instagramMediaQuerySchema,
+  instagramOverviewQuerySchema,
+  type PerformanceIdeaListResponse,
+  type PerformanceIdeaResponse,
   type ScanResponse,
 } from '@ai-preneur/shared';
 import express, { type Router } from 'express';
@@ -27,6 +33,7 @@ import { requireAnyPermission, requireAuthContext, requirePermission } from '../
 import type { AccountsService } from '../services/accounts.service.js';
 import type { BatchesService } from '../services/batches.service.js';
 import type { ItemsService } from '../services/items.service.js';
+import type { PerformanceService } from '../services/performance.service.js';
 import type { SettingsService } from '../services/settings.service.js';
 
 const batchParams = z.object({ id: uuidSchema });
@@ -35,6 +42,7 @@ const accountParams = z.object({ id: uuidSchema, platform: socialPlatformSchema 
 
 const canView = requirePermission(PERMISSIONS.SOCIAL_PUBLISHER_VIEW);
 const canManage = requirePermission(PERMISSIONS.SOCIAL_PUBLISHER_MANAGE);
+const canViewPerformance = requirePermission(PERMISSIONS.SOCIAL_PERFORMANCE_VIEW);
 
 /**
  * Social Media AIgency — mounted at /api/social.
@@ -60,14 +68,21 @@ const canManage = requirePermission(PERMISSIONS.SOCIAL_PUBLISHER_MANAGE);
  * POST   /batches/:id/accounts/instagram/lookup      publisher.manage  (Tes token: daftar akun)
  * PUT    /batches/:id/accounts/instagram             publisher.manage
  * DELETE /batches/:id/accounts/:platform             publisher.manage
+ *
+ * Performance AIgent (read live from the platform, nothing stored):
+ * GET    /performance/ideas                          performance.view
+ * GET    /performance/ideas/:id                      performance.view
+ * GET    /performance/ideas/:id/instagram/overview   performance.view  (?days=7|14|30&refresh)
+ * GET    /performance/ideas/:id/instagram/media      performance.view  (?after=cursor&refresh)
  */
 export function createSocialRouter(deps: {
   batches: BatchesService;
   items: ItemsService;
   accounts: AccountsService;
   settings: SettingsService;
+  performance: PerformanceService;
 }): Router {
-  const { batches, items, accounts, settings } = deps;
+  const { batches, items, accounts, settings, performance } = deps;
   const router = express.Router();
 
   // ---- Settings ----
@@ -225,6 +240,33 @@ export function createSocialRouter(deps: {
     sendSuccess<BatchResponse>(res, {
       batch: await accounts.disconnect(requireAuthContext(req), id, platform),
     });
+  });
+
+  // ---- Performance AIgent ----
+  router.get('/performance/ideas', canViewPerformance, async (_req, res) => {
+    sendSuccess<PerformanceIdeaListResponse>(res, { items: await performance.listIdeas() });
+  });
+
+  router.get('/performance/ideas/:id', canViewPerformance, async (req, res) => {
+    const { id } = parseInput(batchParams, req.params);
+    sendSuccess<PerformanceIdeaResponse>(res, { idea: await performance.getIdea(id) });
+  });
+
+  router.get('/performance/ideas/:id/instagram/overview', canViewPerformance, async (req, res) => {
+    const { id } = parseInput(batchParams, req.params);
+    const query = parseInput(instagramOverviewQuerySchema, req.query);
+    sendSuccess<InstagramOverviewResponse>(res, {
+      overview: await performance.instagramOverview(id, query.days, query.refresh),
+    });
+  });
+
+  router.get('/performance/ideas/:id/instagram/media', canViewPerformance, async (req, res) => {
+    const { id } = parseInput(batchParams, req.params);
+    const query = parseInput(instagramMediaQuerySchema, req.query);
+    sendSuccess<InstagramMediaPageDto>(
+      res,
+      await performance.instagramMedia(id, query.after, query.refresh),
+    );
   });
 
   return router;

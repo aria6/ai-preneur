@@ -41,11 +41,17 @@ export class InstagramApiError extends Error {
   readonly retryable: boolean;
   /** True when the token is invalid or expired (Graph error 190). */
   readonly tokenInvalid: boolean;
-  constructor(message: string, options: { retryable?: boolean; tokenInvalid?: boolean } = {}) {
+  /** Graph error code when Instagram returned one (e.g. 10 = missing permission). */
+  readonly code: number | null;
+  constructor(
+    message: string,
+    options: { retryable?: boolean; tokenInvalid?: boolean; code?: number } = {},
+  ) {
     super(message);
     this.name = 'InstagramApiError';
     this.retryable = options.retryable ?? false;
     this.tokenInvalid = options.tokenInvalid ?? false;
+    this.code = options.code ?? null;
   }
 }
 
@@ -103,10 +109,13 @@ function toApiError(status: number, body: unknown, action: string): InstagramApi
     });
   }
   const detail = (error?.error_user_msg ?? error?.message ?? `HTTP ${status}`).slice(0, 300);
-  return new InstagramApiError(`Instagram menolak ${action}: ${detail}`);
+  return new InstagramApiError(
+    `Instagram menolak ${action}: ${detail}`,
+    error?.code === undefined ? {} : { code: error.code },
+  );
 }
 
-async function graphRequest(
+export async function graphRequest(
   method: 'GET' | 'POST',
   path: string,
   accessToken: string,

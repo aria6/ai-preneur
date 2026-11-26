@@ -14,6 +14,8 @@ import { NotFoundPage } from '../pages/NotFoundPage';
 import { ProfilePage } from '../pages/ProfilePage';
 import { RolesPage } from '../pages/roles/RolesPage';
 import { BatchDetailPage } from '../pages/social/BatchDetailPage';
+import { PerformanceDetailPage } from '../pages/social/performance/PerformanceDetailPage';
+import { PerformanceListPage } from '../pages/social/performance/PerformanceListPage';
 import { PublisherListPage } from '../pages/social/PublisherListPage';
 import { SocialSettingsPage } from '../pages/social/SocialSettingsPage';
 import { UsersPage } from '../pages/users/UsersPage';
@@ -58,6 +60,22 @@ export const router = createBrowserRouter([
         element: (
           <RequirePermission permission={PERMISSIONS.SOCIAL_PUBLISHER_VIEW}>
             <BatchDetailPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: 'social/performance',
+        element: (
+          <RequirePermission permission={PERMISSIONS.SOCIAL_PERFORMANCE_VIEW}>
+            <PerformanceListPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: 'social/performance/:id',
+        element: (
+          <RequirePermission permission={PERMISSIONS.SOCIAL_PERFORMANCE_VIEW}>
+            <PerformanceDetailPage />
           </RequirePermission>
         ),
       },
