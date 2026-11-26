@@ -150,7 +150,6 @@ export function PublishDialog({
         onClose={close}
         busy={submitting}
         title={`Gagal diunggah ke ${label}`}
-        description={item?.title}
         footer={
           <>
             {closeButton}
@@ -159,6 +158,7 @@ export function PublishDialog({
         }
       >
         <div className="space-y-3 text-sm">
+          <ItemTitle title={item?.title} />
           <Alert>{publication.errorMessage ?? 'Terjadi kesalahan saat mengunggah.'}</Alert>
           <p className="text-slate-600">
             Percobaan ke-{publication.attempts}.{' '}
@@ -182,7 +182,6 @@ export function PublishDialog({
       onClose={close}
       busy={submitting}
       title={`Unggah ke ${label} sekarang?`}
-      description={item?.title}
       footer={
         <>
           <Button variant="secondary" onClick={close} disabled={submitting}>
@@ -192,8 +191,21 @@ export function PublishDialog({
         </>
       }
     >
-      {error && <Alert>{error}</Alert>}
+      <div className="space-y-3 text-sm">
+        <ItemTitle title={item?.title} />
+        {error && <Alert>{error}</Alert>}
+      </div>
     </Modal>
+  );
+}
+
+/** "Judul : …" line naming the row in the upload dialogs. */
+function ItemTitle({ title }: { title: string | undefined }) {
+  if (!title) return null;
+  return (
+    <p className="text-slate-500">
+      Judul : <span className="font-medium break-words text-slate-900">{title}</span>
+    </p>
   );
 }
 
