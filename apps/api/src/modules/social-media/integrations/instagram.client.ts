@@ -300,12 +300,13 @@ const uploadErrorSchema = z.object({
 });
 
 /**
- * Meta's upload server often answers the first POST into a fresh container with
- * 400 ProcessingFailedError while an identical second POST succeeds, so a 400 is
- * sent again into the same container a few times before giving up.
+ * Meta's upload server often answers 400 ProcessingFailedError even though it received
+ * the whole file: the container then reports FINISHED (or IN_PROGRESS while it is still
+ * processing), and sending the bytes again is refused with "The ig container is not in
+ * the status to upload a video". So after a 400 the container status decides, a few
+ * seconds later, whether the upload actually landed.
  */
-const UPLOAD_ATTEMPTS = 3;
-const UPLOAD_RETRY_DELAY_MS = 3_000;
+const UPLOAD_CHECK_DELAY_MS = 3_000;
 
 function waitFor(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -326,17 +327,40 @@ function waitFor(ms: number, signal: AbortSignal): Promise<void> {
 }
 
 /**
+ * After a rupload 400: did the container get the file anyway? FINISHED / IN_PROGRESS /
+ * ERROR all mean Instagram has the video (the processing wait reports ERROR with its
+ * reason); EXPIRED, PUBLISHED, a status saying nothing was uploaded, or a failed check
+ * mean it did not.
+ */
+async function uploadLanded(accessToken: string, containerId: string): Promise<boolean> {
+  try {
+    const status = await getContainerStatus(accessToken, containerId);
+    if (status.code === 'EXPIRED' || status.code === 'PUBLISHED') return false;
+    if (
+      /not\s+(yet\s+)?(been\s+)?(started|uploaded)|no\s+upload|upload\s+not/i.test(
+        status.detail ?? '',
+      )
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Turns a failed rupload answer into an error that says what Meta reported, and tells
- * whether sending the same bytes again is worth it (a plain 400, not auth/rate limit).
+ * whether the container is worth checking (a plain 400, not auth/rate limit).
  */
 function toUploadError(
   status: number,
   body: unknown,
-): { error: InstagramApiError; sendAgain: boolean } {
+): { error: InstagramApiError; checkContainer: boolean } {
   const graphError = errorSchema.safeParse(body);
   if (graphError.success) {
     const error = toApiError(status, body, 'mengunggah video');
-    return { error, sendAgain: status === 400 && !error.tokenInvalid && !error.retryable };
+    return { error, checkContainer: status === 400 && !error.tokenInvalid && !error.retryable };
   }
 
   const parsed = uploadErrorSchema.safeParse(body);
@@ -346,7 +370,7 @@ function toUploadError(
       error: new InstagramApiError(
         'Instagram menolak mengunggah video: token tidak diizinkan mengunggah ke akun ini. Pastikan token punya izin instagram_content_publish untuk akun tersebut.',
       ),
-      sendAgain: false,
+      checkContainer: false,
     };
   }
   if (status >= 500 || status === 429 || info?.retriable === true) {
@@ -354,7 +378,7 @@ function toUploadError(
       error: new InstagramApiError('Instagram sedang bermasalah saat mengunggah video.', {
         retryable: true,
       }),
-      sendAgain: false,
+      checkContainer: false,
     };
   }
   const detail = info ? [info.type, info.message].filter(Boolean).join(' — ') : `HTTP ${status}`;
@@ -362,14 +386,14 @@ function toUploadError(
     error: new InstagramApiError(
       `Instagram menolak mengunggah video: ${(detail || `HTTP ${status}`).slice(0, 300)}`,
     ),
-    sendAgain: status === 400,
+    checkContainer: status === 400,
   };
 }
 
 /**
- * Step 2: uploads the video bytes of a local file to the container. A 400 is retried
- * into the same container (see UPLOAD_ATTEMPTS); token, rate-limit and other errors
- * are not.
+ * Step 2: uploads the video bytes of a local file to the container. On a 400 the
+ * container status is checked before giving up (see UPLOAD_CHECK_DELAY_MS); the bytes
+ * are never sent twice.
  */
 export async function uploadReelsVideo(input: {
   accessToken: string;
@@ -378,37 +402,35 @@ export async function uploadReelsVideo(input: {
   fileSize: number;
   signal: AbortSignal;
 }): Promise<void> {
-  for (let attempt = 1; ; attempt += 1) {
-    const blob = await openAsBlob(input.filePath, { type: 'video/mp4' });
+  const blob = await openAsBlob(input.filePath, { type: 'video/mp4' });
 
-    let response: Response;
-    try {
-      response = await fetch(`${UPLOAD_HOST}/${INSTAGRAM_API_VERSION}/${input.containerId}`, {
-        method: 'POST',
-        headers: {
-          Authorization: `OAuth ${input.accessToken}`,
-          offset: '0',
-          file_size: String(input.fileSize),
-        },
-        body: blob,
-        signal: input.signal,
-      });
-    } catch {
-      throw new InstagramApiError('Unggahan video ke Instagram terputus.', { retryable: true });
-    }
+  let response: Response;
+  try {
+    response = await fetch(`${UPLOAD_HOST}/${INSTAGRAM_API_VERSION}/${input.containerId}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `OAuth ${input.accessToken}`,
+        offset: '0',
+        file_size: String(input.fileSize),
+      },
+      body: blob,
+      signal: input.signal,
+    });
+  } catch {
+    throw new InstagramApiError('Unggahan video ke Instagram terputus.', { retryable: true });
+  }
 
-    const body: unknown = await response.json().catch(() => null);
-    if (!response.ok) {
-      const { error, sendAgain } = toUploadError(response.status, body);
-      if (!sendAgain || attempt >= UPLOAD_ATTEMPTS) throw error;
-      await waitFor(UPLOAD_RETRY_DELAY_MS, input.signal);
-      continue;
-    }
-    const parsed = z.object({ success: z.boolean().optional() }).safeParse(body);
-    if (parsed.success && parsed.data.success === false) {
-      throw new InstagramApiError('Instagram menolak file video yang diunggah.');
-    }
-    return;
+  const body: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    const { error, checkContainer } = toUploadError(response.status, body);
+    if (!checkContainer) throw error;
+    await waitFor(UPLOAD_CHECK_DELAY_MS, input.signal);
+    if (await uploadLanded(input.accessToken, input.containerId)) return;
+    throw error;
+  }
+  const parsed = z.object({ success: z.boolean().optional() }).safeParse(body);
+  if (parsed.success && parsed.data.success === false) {
+    throw new InstagramApiError('Instagram menolak file video yang diunggah.');
   }
 }
 
