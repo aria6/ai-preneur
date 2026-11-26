@@ -1,4 +1,6 @@
 import {
+  BATCH_DESCRIPTION_MAX_LENGTH,
+  BATCH_TITLE_MAX_LENGTH,
   updateBatchRequestSchema,
   type BatchDetailDto,
   type ScanWarning,
@@ -7,7 +9,7 @@ import {
 import { useState, type FormEvent } from 'react';
 
 import { Button } from '../../../components/ui/Button';
-import { TextField } from '../../../components/ui/fields';
+import { TextAreaField, TextField } from '../../../components/ui/fields';
 import { Alert, Card } from '../../../components/ui/feedback';
 import { Icon } from '../../../components/ui/Icon';
 import { ConfirmDialog } from '../../../components/ui/Modal';
@@ -33,6 +35,7 @@ export function IdeaCard({
   onNotice: (message: string) => void;
 }) {
   const [title, setTitle] = useState(batch.title);
+  const [description, setDescription] = useState(batch.description ?? '');
   const [ideaNumber, setIdeaNumber] = useState(String(batch.ideaNumber));
   const [folderUrl, setFolderUrl] = useState(batch.driveFolderUrl);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -43,11 +46,17 @@ export function IdeaCard({
   const [report, setReport] = useState<{ added: number; warnings: ScanWarning[] } | null>(null);
 
   // Re-sync the fields when the saved values change (adjust-state-during-render, not an effect).
-  const savedKey = `${batch.title}\u0000${batch.ideaNumber}\u0000${batch.driveFolderUrl}`;
+  const savedKey = [
+    batch.title,
+    batch.description ?? '',
+    batch.ideaNumber,
+    batch.driveFolderUrl,
+  ].join('\u0000');
   const [syncedKey, setSyncedKey] = useState(savedKey);
   if (syncedKey !== savedKey) {
     setSyncedKey(savedKey);
     setTitle(batch.title);
+    setDescription(batch.description ?? '');
     setIdeaNumber(String(batch.ideaNumber));
     setFolderUrl(batch.driveFolderUrl);
   }
@@ -56,6 +65,7 @@ export function IdeaCard({
   const editable = canManage && batch.status !== 'completed';
   const dirty =
     title !== batch.title ||
+    description.trim() !== (batch.description ?? '') ||
     ideaNumber !== String(batch.ideaNumber) ||
     folderUrl.trim() !== batch.driveFolderUrl;
 
@@ -64,6 +74,7 @@ export function IdeaCard({
     setFormError(null);
     const patch: UpdateBatchRequest = {};
     if (title !== batch.title) patch.title = title;
+    if (description.trim() !== (batch.description ?? '')) patch.description = description;
     if (ideaNumber !== String(batch.ideaNumber))
       patch.ideaNumber = ideaNumber.trim() === '' ? Number.NaN : Number(ideaNumber);
     if (folderUrl.trim() !== batch.driveFolderUrl) patch.driveFolderUrl = folderUrl;
@@ -141,11 +152,11 @@ export function IdeaCard({
 
           <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_7rem]">
             <TextField
-              label="Ide"
+              label="Judul ide"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               error={errors.title}
-              maxLength={200}
+              maxLength={BATCH_TITLE_MAX_LENGTH}
               disabled={!editable}
             />
             <TextField
@@ -157,8 +168,20 @@ export function IdeaCard({
               onChange={(event) => setIdeaNumber(event.target.value)}
               error={errors.ideaNumber}
               disabled={!editable || !isDraft}
+              hint={isDraft ? 'Unik per ide' : undefined}
             />
           </div>
+          <TextAreaField
+            label="Deskripsi ide (opsional)"
+            rows={4}
+            placeholder="Gambaran ide: target audiens, gaya penyampaian, tujuan seri…"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            error={errors.description}
+            maxLength={BATCH_DESCRIPTION_MAX_LENGTH}
+            disabled={!editable}
+            hint={`${description.length.toLocaleString('id-ID')}/${BATCH_DESCRIPTION_MAX_LENGTH.toLocaleString('id-ID')} karakter`}
+          />
           <TextField
             label="Link folder Google Drive"
             type="url"

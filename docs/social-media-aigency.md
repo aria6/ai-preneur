@@ -12,7 +12,9 @@ Backend module: `apps/api/src/modules/social-media` · tables: `packages/databas
 
 ## Publisher AIgent — how it works
 
-1. **Batch = one idea.** Create a batch with the idea (free text) and a Google Drive folder link.
+1. **Batch = one idea.** Create a batch with the idea's **title** (max 200), an optional
+   **description** (max 2,000; shown as a 2-line preview in the batch list) and a Google Drive
+   folder link.
 2. **Generate antrean konten** reads the folder and builds the queue from file names:
 
    ```text
@@ -29,7 +31,13 @@ Backend module: `apps/api/src/modules/social-media` · tables: `packages/databas
    ```
 
    `2.2-model-akuaponik-part1` → IDEA_ID `2`, TOPIC_ID `2`, part `1`, title "Model akuaponik".
-   - IDEA_ID of the batch = the most common prefix; when no file has one, the next free number.
+   - IDEA_ID of the batch = the most common prefix; when no file has one, the batch keeps its own.
+   - **IDEA_ID is unique per idea** (unique index `sm_batches_idea_number_unique`). A new batch
+     gets `max + 1` (serialized by an advisory lock, so parallel creates never collide). Editing it
+     to a number another idea uses is refused next to the field; a scan whose file names carry
+     another idea's IDEA_ID is refused (409) and the queue is left untouched — rename the files or
+     change the other idea's IDEA_ID first. Migration 0004 renumbered existing duplicates: the
+     oldest batch kept the number, newer ones got the next free numbers.
    - Files that don't follow the pattern are still added, with an automatic TOPIC_ID.
    - Thumbnails match videos by identical name (any of png/jpg/jpeg/webp).
    - Captions match videos the same way (`.txt`, UTF-8, max 64 KB; folder `caption/` or
@@ -132,7 +140,7 @@ When the app has a public HTTPS domain, this can be replaced by a "Login dengan 
 ### Database
 
 ```bash
-pnpm db:generate   # creates the 0001 migration for the sm_* tables — commit it
+pnpm db:generate   # only after a schema change; the sm_* migrations (0001–0004) are committed
 pnpm db:migrate
 pnpm db:seed       # syncs the new social.* permissions
 ```

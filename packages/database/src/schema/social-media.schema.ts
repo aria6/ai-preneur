@@ -63,9 +63,11 @@ export const smBatches = pgTable(
   'sm_batches',
   {
     id: uuid().primaryKey().defaultRandom(),
-    /** The idea, free text. */
+    /** The idea's title, free text. */
     title: varchar({ length: 200 }).notNull(),
-    /** IDEA_ID: taken from file names or generated. */
+    /** The idea's description, free text (optional). */
+    description: varchar({ length: 2000 }),
+    /** IDEA_ID: taken from file names or generated. Unique across batches. */
     ideaNumber: integer().notNull(),
     driveFolderId: varchar({ length: 200 }).notNull(),
     driveFolderUrl: varchar({ length: 500 }).notNull(),
@@ -80,7 +82,11 @@ export const smBatches = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index('sm_batches_status_idx').on(t.status)],
+  (t) => [
+    index('sm_batches_status_idx').on(t.status),
+    // One IDEA_ID per idea: file names `<IDEA_ID>.<TOPIC_ID>-…` must point at one batch.
+    uniqueIndex('sm_batches_idea_number_unique').on(t.ideaNumber),
+  ],
 );
 
 // ---- Accounts (one per idea per platform; one account never serves two ideas) ------

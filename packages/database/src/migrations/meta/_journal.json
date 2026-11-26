@@ -29,6 +29,13 @@
       "when": 1795518714239,
       "tag": "0003_zippy_leo",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795670331534,
+      "tag": "0004_empty_thor",
+      "breakpoints": true
     }
   ]
 }

@@ -36,6 +36,7 @@ export function toBatchSummary(batch: SmBatchRow, stats: BatchStats | undefined)
   return {
     id: batch.id,
     title: batch.title,
+    description: batch.description,
     ideaNumber: batch.ideaNumber,
     driveFolderUrl: batch.driveFolderUrl,
     platforms: batchPlatforms(batch),

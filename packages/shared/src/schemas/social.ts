@@ -249,6 +249,7 @@ export type QueueItemDto = z.infer<typeof queueItemSchema>;
 export const batchSummarySchema = z.object({
   id: z.string(),
   title: z.string(),
+  description: z.string().nullable(),
   ideaNumber: z.number().int(),
   driveFolderUrl: z.string(),
   platforms: z.array(socialPlatformSchema),
@@ -291,11 +292,25 @@ export type ScanResponse = z.infer<typeof scanResponseSchema>;
 
 // ---- Requests ----------------------------------------------------------------------
 
+export const BATCH_TITLE_MAX_LENGTH = 200;
+export const BATCH_DESCRIPTION_MAX_LENGTH = 2000;
+
 const batchTitleSchema = z
-  .string({ error: 'Ide wajib diisi' })
+  .string({ error: 'Judul ide wajib diisi' })
   .trim()
-  .min(1, 'Ide wajib diisi')
-  .max(200, 'Ide maksimal 200 karakter');
+  .min(1, 'Judul ide wajib diisi')
+  .max(BATCH_TITLE_MAX_LENGTH, `Judul ide maksimal ${BATCH_TITLE_MAX_LENGTH} karakter`);
+
+/** Optional; blank text is stored as `null`. */
+const batchDescriptionSchema = z
+  .string()
+  .trim()
+  .max(
+    BATCH_DESCRIPTION_MAX_LENGTH,
+    `Deskripsi ide maksimal ${BATCH_DESCRIPTION_MAX_LENGTH.toLocaleString('id-ID')} karakter`,
+  )
+  .nullable()
+  .transform((value) => (value ? value : null));
 
 const platformsSchema = z
   .array(socialPlatformSchema)
@@ -304,6 +319,7 @@ const platformsSchema = z
 
 export const createBatchRequestSchema = z.object({
   title: batchTitleSchema,
+  description: batchDescriptionSchema.default(null),
   driveFolderUrl: driveFolderUrlSchema,
   platforms: platformsSchema.default([]),
 });
@@ -312,6 +328,7 @@ export type CreateBatchRequest = z.infer<typeof createBatchRequestSchema>;
 export const updateBatchRequestSchema = z
   .object({
     title: batchTitleSchema.optional(),
+    description: batchDescriptionSchema.optional(),
     driveFolderUrl: driveFolderUrlSchema.optional(),
     platforms: platformsSchema.optional(),
     ideaNumber: z.number().int().min(0, 'Minimal 0').max(9999, 'Maksimal 9999').optional(),

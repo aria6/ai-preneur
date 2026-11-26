@@ -1,4 +1,4 @@
-import type { Database } from '@ai-preneur/database';
+import { isUniqueViolation, type Database } from '@ai-preneur/database';
 import {
   AVAILABLE_SOCIAL_PLATFORMS,
   extractDriveFolderId,
@@ -96,6 +96,19 @@ function folderIdOrThrow(url: string): string {
   return id;
 }
 
+const ideaNumberTaken = (ideaNumber: number, title?: string): string =>
+  title
+    ? `IDEA_ID ${ideaNumber} sudah dipakai ide "${title}". Setiap ide harus punya IDEA_ID sendiri.`
+    : `IDEA_ID ${ideaNumber} sudah dipakai ide lain. Setiap ide harus punya IDEA_ID sendiri.`;
+
+/** Scan refused: the file names carry an IDEA_ID that belongs to another idea. */
+const ideaNumberFromFilesTaken = (ideaNumber: number, title?: string) =>
+  conflict(
+    `Nama file di folder ini memakai IDEA_ID ${ideaNumber}, padahal ${
+      title ? `IDEA_ID itu sudah dipakai ide "${title}"` : 'IDEA_ID itu sudah dipakai ide lain'
+    }. Ganti awalan nama file (mis. ${ideaNumber}.1-… → <IDEA_ID baru>.1-…) atau ubah IDEA_ID ide tersebut, lalu generate lagi.`,
+  );
+
 /** Publisher AIgent batches: one batch per idea, holding its content queue. */
 export function createBatchesService(deps: {
   db: Database;
@@ -120,8 +133,10 @@ export function createBatchesService(deps: {
       assertAvailablePlatforms(input.platforms);
       const id = await db.transaction(async (tx) => {
         const txBatches = createBatchesRepository(tx);
+        await txBatches.lockIdeaNumbers();
         return txBatches.insert({
           title: input.title,
+          description: input.description,
           ideaNumber: await txBatches.nextIdeaNumber(),
           driveFolderId: folderIdOrThrow(input.driveFolderUrl),
           driveFolderUrl: input.driveFolderUrl,
@@ -136,37 +151,53 @@ export function createBatchesService(deps: {
     async update(ctx: AuthContext, id: string, input: UpdateBatchRequest): Promise<BatchDetailDto> {
       if (input.platforms) assertAvailablePlatforms(input.platforms);
 
-      await db.transaction(async (tx) => {
-        const { batch } = await loadWorkingSet(tx, id, new Date(), { forUpdate: true });
-        assertNotCompleted(batch);
+      try {
+        await db.transaction(async (tx) => {
+          const { batch } = await loadWorkingSet(tx, id, new Date(), { forUpdate: true });
+          assertNotCompleted(batch);
 
-        const draftOnly =
-          input.driveFolderUrl !== undefined ||
-          input.platforms !== undefined ||
-          input.ideaNumber !== undefined;
-        if (draftOnly) assertDraft(batch, 'Mengubah link folder, IDEA_ID, atau media sosial');
+          const draftOnly =
+            input.driveFolderUrl !== undefined ||
+            input.platforms !== undefined ||
+            input.ideaNumber !== undefined;
+          if (draftOnly) assertDraft(batch, 'Mengubah link folder, IDEA_ID, atau media sosial');
 
-        if (input.platforms) {
-          // Deselecting a platform frees its account so it can serve another idea.
-          const removed = batchPlatforms(batch).filter(
-            (platform) => !input.platforms?.includes(platform),
-          );
-          const accounts = createAccountsRepository(tx);
-          for (const platform of removed) await accounts.deleteForBatch(id, platform);
-        }
+          const txBatches = createBatchesRepository(tx);
+          if (input.ideaNumber !== undefined && input.ideaNumber !== batch.ideaNumber) {
+            await txBatches.lockIdeaNumbers();
+            const owner = await txBatches.findByIdeaNumber(input.ideaNumber, id);
+            if (owner)
+              throw fieldError('ideaNumber', ideaNumberTaken(input.ideaNumber, owner.title));
+          }
 
-        await createBatchesRepository(tx).update(id, {
-          ...(input.title !== undefined ? { title: input.title } : {}),
-          ...(input.ideaNumber !== undefined ? { ideaNumber: input.ideaNumber } : {}),
-          ...(input.platforms !== undefined ? { platforms: input.platforms } : {}),
-          ...(input.driveFolderUrl !== undefined
-            ? {
-                driveFolderUrl: input.driveFolderUrl,
-                driveFolderId: folderIdOrThrow(input.driveFolderUrl),
-              }
-            : {}),
+          if (input.platforms) {
+            // Deselecting a platform frees its account so it can serve another idea.
+            const removed = batchPlatforms(batch).filter(
+              (platform) => !input.platforms?.includes(platform),
+            );
+            const accounts = createAccountsRepository(tx);
+            for (const platform of removed) await accounts.deleteForBatch(id, platform);
+          }
+
+          await txBatches.update(id, {
+            ...(input.title !== undefined ? { title: input.title } : {}),
+            ...(input.description !== undefined ? { description: input.description } : {}),
+            ...(input.ideaNumber !== undefined ? { ideaNumber: input.ideaNumber } : {}),
+            ...(input.platforms !== undefined ? { platforms: input.platforms } : {}),
+            ...(input.driveFolderUrl !== undefined
+              ? {
+                  driveFolderUrl: input.driveFolderUrl,
+                  driveFolderId: folderIdOrThrow(input.driveFolderUrl),
+                }
+              : {}),
+          });
         });
-      });
+      } catch (error) {
+        if (isUniqueViolation(error) && input.ideaNumber !== undefined) {
+          throw fieldError('ideaNumber', ideaNumberTaken(input.ideaNumber));
+        }
+        throw error;
+      }
 
       logger.info('Publisher batch updated', {
         actorId: ctx.user.id,
@@ -245,23 +276,37 @@ export function createBatchesService(deps: {
         throw fieldError('driveFolderUrl', 'Tidak ada file video di folder ini.');
       }
 
-      await db.transaction(async (tx) => {
-        const locked = await loadWorkingSet(tx, id, new Date(), { forUpdate: true });
-        assertDraft(locked.batch, 'Generate antrean');
-        if (hasUploads(locked.items)) throw conflict('Batch ini sudah punya video yang terunggah.');
+      try {
+        await db.transaction(async (tx) => {
+          const locked = await loadWorkingSet(tx, id, new Date(), { forUpdate: true });
+          assertDraft(locked.batch, 'Generate antrean');
+          if (hasUploads(locked.items))
+            throw conflict('Batch ini sudah punya video yang terunggah.');
 
-        const items = createItemsRepository(tx);
-        await items.deleteByBatch(id);
-        await items.insertMany(
-          id,
-          result.items.map((item) => ({
-            ...item,
-            scheduledAt: null,
-            isPaused: false,
-          })),
-        );
-        await createBatchesRepository(tx).update(id, { ideaNumber: result.ideaNumber });
-      });
+          // The IDEA_ID read from the file names must not belong to another idea.
+          const txBatches = createBatchesRepository(tx);
+          if (result.ideaNumber !== locked.batch.ideaNumber) {
+            await txBatches.lockIdeaNumbers();
+            const owner = await txBatches.findByIdeaNumber(result.ideaNumber, id);
+            if (owner) throw ideaNumberFromFilesTaken(result.ideaNumber, owner.title);
+          }
+
+          const items = createItemsRepository(tx);
+          await items.deleteByBatch(id);
+          await items.insertMany(
+            id,
+            result.items.map((item) => ({
+              ...item,
+              scheduledAt: null,
+              isPaused: false,
+            })),
+          );
+          await txBatches.update(id, { ideaNumber: result.ideaNumber });
+        });
+      } catch (error) {
+        if (isUniqueViolation(error)) throw ideaNumberFromFilesTaken(result.ideaNumber);
+        throw error;
+      }
 
       logger.info('Publisher queue generated from Drive', {
         actorId: ctx.user.id,

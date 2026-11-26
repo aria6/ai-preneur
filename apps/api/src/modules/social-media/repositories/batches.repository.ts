@@ -4,6 +4,7 @@ import {
   desc,
   eq,
   inArray,
+  ne,
   smBatches,
   smPublications,
   smQueueItems,
@@ -86,6 +87,31 @@ export function createBatchesRepository(db: DatabaseExecutor) {
       return result;
     },
 
+    /** The batch already using this IDEA_ID, other than `exceptId`. */
+    async findByIdeaNumber(
+      ideaNumber: number,
+      exceptId?: string,
+    ): Promise<{ id: string; title: string } | undefined> {
+      const [row] = await db
+        .select({ id: smBatches.id, title: smBatches.title })
+        .from(smBatches)
+        .where(
+          exceptId
+            ? and(eq(smBatches.ideaNumber, ideaNumber), ne(smBatches.id, exceptId))
+            : eq(smBatches.ideaNumber, ideaNumber),
+        )
+        .limit(1);
+      return row;
+    },
+
+    /**
+     * Serializes IDEA_ID assignment until the transaction ends, so two batches created at
+     * the same moment never compute the same `nextIdeaNumber()`. Call inside a transaction.
+     */
+    async lockIdeaNumbers(): Promise<void> {
+      await db.execute(sql`select pg_advisory_xact_lock(hashtext('sm_batches.idea_number'))`);
+    },
+
     async nextIdeaNumber(): Promise<number> {
       const [row] = await db
         .select({ next: sql<number>`coalesce(max(${smBatches.ideaNumber}), 0) + 1` })
@@ -95,6 +121,7 @@ export function createBatchesRepository(db: DatabaseExecutor) {
 
     async insert(values: {
       title: string;
+      description: string | null;
       ideaNumber: number;
       driveFolderId: string;
       driveFolderUrl: string;
@@ -110,6 +137,7 @@ export function createBatchesRepository(db: DatabaseExecutor) {
       id: string,
       patch: Partial<{
         title: string;
+        description: string | null;
         ideaNumber: number;
         driveFolderId: string;
         driveFolderUrl: string;

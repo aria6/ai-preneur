@@ -1,9 +1,15 @@
-import { createBatchRequestSchema, PERMISSIONS, type BatchSummaryDto } from '@ai-preneur/shared';
+import {
+  BATCH_DESCRIPTION_MAX_LENGTH,
+  BATCH_TITLE_MAX_LENGTH,
+  createBatchRequestSchema,
+  PERMISSIONS,
+  type BatchSummaryDto,
+} from '@ai-preneur/shared';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 
 import { Button } from '../../components/ui/Button';
-import { TextField } from '../../components/ui/fields';
+import { TextAreaField, TextField } from '../../components/ui/fields';
 import { Alert, EmptyState, PageHeader } from '../../components/ui/feedback';
 import { Icon } from '../../components/ui/Icon';
 import { Modal } from '../../components/ui/Modal';
@@ -18,6 +24,7 @@ import { PlatformTag } from './components/PlatformChip';
 function CreateBatchModalContent({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [driveFolderUrl, setDriveFolderUrl] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -26,7 +33,12 @@ function CreateBatchModalContent({ open, onClose }: { open: boolean; onClose: ()
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormError(null);
-    const parsed = createBatchRequestSchema.safeParse({ title, driveFolderUrl, platforms: [] });
+    const parsed = createBatchRequestSchema.safeParse({
+      title,
+      description,
+      driveFolderUrl,
+      platforms: [],
+    });
     if (!parsed.success) {
       setErrors(zodFieldErrors(parsed.error));
       return;
@@ -64,13 +76,23 @@ function CreateBatchModalContent({ open, onClose }: { open: boolean; onClose: ()
       <form id="create-batch-form" onSubmit={onSubmit} noValidate className="space-y-4">
         {formError && <Alert>{formError}</Alert>}
         <TextField
-          label="Ide"
+          label="Judul ide"
           data-autofocus
           placeholder="Contoh: Seri edukasi akuaponik"
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           error={errors.title}
-          maxLength={200}
+          maxLength={BATCH_TITLE_MAX_LENGTH}
+        />
+        <TextAreaField
+          label="Deskripsi ide (opsional)"
+          rows={4}
+          placeholder="Contoh: Seri video pendek untuk pemula tentang cara memulai akuaponik di rumah — target audiens, gaya penyampaian, tujuan seri."
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+          error={errors.description}
+          maxLength={BATCH_DESCRIPTION_MAX_LENGTH}
+          hint={`${description.length.toLocaleString('id-ID')}/${BATCH_DESCRIPTION_MAX_LENGTH.toLocaleString('id-ID')} karakter`}
         />
         <TextField
           label="Link folder Google Drive"
@@ -99,6 +121,11 @@ function BatchCard({ batch }: { batch: BatchSummaryDto }) {
           <h2 className="mt-0.5 truncate font-semibold text-slate-900 group-hover:text-primary-700">
             {batch.title}
           </h2>
+          {batch.description && (
+            <p className="mt-1 line-clamp-2 text-sm whitespace-pre-line text-slate-500">
+              {batch.description}
+            </p>
+          )}
         </div>
         <BatchStatusBadge status={batch.status} />
       </div>
