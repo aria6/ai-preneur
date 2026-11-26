@@ -186,7 +186,9 @@ Enabled with `SOCIAL_PUBLISHER_ENABLED=true` (needs `GOOGLE_API_KEY` and `SOCIAL
 
 Drive video → temp file (`$TMPDIR/ai-preneur-publisher`, max 1 GB, deleted right after) → Reels
 container (`upload_type=resumable`, caption + hashtag block cut to 2,200 characters, `share_to_feed`,
-`cover_url` = the Drive thumbnail) → bytes to `rupload.facebook.com` → poll every 10 s until
+`cover_url` = the Drive thumbnail) → bytes to `rupload.facebook.com` (a 400 there — often
+`ProcessingFailedError` on the first POST — is sent again into the same container, 3 tries 3 s apart;
+the error shown is rupload's own `debug_info.type — message`) → poll every 10 s until
 `FINISHED` (max 15 min) → `media_publish` → permalink. If the container fails while a cover was set,
 it is created again **without the cover** (Instagram could not fetch it). One attempt is aborted
 after 30 min.
