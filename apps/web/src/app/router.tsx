@@ -1,5 +1,5 @@
 import { PERMISSIONS } from '@ai-preneur/shared';
-import { createBrowserRouter } from 'react-router';
+import { createBrowserRouter, Navigate } from 'react-router';
 
 import {
   HomeRedirect,
@@ -13,8 +13,9 @@ import { LoginPage } from '../pages/LoginPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { ProfilePage } from '../pages/ProfilePage';
 import { RolesPage } from '../pages/roles/RolesPage';
-import { AnalysisDetailPage } from '../pages/social/analysis/AnalysisDetailPage';
-import { AnalysisListPage } from '../pages/social/analysis/AnalysisListPage';
+import { AudienceInsightPage } from '../pages/social/analysis/AudienceInsightPage';
+import { DataCollectionDetailPage } from '../pages/social/analysis/DataCollectionDetailPage';
+import { DataCollectionListPage } from '../pages/social/analysis/DataCollectionListPage';
 import { BatchDetailPage } from '../pages/social/BatchDetailPage';
 import { PerformanceDetailPage } from '../pages/social/performance/PerformanceDetailPage';
 import { PerformanceListPage } from '../pages/social/performance/PerformanceListPage';
@@ -83,17 +84,29 @@ export const router = createBrowserRouter([
       },
       {
         path: 'social/analysis',
+        element: <Navigate to="/social/analysis/collection" replace />,
+      },
+      {
+        path: 'social/analysis/collection',
         element: (
           <RequirePermission permission={PERMISSIONS.SOCIAL_ANALYSIS_VIEW}>
-            <AnalysisListPage />
+            <DataCollectionListPage />
           </RequirePermission>
         ),
       },
       {
-        path: 'social/analysis/:id',
+        path: 'social/analysis/collection/:id',
         element: (
           <RequirePermission permission={PERMISSIONS.SOCIAL_ANALYSIS_VIEW}>
-            <AnalysisDetailPage />
+            <DataCollectionDetailPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: 'social/analysis/insight',
+        element: (
+          <RequirePermission permission={PERMISSIONS.SOCIAL_ANALYSIS_VIEW}>
+            <AudienceInsightPage />
           </RequirePermission>
         ),
       },

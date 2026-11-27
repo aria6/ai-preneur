@@ -12,14 +12,14 @@ import { InstagramCollectionPanel } from './InstagramCollectionPanel';
 
 const BackLink = () => (
   <Link
-    to="/social/analysis"
+    to="/social/analysis/collection"
     className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900"
   >
     <Icon name="chevronLeft" className="size-4" /> Data Collection AIgent
   </Link>
 );
 
-export function AnalysisDetailPage() {
+export function DataCollectionDetailPage() {
   const { id = '' } = useParams();
   const [platform, selectPlatform] = usePlatformParam();
   const [idea, setIdea] = useState<AnalysisIdeaDto | null>(null);

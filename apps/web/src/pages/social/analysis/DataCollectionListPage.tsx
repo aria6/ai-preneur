@@ -1,22 +1,14 @@
 import type { AnalysisIdeaDto, IdeaListFilter } from '@ai-preneur/shared';
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link } from 'react-router';
 
 import { Alert, EmptyState, PageHeader } from '../../../components/ui/feedback';
 import { Spinner } from '../../../components/ui/Spinner';
-import { cn } from '../../../lib/cn';
 import { errorMessage } from '../../../lib/errors';
 import { formatDateTime } from '../../../lib/format';
 import * as analysisService from '../../../services/social-analysis.service';
 import { IdeaFilterTabs, useIdeaListFilter } from '../components/IdeaFilterTabs';
 import { AccountStatusList, formatMetric } from '../performance/performance-ui';
-
-type Agent = 'collection' | 'insight';
-
-const AGENTS: ReadonlyArray<{ id: Agent; label: string; soon: boolean }> = [
-  { id: 'collection', label: 'Data Collection AIgent', soon: false },
-  { id: 'insight', label: 'Audience Insight Analysis AIgent', soon: true },
-];
 
 function CollectionSummary({ idea }: { idea: AnalysisIdeaDto }) {
   const summary = idea.instagram;
@@ -57,7 +49,7 @@ function CollectionSummary({ idea }: { idea: AnalysisIdeaDto }) {
 function IdeaCollectionCard({ idea }: { idea: AnalysisIdeaDto }) {
   return (
     <Link
-      to={`/social/analysis/${idea.id}`}
+      to={`/social/analysis/collection/${idea.id}`}
       className="group flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-colors hover:border-primary-300 focus-visible:outline-2 focus-visible:outline-primary-500"
     >
       <p className="flex items-center gap-2 text-xs font-medium text-slate-500">
@@ -79,7 +71,7 @@ function IdeaCollectionCard({ idea }: { idea: AnalysisIdeaDto }) {
   );
 }
 
-function DataCollectionList() {
+export function DataCollectionListPage() {
   const [filter, setFilter] = useIdeaListFilter();
   const [loaded, setLoaded] = useState<{
     filter: IdeaListFilter;
@@ -104,10 +96,10 @@ function DataCollectionList() {
 
   return (
     <>
-      <p className="mb-4 max-w-3xl text-sm text-slate-600">
-        Mengumpulkan komentar dan DM akun media sosial tiap ide ke database. Pengambilan pertama
-        membaca 90 hari terakhir; setelah itu hanya data baru yang diambil.
-      </p>
+      <PageHeader
+        title="Data Collection AIgent"
+        description="Mengumpulkan komentar dan DM akun media sosial tiap ide ke database. Pengambilan pertama membaca 90 hari terakhir; setelah itu hanya data baru yang diambil."
+      />
       <IdeaFilterTabs value={filter} onChange={setFilter} />
 
       {loadError ? (
@@ -129,65 +121,6 @@ function DataCollectionList() {
           ))}
         </div>
       )}
-    </>
-  );
-}
-
-export function AnalysisListPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const agent: Agent = searchParams.get('agent') === 'insight' ? 'insight' : 'collection';
-
-  return (
-    <>
-      <PageHeader
-        title="Analysis Engine"
-        description="Mengumpulkan dan menganalisis interaksi audiens di akun media sosial tiap ide."
-      />
-
-      <div
-        role="tablist"
-        aria-label="AIgent"
-        className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200"
-      >
-        {AGENTS.map((candidate) => (
-          <button
-            key={candidate.id}
-            type="button"
-            role="tab"
-            aria-selected={agent === candidate.id}
-            onClick={() =>
-              setSearchParams(candidate.id === 'insight' ? { agent: 'insight' } : {}, {
-                replace: true,
-              })
-            }
-            className={cn(
-              '-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm whitespace-nowrap',
-              agent === candidate.id
-                ? 'border-primary-600 font-medium text-primary-700'
-                : 'border-transparent text-slate-600 hover:text-slate-900',
-            )}
-          >
-            {candidate.label}
-            {candidate.soon && (
-              <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
-                Segera hadir
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      <div role="tabpanel">
-        {agent === 'collection' ? (
-          <DataCollectionList />
-        ) : (
-          <EmptyState
-            icon="sparkles"
-            title="Audience Insight Analysis AIgent segera hadir"
-            description="AI akan menganalisis komentar dan DM yang sudah dikumpulkan Data Collection AIgent."
-          />
-        )}
-      </div>
     </>
   );
 }

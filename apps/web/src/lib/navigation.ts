@@ -17,8 +17,8 @@ export interface NavGroupItem {
   id: string;
   label: string;
   icon: NavIcon;
-  /** The group is shown only if at least one child is visible. */
-  children: readonly NavLinkItem[];
+  /** Links or sub-groups. The group is shown only if at least one child is visible. */
+  children: readonly NavEntry[];
 }
 
 export type NavEntry = NavLinkItem | NavGroupItem;
@@ -53,11 +53,26 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
         permission: PERMISSIONS.SOCIAL_PERFORMANCE_VIEW,
       },
       {
-        type: 'link',
-        to: '/social/analysis',
-        label: 'Analysis Engine',
+        type: 'group',
+        id: 'social-analysis',
+        label: 'Social Media Analysis Engine',
         icon: 'search',
-        permission: PERMISSIONS.SOCIAL_ANALYSIS_VIEW,
+        children: [
+          {
+            type: 'link',
+            to: '/social/analysis/collection',
+            label: 'Data Collection AIgent',
+            icon: 'search',
+            permission: PERMISSIONS.SOCIAL_ANALYSIS_VIEW,
+          },
+          {
+            type: 'link',
+            to: '/social/analysis/insight',
+            label: 'Audience Insight Analysis AIgent',
+            icon: 'search',
+            permission: PERMISSIONS.SOCIAL_ANALYSIS_VIEW,
+          },
+        ],
       },
       {
         type: 'link',
@@ -92,18 +107,30 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
   },
 ];
 
-/** All navigable pages, flattened (groups expanded). */
-export const NAV_LINKS: readonly NavLinkItem[] = NAV_ENTRIES.flatMap((entry) =>
-  entry.type === 'group' ? entry.children : [entry],
-);
+/** The links of entries, with (sub-)groups expanded. */
+export function flattenNavLinks(entries: readonly NavEntry[]): NavLinkItem[] {
+  return entries.flatMap((entry) =>
+    entry.type === 'group' ? flattenNavLinks(entry.children) : [entry],
+  );
+}
 
-/** Entries filtered by permission; empty groups are dropped. */
-export function visibleNavEntries(can: (permission: Permission) => boolean): NavEntry[] {
-  return NAV_ENTRIES.flatMap((entry): NavEntry[] => {
+/** All navigable pages, flattened (groups expanded). */
+export const NAV_LINKS: readonly NavLinkItem[] = flattenNavLinks(NAV_ENTRIES);
+
+function filterEntries(
+  entries: readonly NavEntry[],
+  can: (permission: Permission) => boolean,
+): NavEntry[] {
+  return entries.flatMap((entry): NavEntry[] => {
     if (entry.type === 'link') return can(entry.permission) ? [entry] : [];
-    const children = entry.children.filter((child) => can(child.permission));
+    const children = filterEntries(entry.children, can);
     return children.length > 0 ? [{ ...entry, children }] : [];
   });
+}
+
+/** Entries filtered by permission; empty groups (and sub-groups) are dropped. */
+export function visibleNavEntries(can: (permission: Permission) => boolean): NavEntry[] {
+  return filterEntries(NAV_ENTRIES, can);
 }
 
 export function isPathActive(pathname: string, to: string): boolean {
