@@ -8,3 +8,4 @@
  */
 export * from './iam.schema.js';
 export * from './social-media.schema.js';
+export * from './bank-idea.schema.js';

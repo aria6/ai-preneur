@@ -50,6 +50,17 @@ const envSchema = z.object({
   /** Runs the scheduled-upload worker (real uploads to Instagram at each row's schedule). */
   SOCIAL_PUBLISHER_ENABLED: booleanString.default(false),
   SOCIAL_PUBLISHER_INTERVAL_SECONDS: z.coerce.number().int().min(10).max(3600).default(30),
+  /** Runs queued Bank Idea researches (one at a time). */
+  BANK_IDEA_WORKER_ENABLED: booleanString.default(true),
+  BANK_IDEA_WORKER_INTERVAL_SECONDS: z.coerce.number().int().min(2).max(600).default(10),
+  /** AI provider for Bank Idea. Only the Claude Code CLI today. */
+  BANK_IDEA_AI_PROVIDER: z.enum(['claude-cli']).default('claude-cli'),
+  /** Path or name of the Claude Code CLI binary (must be installed and logged in on the server). */
+  BANK_IDEA_CLAUDE_BIN: z.string().trim().min(1).default('claude'),
+  /** Optional model alias/name passed with --model (e.g. sonnet, opus). Empty = CLI default. */
+  BANK_IDEA_CLAUDE_MODEL: z.string().trim().optional(),
+  /** A research is stopped (and marked failed) after this long. */
+  BANK_IDEA_RESEARCH_TIMEOUT_MINUTES: z.coerce.number().int().min(2).max(60).default(15),
 });
 
 export interface AuthConfig {
@@ -73,6 +84,16 @@ export interface AppConfig {
   database: { url: string; poolMax: number };
   auth: AuthConfig;
   social: SocialConfig;
+  bankIdea: BankIdeaConfig;
+}
+
+export interface BankIdeaConfig {
+  workerEnabled: boolean;
+  workerIntervalMs: number;
+  provider: 'claude-cli';
+  claudeBin: string;
+  claudeModel: string | null;
+  researchTimeoutMs: number;
 }
 
 export interface SocialConfig {
@@ -147,6 +168,14 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       credentialsKey: env.SOCIAL_CREDENTIALS_KEY || null,
       publisherEnabled: env.SOCIAL_PUBLISHER_ENABLED,
       publisherIntervalMs: env.SOCIAL_PUBLISHER_INTERVAL_SECONDS * 1000,
+    },
+    bankIdea: {
+      workerEnabled: env.BANK_IDEA_WORKER_ENABLED,
+      workerIntervalMs: env.BANK_IDEA_WORKER_INTERVAL_SECONDS * 1000,
+      provider: env.BANK_IDEA_AI_PROVIDER,
+      claudeBin: env.BANK_IDEA_CLAUDE_BIN,
+      claudeModel: env.BANK_IDEA_CLAUDE_MODEL || null,
+      researchTimeoutMs: env.BANK_IDEA_RESEARCH_TIMEOUT_MINUTES * 60_000,
     },
   });
 }

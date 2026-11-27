@@ -2,6 +2,7 @@ import express, { type Router } from 'express';
 
 import type { AppDependencies } from '../core/dependencies.js';
 import { createRateLimiter } from '../middlewares/rate-limit.js';
+import { createBankIdeaModuleRouter } from '../modules/bank-idea/index.js';
 import { createHealthRouter } from '../modules/health/index.js';
 import { createIamModule } from '../modules/iam/index.js';
 import { createSocialMediaRouter } from '../modules/social-media/index.js';
@@ -46,6 +47,16 @@ export function createApiRouter(deps: AppDependencies): Router {
       logger: deps.logger,
       config: deps.config.social,
       publisher: deps.socialPublisher,
+    }),
+  );
+
+  router.use(
+    '/bank-ideas',
+    createBankIdeaModuleRouter({
+      db: deps.database.db,
+      logger: deps.logger,
+      config: deps.config.bankIdea,
+      worker: deps.bankIdeaWorker,
     }),
   );
 

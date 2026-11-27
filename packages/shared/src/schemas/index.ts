@@ -6,3 +6,4 @@ export * from './social.js';
 export * from './social-performance.js';
 export * from './social-analysis.js';
 export * from './users.js';
+export * from './bank-idea.js';

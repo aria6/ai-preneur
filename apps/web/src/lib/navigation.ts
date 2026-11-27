@@ -1,7 +1,15 @@
 import { PERMISSIONS, type Permission } from '@ai-preneur/shared';
 
 export type NavIcon =
-  'dashboard' | 'users' | 'roles' | 'system' | 'megaphone' | 'chart' | 'search' | 'settings';
+  | 'dashboard'
+  | 'users'
+  | 'roles'
+  | 'system'
+  | 'megaphone'
+  | 'chart'
+  | 'search'
+  | 'settings'
+  | 'lightbulb';
 
 export interface NavLinkItem {
   type: 'link';
@@ -31,6 +39,13 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
     label: 'Dashboard',
     icon: 'dashboard',
     permission: PERMISSIONS.DASHBOARD_VIEW,
+  },
+  {
+    type: 'link',
+    to: '/bank-idea',
+    label: 'Bank Idea',
+    icon: 'lightbulb',
+    permission: PERMISSIONS.BANK_IDEA_VIEW,
   },
   {
     type: 'group',

@@ -3,6 +3,7 @@ import { createDatabaseClient } from '@ai-preneur/database';
 import { createApp } from './app.js';
 import { loadConfig, loadEnvFile } from './config/env.js';
 import { createLogger } from './core/logger.js';
+import { createBankIdeaWorker } from './modules/bank-idea/index.js';
 import { createSocialPublisherWorker } from './modules/social-media/index.js';
 
 /**
@@ -25,8 +26,20 @@ const publisherWorker = config.social.publisherEnabled
   ? createSocialPublisherWorker({ db: database.db, logger, config: config.social })
   : null;
 
-const app = createApp({ config, logger, database, socialPublisher: publisherWorker });
+// Bank Idea researches (Claude CLI, one at a time). On by default: BANK_IDEA_WORKER_ENABLED.
+const bankIdeaWorker = config.bankIdea.workerEnabled
+  ? createBankIdeaWorker({ db: database.db, logger, config: config.bankIdea })
+  : null;
+
+const app = createApp({
+  config,
+  logger,
+  database,
+  socialPublisher: publisherWorker,
+  bankIdeaWorker,
+});
 publisherWorker?.start();
+bankIdeaWorker?.start();
 
 const server = app.listen(config.server.port, config.server.host, (error?: Error) => {
   if (error) {
@@ -57,6 +70,7 @@ async function shutdown(reason: string, exitCode = 0): Promise<void> {
       server.close((error) => (error ? reject(error) : resolve()));
     });
     await publisherWorker?.stop();
+    await bankIdeaWorker?.stop();
     await database.close();
     logger.info('Shutdown complete');
     process.exit(exitCode);

@@ -1,0 +1,122 @@
+import {
+  BANK_IDEA_AGENCIES,
+  BANK_IDEA_AGENCY_LABELS,
+  BANK_IDEA_CRITERIA,
+  BANK_IDEA_MARKET_SCOPE_LABELS,
+  BANK_IDEA_RUBRIC,
+  type BankIdeaMarketScope,
+} from '@ai-preneur/shared';
+
+const ANCHOR_RANGES = ['1–2', '3–4', '5–6', '7–8', '9–10'] as const;
+
+export interface ResearchPromptInput {
+  title: string;
+  summary: string;
+  problem: string;
+  targetMarket: string;
+  solution: string;
+  agencyLabel: string;
+  marketScope: BankIdeaMarketScope;
+}
+
+export function structurePrompt(rawInput: string): string {
+  const agencies = BANK_IDEA_AGENCIES.map(
+    (key) => `- ${key}: ${BANK_IDEA_AGENCY_LABELS[key]}`,
+  ).join('\n');
+  return `Kamu membantu merapikan ide bisnis mentah menjadi ide terstruktur, dalam Bahasa Indonesia.
+Jangan memakai tool apa pun. Jangan menambah fakta, angka, atau klaim yang tidak ada di teks; boleh merumuskan ulang agar jelas.
+
+Kategori agency yang tersedia (pilih satu key yang paling cocok, "other" jika tidak ada yang cocok):
+${agencies}
+
+Teks ide mentah (di antara tanda <ide>):
+<ide>
+${rawInput}
+</ide>
+
+Balas HANYA dengan satu objek JSON (tanpa teks lain, tanpa markdown) dengan format:
+{
+  "title": "judul singkat dan jelas, maksimal 120 karakter",
+  "summary": "ringkasan ide 2–4 kalimat",
+  "problem": "masalah yang diselesaikan (kosongkan \\"\\" jika tidak disebut)",
+  "targetMarket": "siapa calon pembeli/penggunanya (kosongkan jika tidak disebut)",
+  "solution": "solusi/produk yang ditawarkan (kosongkan jika tidak disebut)",
+  "agency": "salah satu key kategori di atas"
+}`;
+}
+
+export function researchPrompt(idea: ResearchPromptInput, today: string): string {
+  const scope =
+    idea.marketScope === 'indonesia'
+      ? 'Indonesia. Utamakan sumber dan data Indonesia (mis. BPS, kementerian, asosiasi industri, media bisnis Indonesia, laporan riset pasar tentang Indonesia). Pakai data global hanya sebagai pembanding dan sebutkan bahwa itu data global.'
+      : 'Global. Gunakan data pasar global, sebutkan wilayah datanya bila relevan.';
+
+  const rubric = BANK_IDEA_RUBRIC.map((dimension) => {
+    const criteria = dimension.criteria
+      .map((criterion) => {
+        const anchors = criterion.anchors
+          .map((anchor, i) => `      ${ANCHOR_RANGES[i]}: ${anchor}`)
+          .join('\n');
+        return `  - "${criterion.key}" (${criterion.label}): ${criterion.question}\n${anchors}`;
+      })
+      .join('\n');
+    return `${dimension.label}:\n${criteria}`;
+  }).join('\n\n');
+
+  const criteriaExample = BANK_IDEA_CRITERIA.map(
+    (key) =>
+      `    "${key}": { "score": 1-10, "confidence": "low|medium|high", "reason": "...", "sources": [{ "title": "...", "url": "https://..." }] }`,
+  ).join(',\n');
+
+  return `Kamu analis riset pasar. Tanggal hari ini: ${today}.
+Tugas: riset ide bisnis di bawah ini di web lalu nilai dengan rubrik yang diberikan. Tulis semua teks dalam Bahasa Indonesia.
+
+IDE
+- Judul: ${idea.title}
+- Kategori: ${idea.agencyLabel}
+- Ringkasan: ${idea.summary}
+- Masalah: ${idea.problem || '(tidak disebut)'}
+- Target pasar: ${idea.targetMarket || '(tidak disebut)'}
+- Solusi: ${idea.solution || '(tidak disebut)'}
+
+CAKUPAN PASAR: ${BANK_IDEA_MARKET_SCOPE_LABELS[idea.marketScope]} — ${scope}
+
+CARA KERJA
+1. Pakai WebSearch (dan WebFetch bila perlu membaca halaman) untuk mencari: tren minat/permintaan, ukuran dan pertumbuhan pasar, kompetitor yang ada beserta harganya, dan model monetisasi solusi serupa. Lakukan beberapa pencarian dengan sudut berbeda; utamakan data terbaru.
+2. Jangan mengarang angka, nama perusahaan, atau URL. Setiap URL di "sources" harus berasal dari hasil pencarianmu. Jika data tidak ditemukan, katakan begitu di "reason" dan beri "confidence": "low".
+3. Nilai setiap kriteria 1–10 memakai patokan di bawah. Jujur: skor tinggi hanya jika ada bukti. Untuk "market_gap", makin sedikit kompetitor yang memadai, makin tinggi skornya.
+4. "confidence": high = beberapa sumber kredibel dan konsisten; medium = ada data tapi terbatas/tidak langsung; low = kebanyakan asumsi.
+5. "reason": 2–4 kalimat, sebut angka/fakta kunci yang ditemukan.
+
+RUBRIK
+${rubric}
+
+FORMAT JAWABAN
+Balas HANYA dengan satu objek JSON (tanpa teks lain, tanpa markdown) persis dengan struktur ini:
+{
+  "criteria": {
+${criteriaExample}
+  },
+  "competitors": [{ "name": "...", "url": "https://... atau null", "note": "apa yang mereka tawarkan, harga jika ada" }],
+  "summary": {
+    "verdict": "kesimpulan 2–3 kalimat",
+    "strengths": ["kekuatan utama"],
+    "risks": ["risiko terbesar"],
+    "nextSteps": ["langkah validasi berikutnya yang konkret dan murah"]
+  }
+}
+Isi semua ${BANK_IDEA_CRITERIA.length} kriteria. Maksimal 6 sumber per kriteria, maksimal 8 kompetitor, maksimal 5 butir per daftar di summary.`;
+}
+
+/** Asks (without tools) to turn a malformed answer into the requested JSON. */
+export function repairPrompt(brokenOutput: string, problem: string): string {
+  return `Teks di bawah seharusnya berupa satu objek JSON hasil riset ide, tetapi tidak valid: ${problem}.
+Jangan memakai tool apa pun dan jangan menambah data baru. Ubah menjadi JSON valid dengan struktur:
+{ "criteria": { "<key>": { "score": 1-10, "confidence": "low|medium|high", "reason": "...", "sources": [{ "title": "...", "url": "..." }] } }, "competitors": [{ "name": "...", "url": "... atau null", "note": "..." }], "summary": { "verdict": "...", "strengths": [], "risks": [], "nextSteps": [] } }
+Key kriteria: ${BANK_IDEA_CRITERIA.join(', ')}. Pakai hanya nilai yang ada di teks; jangan mengarang skor untuk kriteria yang tidak ada.
+Balas HANYA dengan JSON-nya.
+
+<teks>
+${brokenOutput}
+</teks>`;
+}

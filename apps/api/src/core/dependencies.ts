@@ -17,4 +17,6 @@ export interface AppDependencies {
    * the HTTP side); null when SOCIAL_PUBLISHER_ENABLED=false.
    */
   socialPublisher: { wake(): void } | null;
+  /** Bank Idea research worker; null when BANK_IDEA_WORKER_ENABLED=false. */
+  bankIdeaWorker: { wake(): void; cancel(runId: string): boolean } | null;
 }

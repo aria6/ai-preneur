@@ -20,6 +20,9 @@ export const PERMISSIONS = {
   SOCIAL_PERFORMANCE_VIEW: 'social.performance.view',
   SOCIAL_ANALYSIS_VIEW: 'social.analysis.view',
   SOCIAL_ANALYSIS_COLLECT: 'social.analysis.collect',
+  BANK_IDEA_VIEW: 'bank_idea.view',
+  BANK_IDEA_MANAGE: 'bank_idea.manage',
+  BANK_IDEA_RESEARCH: 'bank_idea.research',
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -113,6 +116,25 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     category: 'Social Media AIgency',
     label: 'Ambil data Analysis Engine',
     description: 'Menjalankan "Ambil data" dan "Perbarui data" (komentar dan DM) untuk tiap ide.',
+  },
+  {
+    key: PERMISSIONS.BANK_IDEA_VIEW,
+    category: 'Bank Idea',
+    label: 'Lihat Bank Idea',
+    description: 'Melihat daftar ide, hasil riset, skor, dan riwayatnya.',
+  },
+  {
+    key: PERMISSIONS.BANK_IDEA_MANAGE,
+    category: 'Bank Idea',
+    label: 'Kelola Bank Idea',
+    description: 'Menambah, mengubah, mengarsipkan, dan menghapus permanen ide.',
+  },
+  {
+    key: PERMISSIONS.BANK_IDEA_RESEARCH,
+    category: 'Bank Idea',
+    label: 'Riset ide dengan AI',
+    description:
+      'Merapikan ide mentah dan menjalankan riset AI (memakai kuota Claude yang terhubung di server).',
   },
 ];
 

@@ -8,6 +8,9 @@ import {
   RequirePermission,
 } from '../components/auth/guards';
 import { AppLayout } from '../components/layout/AppLayout';
+import { BankIdeaCreatePage } from '../pages/bank-idea/BankIdeaCreatePage';
+import { BankIdeaDetailPage } from '../pages/bank-idea/BankIdeaDetailPage';
+import { BankIdeaListPage } from '../pages/bank-idea/BankIdeaListPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { LoginPage } from '../pages/LoginPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
@@ -50,6 +53,30 @@ export const router = createBrowserRouter([
         ),
       },
       { path: 'profile', element: <ProfilePage /> },
+      {
+        path: 'bank-idea',
+        element: (
+          <RequirePermission permission={PERMISSIONS.BANK_IDEA_VIEW}>
+            <BankIdeaListPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: 'bank-idea/baru',
+        element: (
+          <RequirePermission permission={PERMISSIONS.BANK_IDEA_MANAGE}>
+            <BankIdeaCreatePage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: 'bank-idea/:id',
+        element: (
+          <RequirePermission permission={PERMISSIONS.BANK_IDEA_VIEW}>
+            <BankIdeaDetailPage />
+          </RequirePermission>
+        ),
+      },
       {
         path: 'social/publisher',
         element: (

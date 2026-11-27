@@ -2,8 +2,9 @@
 
 Each business capability lives in its own directory here (`users/`, `agents/`,
 `workflows/`, `executions/`, …). Existing: `health/` (infrastructure), `iam/`
-(authentication, users, roles & permissions — see docs/auth-and-access.md) and `social-media/`
-(Publisher AIgent — see docs/social-media-aigency.md).
+(authentication, users, roles & permissions — see docs/auth-and-access.md), `social-media/`
+(Publisher AIgent — see docs/social-media-aigency.md) and `bank-idea/`
+(Bank Idea: AI idea research & scoring — see docs/bank-idea.md).
 
 Protect new routes with `requireAuth` / `requirePermission(PERMISSIONS.X)` from `../iam/index.js`.
 
