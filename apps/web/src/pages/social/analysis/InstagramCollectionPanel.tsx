@@ -284,7 +284,7 @@ export function InstagramCollectionPanel({
 
   const hasData = status.summary !== null;
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <StatusCard
         status={status}
         account={account}

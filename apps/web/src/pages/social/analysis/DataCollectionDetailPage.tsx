@@ -2,12 +2,13 @@ import { SOCIAL_PLATFORM_LABELS, type AnalysisIdeaDto } from '@ai-preneur/shared
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 
-import { Alert, EmptyState, PageHeader } from '../../../components/ui/feedback';
+import { Alert, EmptyState } from '../../../components/ui/feedback';
 import { Icon } from '../../../components/ui/Icon';
 import { Spinner } from '../../../components/ui/Spinner';
 import { errorMessage } from '../../../lib/errors';
 import * as analysisService from '../../../services/social-analysis.service';
-import { PlatformTabs, usePlatformParam } from '../components/PlatformTabs';
+import { IdeaDetailHeader } from '../components/IdeaDetailHeader';
+import { usePlatformParam } from '../components/PlatformTabs';
 import { InstagramCollectionPanel } from './InstagramCollectionPanel';
 
 const BackLink = () => (
@@ -55,15 +56,13 @@ export function DataCollectionDetailPage() {
 
   return (
     <>
-      <div className="mb-3">
-        <BackLink />
-      </div>
-      <PageHeader
-        title={idea.title}
-        description={`IDEA_ID ${idea.ideaNumber}${idea.archivedAt ? ' · Arsip' : ''}`}
+      <IdeaDetailHeader
+        backTo="/social/analysis/collection"
+        backLabel="Data Collection AIgent"
+        idea={idea}
+        platform={platform}
+        onPlatformChange={selectPlatform}
       />
-
-      <PlatformTabs value={platform} onChange={selectPlatform} />
 
       <div role="tabpanel">
         {platform === 'instagram' ? (

@@ -28,7 +28,7 @@ export function usePlatformParam(): [SocialPlatform, (next: SocialPlatform) => v
   return [platform, select];
 }
 
-/** Instagram · TikTok · Facebook Reels · YouTube Shorts; unsupported ones say "Segera hadir". */
+/** Sits at the bottom of a bordered header (see IdeaDetailHeader). Instagram · TikTok · Facebook Reels · YouTube Shorts; unsupported ones say "Segera hadir". */
 export function PlatformTabs({
   value,
   onChange,
@@ -37,11 +37,7 @@ export function PlatformTabs({
   onChange: (next: SocialPlatform) => void;
 }) {
   return (
-    <div
-      role="tablist"
-      aria-label="Platform"
-      className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200"
-    >
+    <div role="tablist" aria-label="Platform" className="mt-3 flex gap-1 overflow-x-auto">
       {SOCIAL_PLATFORMS.map((candidate) => {
         const available = AVAILABLE_SOCIAL_PLATFORMS.includes(candidate);
         const selected = candidate === value;
@@ -53,7 +49,7 @@ export function PlatformTabs({
             aria-selected={selected}
             onClick={() => onChange(candidate)}
             className={cn(
-              '-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm whitespace-nowrap',
+              '-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-sm whitespace-nowrap',
               selected
                 ? 'border-primary-600 font-medium text-primary-700'
                 : 'border-transparent text-slate-600 hover:text-slate-900',
