@@ -55,7 +55,7 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
       {
         type: 'group',
         id: 'social-analysis',
-        label: 'Social Media Analysis Engine',
+        label: 'Analysis Engine',
         icon: 'search',
         children: [
           {

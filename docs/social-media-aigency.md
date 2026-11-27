@@ -4,7 +4,7 @@
 Social Media AIgency
 ├── Publisher AIgent      Tahap 1 + 2 done — queue, schedule, accounts, real uploads to Instagram
 ├── Performance AIgent    lite — live account & post insights per idea (Instagram; others "Segera hadir")
-├── Social Media Analysis Engine        (sub-menu with two pages)
+├── Analysis Engine                     (sub-menu with two pages)
 │   ├── Data Collection AIgent           comments + DMs per idea collected incrementally (Instagram)
 │   └── Audience Insight Analysis AIgent "Segera hadir" — AI analysis of the collected data
 └── Pengaturan            lock window, confirmation lead time
@@ -149,7 +149,7 @@ Code: `integrations/instagram-insights.client.ts` (Graph calls),
 Collects the **comments** (text, author, the post it was written on, time, likes, replies) and
 **DMs** (conversation partner, text, direction, attachment kinds, time) of each idea's connected
 Instagram account **into the database**, so the coming Audience Insight Analysis AIgent can work on
-them. Sidebar: Social Media AIgency → **Social Media Analysis Engine** (a sub-group) → two menus:
+them. Sidebar: Social Media AIgency → **Analysis Engine** (a sub-group) → two menus:
 **Data Collection AIgent** (`/social/analysis/collection`, ideas with Aktif/Arsip filter; detail
 `/social/analysis/collection/:id`) and **Audience Insight Analysis AIgent**
 (`/social/analysis/insight`, "Segera hadir"). `/social/analysis` redirects to the first. Both use
