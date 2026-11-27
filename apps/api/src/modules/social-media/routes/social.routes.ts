@@ -18,6 +18,7 @@ import {
   type InstagramAccountsResponse,
   type InstagramMediaPageDto,
   type InstagramOverviewResponse,
+  ideaListQuerySchema,
   instagramMediaQuerySchema,
   instagramOverviewQuerySchema,
   type PerformanceIdeaListResponse,
@@ -49,7 +50,7 @@ const canViewPerformance = requirePermission(PERMISSIONS.SOCIAL_PERFORMANCE_VIEW
  *
  * GET    /settings                                   publisher.view | settings.manage
  * PUT    /settings                                   settings.manage
- * GET    /batches                                    publisher.view
+ * GET    /batches?filter=active|archived             publisher.view
  * POST   /batches                                    publisher.manage
  * GET    /batches/:id                                publisher.view
  * PATCH  /batches/:id                                publisher.manage
@@ -59,6 +60,7 @@ const canViewPerformance = requirePermission(PERMISSIONS.SOCIAL_PERFORMANCE_VIEW
  * PUT    /batches/:id/order                          publisher.manage  (drag & drop)
  * POST   /batches/:id/confirm                        publisher.manage
  * POST   /batches/:id/cancel                         publisher.manage  (Batalkan jadwal)
+ * POST   /batches/:id/archive · /unarchive           publisher.manage  (Draft/Selesai only)
  * POST   /batches/:id/items                          publisher.manage
  * PATCH  /batches/:id/items/:itemId                  publisher.manage
  * DELETE /batches/:id/items/:itemId                  publisher.manage
@@ -70,7 +72,7 @@ const canViewPerformance = requirePermission(PERMISSIONS.SOCIAL_PERFORMANCE_VIEW
  * DELETE /batches/:id/accounts/:platform             publisher.manage
  *
  * Performance AIgent (read live from the platform, nothing stored):
- * GET    /performance/ideas                          performance.view
+ * GET    /performance/ideas?filter=active|archived   performance.view
  * GET    /performance/ideas/:id                      performance.view
  * GET    /performance/ideas/:id/instagram/overview   performance.view  (?days=7|14|30&refresh)
  * GET    /performance/ideas/:id/instagram/media      performance.view  (?after=cursor&refresh)
@@ -104,8 +106,9 @@ export function createSocialRouter(deps: {
   );
 
   // ---- Batches ----
-  router.get('/batches', canView, async (_req, res) => {
-    sendSuccess<BatchListResponse>(res, { items: await batches.list() });
+  router.get('/batches', canView, async (req, res) => {
+    const { filter } = parseInput(ideaListQuerySchema, req.query);
+    sendSuccess<BatchListResponse>(res, { items: await batches.list(filter) });
   });
 
   router.post('/batches', canManage, async (req, res) => {
@@ -166,6 +169,20 @@ export function createSocialRouter(deps: {
     const { id } = parseInput(batchParams, req.params);
     sendSuccess<BatchResponse>(res, {
       batch: await batches.cancelSchedule(requireAuthContext(req), id),
+    });
+  });
+
+  router.post('/batches/:id/archive', canManage, async (req, res) => {
+    const { id } = parseInput(batchParams, req.params);
+    sendSuccess<BatchResponse>(res, {
+      batch: await batches.archive(requireAuthContext(req), id),
+    });
+  });
+
+  router.post('/batches/:id/unarchive', canManage, async (req, res) => {
+    const { id } = parseInput(batchParams, req.params);
+    sendSuccess<BatchResponse>(res, {
+      batch: await batches.unarchive(requireAuthContext(req), id),
     });
   });
 
@@ -243,8 +260,9 @@ export function createSocialRouter(deps: {
   });
 
   // ---- Performance AIgent ----
-  router.get('/performance/ideas', canViewPerformance, async (_req, res) => {
-    sendSuccess<PerformanceIdeaListResponse>(res, { items: await performance.listIdeas() });
+  router.get('/performance/ideas', canViewPerformance, async (req, res) => {
+    const { filter } = parseInput(ideaListQuerySchema, req.query);
+    sendSuccess<PerformanceIdeaListResponse>(res, { items: await performance.listIdeas(filter) });
   });
 
   router.get('/performance/ideas/:id', canViewPerformance, async (req, res) => {

@@ -1,4 +1,4 @@
-import type { InstagramOverviewDto, PerformanceIdeaDto } from '@ai-preneur/shared';
+import type { IdeaListFilter, InstagramOverviewDto, PerformanceIdeaDto } from '@ai-preneur/shared';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 
@@ -6,6 +6,7 @@ import { Alert, EmptyState, PageHeader } from '../../../components/ui/feedback';
 import { Spinner } from '../../../components/ui/Spinner';
 import { errorMessage } from '../../../lib/errors';
 import * as performanceService from '../../../services/social-performance.service';
+import { IdeaFilterTabs, useIdeaListFilter } from '../components/IdeaFilterTabs';
 import { AccountStatusList, formatMetric } from './performance-ui';
 
 /** Followers, 7-day views and interactions of the idea's Instagram account. */
@@ -60,7 +61,12 @@ function IdeaPerformanceCard({ idea }: { idea: PerformanceIdeaDto }) {
       to={`/social/performance/${idea.id}`}
       className="group flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-colors hover:border-primary-300 focus-visible:outline-2 focus-visible:outline-primary-500"
     >
-      <p className="text-xs font-medium text-slate-500">IDEA_ID {idea.ideaNumber}</p>
+      <p className="flex items-center gap-2 text-xs font-medium text-slate-500">
+        IDEA_ID {idea.ideaNumber}
+        {idea.archivedAt && (
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">Arsip</span>
+        )}
+      </p>
       <h2 className="mt-0.5 truncate font-semibold text-slate-900 group-hover:text-primary-700">
         {idea.title}
       </h2>
@@ -79,19 +85,28 @@ function IdeaPerformanceCard({ idea }: { idea: PerformanceIdeaDto }) {
 }
 
 export function PerformanceListPage() {
-  const [ideas, setIdeas] = useState<PerformanceIdeaDto[] | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [filter, setFilter] = useIdeaListFilter();
+  // Results are kept per filter, so switching shows the spinner until its list arrives.
+  const [loaded, setLoaded] = useState<{
+    filter: IdeaListFilter;
+    ideas: PerformanceIdeaDto[] | null;
+    error: string | null;
+  } | null>(null);
+  const current = loaded?.filter === filter ? loaded : null;
+  const ideas = current?.ideas ?? null;
+  const loadError = current?.error ?? null;
 
   useEffect(() => {
     const controller = new AbortController();
     performanceService
-      .listPerformanceIdeas(controller.signal)
-      .then(setIdeas)
+      .listPerformanceIdeas(filter, controller.signal)
+      .then((items) => setLoaded({ filter, ideas: items, error: null }))
       .catch((error: unknown) => {
-        if (!controller.signal.aborted) setLoadError(errorMessage(error));
+        if (!controller.signal.aborted)
+          setLoaded({ filter, ideas: null, error: errorMessage(error) });
       });
     return () => controller.abort();
-  }, []);
+  }, [filter]);
 
   return (
     <>
@@ -99,6 +114,8 @@ export function PerformanceListPage() {
         title="Performance AIgent"
         description="Performa akun media sosial tiap ide, diambil langsung dari platform."
       />
+
+      <IdeaFilterTabs value={filter} onChange={setFilter} />
 
       {loadError ? (
         <Alert>{loadError}</Alert>
@@ -109,7 +126,7 @@ export function PerformanceListPage() {
       ) : ideas.length === 0 ? (
         <EmptyState
           icon="chart"
-          title="Belum ada ide"
+          title={filter === 'archived' ? 'Belum ada ide yang diarsip' : 'Belum ada ide'}
           description="Buat ide di Publisher AIgent dan hubungkan akun media sosialnya untuk melihat performanya di sini."
         />
       ) : (

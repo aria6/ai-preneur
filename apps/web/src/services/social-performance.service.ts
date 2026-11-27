@@ -1,4 +1,5 @@
 import {
+  type IdeaListFilter,
   instagramMediaPageSchema,
   instagramOverviewResponseSchema,
   performanceIdeaListResponseSchema,
@@ -13,9 +14,12 @@ import { apiClient } from './api-client';
 
 const ideaUrl = (id: string) => `/social/performance/ideas/${encodeURIComponent(id)}`;
 
-export async function listPerformanceIdeas(signal?: AbortSignal): Promise<PerformanceIdeaDto[]> {
+export async function listPerformanceIdeas(
+  filter: IdeaListFilter,
+  signal?: AbortSignal,
+): Promise<PerformanceIdeaDto[]> {
   return (
-    await apiClient.get('/social/performance/ideas', {
+    await apiClient.get(`/social/performance/ideas?filter=${filter}`, {
       schema: performanceIdeaListResponseSchema,
       signal: signal ?? null,
     })

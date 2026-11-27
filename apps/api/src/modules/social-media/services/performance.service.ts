@@ -3,6 +3,7 @@ import {
   ERROR_CODES,
   type InstagramMediaDto,
   type InstagramMediaPageDto,
+  type IdeaListFilter,
   type InstagramOverviewDto,
   type PerformanceIdeaDto,
   type PerformanceRangeDays,
@@ -86,6 +87,7 @@ function toIdeaDto(batch: SmBatchRow, accounts: readonly SmAccountRow[]): Perfor
     ideaNumber: batch.ideaNumber,
     title: batch.title,
     description: batch.description,
+    archivedAt: batch.archivedAt?.toISOString() ?? null,
     accounts: accounts.map((account) => ({
       platform: account.platform,
       username: account.username,
@@ -181,8 +183,8 @@ export function createPerformanceService(deps: {
   }
 
   return {
-    async listIdeas(): Promise<PerformanceIdeaDto[]> {
-      const rows = await batches.list();
+    async listIdeas(filter: IdeaListFilter): Promise<PerformanceIdeaDto[]> {
+      const rows = await batches.list(filter);
       const all = await accounts.listByBatches(rows.map((row) => row.id));
       return rows.map((row) =>
         toIdeaDto(

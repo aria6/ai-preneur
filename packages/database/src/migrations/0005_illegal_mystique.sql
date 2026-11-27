@@ -1,0 +1,1 @@
+ALTER TABLE "sm_batches" ADD COLUMN "archived_at" timestamp with time zone;

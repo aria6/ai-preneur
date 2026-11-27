@@ -23,6 +23,7 @@ export const performanceIdeaSchema = z.object({
   ideaNumber: z.number().int(),
   title: z.string(),
   description: z.string().nullable(),
+  archivedAt: z.string().nullable(),
   accounts: z.array(performanceAccountSchema),
 });
 export type PerformanceIdeaDto = z.infer<typeof performanceIdeaSchema>;

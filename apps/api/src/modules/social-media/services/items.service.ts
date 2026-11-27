@@ -19,7 +19,7 @@ import { createItemsRepository, type QueueItemPatch } from '../repositories/item
 import { createPublicationsRepository } from '../repositories/publications.repository.js';
 import { batchPlatforms } from '../social.mappers.js';
 import {
-  assertNotCompleted,
+  reopenIfCompleted,
   driveToAppError,
   loadBatchDetail,
   loadWorkingSet,
@@ -105,7 +105,7 @@ export function createItemsService(deps: {
       await db.transaction(async (tx) => {
         const now = new Date();
         const working = await loadWorkingSet(tx, batchId, now, { forUpdate: true });
-        assertNotCompleted(working.batch);
+        await reopenIfCompleted(tx, working.batch);
 
         const scheduledAt = input.scheduledAt ? new Date(input.scheduledAt) : null;
         assertSchedulable(working, scheduledAt, now);
@@ -151,7 +151,7 @@ export function createItemsService(deps: {
       await db.transaction(async (tx) => {
         const now = new Date();
         const working = await loadWorkingSet(tx, batchId, now, { forUpdate: true });
-        assertNotCompleted(working.batch);
+        await reopenIfCompleted(tx, working.batch);
         const entry = findItem(working, itemId);
         assertUnlocked(working, entry);
 
@@ -194,7 +194,7 @@ export function createItemsService(deps: {
     async delete(ctx: AuthContext, batchId: string, itemId: string): Promise<BatchDetailDto> {
       await db.transaction(async (tx) => {
         const working = await loadWorkingSet(tx, batchId, new Date(), { forUpdate: true });
-        assertNotCompleted(working.batch);
+        await reopenIfCompleted(tx, working.batch);
         assertUnlocked(working, findItem(working, itemId));
         // Other rows keep their schedules (no shifting).
         await createItemsRepository(tx).delete(itemId);
@@ -208,7 +208,7 @@ export function createItemsService(deps: {
     async pause(ctx: AuthContext, batchId: string, itemId: string): Promise<BatchDetailDto> {
       await db.transaction(async (tx) => {
         const working = await loadWorkingSet(tx, batchId, new Date(), { forUpdate: true });
-        assertNotCompleted(working.batch);
+        await reopenIfCompleted(tx, working.batch);
         const entry = findItem(working, itemId);
         assertUnlocked(working, entry);
         if (!entry.item.isPaused)
@@ -229,7 +229,7 @@ export function createItemsService(deps: {
       await db.transaction(async (tx) => {
         const now = new Date();
         const working = await loadWorkingSet(tx, batchId, now, { forUpdate: true });
-        assertNotCompleted(working.batch);
+        await reopenIfCompleted(tx, working.batch);
         const entry = findItem(working, itemId);
         assertUnlocked(working, entry);
         if (!entry.item.isPaused) throw conflict('Baris ini tidak sedang ditunda.');
@@ -278,6 +278,7 @@ export function createItemsService(deps: {
         const blocked = manualUploadBlock(
           {
             batchStatus: working.batch.status,
+            archived: working.batch.archivedAt !== null,
             isPaused: entry.item.isPaused,
             scheduledAt: entry.item.scheduledAt,
             hasVideo: entry.item.videoFileId !== '',

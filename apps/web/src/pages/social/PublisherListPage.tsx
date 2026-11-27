@@ -4,6 +4,7 @@ import {
   createBatchRequestSchema,
   PERMISSIONS,
   type BatchSummaryDto,
+  type IdeaListFilter,
 } from '@ai-preneur/shared';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
@@ -19,6 +20,7 @@ import { formatSchedule } from '../../lib/datetime';
 import { apiFieldErrors, errorMessage, zodFieldErrors, type FieldErrors } from '../../lib/errors';
 import * as socialService from '../../services/social.service';
 import { BatchStatusBadge } from './components/BatchStatusBadge';
+import { IdeaFilterTabs, useIdeaListFilter } from './components/IdeaFilterTabs';
 import { PlatformTag } from './components/PlatformChip';
 
 function CreateBatchModalContent({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -127,7 +129,7 @@ function BatchCard({ batch }: { batch: BatchSummaryDto }) {
             </p>
           )}
         </div>
-        <BatchStatusBadge status={batch.status} />
+        <BatchStatusBadge status={batch.status} archived={batch.archivedAt !== null} />
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-1.5">
@@ -158,20 +160,29 @@ function BatchCard({ batch }: { batch: BatchSummaryDto }) {
 export function PublisherListPage() {
   const { can } = useAuth();
   const canManage = can(PERMISSIONS.SOCIAL_PUBLISHER_MANAGE);
-  const [batches, setBatches] = useState<BatchSummaryDto[] | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [filter, setFilter] = useIdeaListFilter();
+  // Results are kept per filter, so switching shows the spinner until its list arrives.
+  const [loaded, setLoaded] = useState<{
+    filter: IdeaListFilter;
+    batches: BatchSummaryDto[] | null;
+    error: string | null;
+  } | null>(null);
+  const current = loaded?.filter === filter ? loaded : null;
+  const batches = current?.batches ?? null;
+  const loadError = current?.error ?? null;
 
   useEffect(() => {
     const controller = new AbortController();
     socialService
-      .listBatches(controller.signal)
-      .then(setBatches)
+      .listBatches(filter, controller.signal)
+      .then((items) => setLoaded({ filter, batches: items, error: null }))
       .catch((error: unknown) => {
-        if (!controller.signal.aborted) setLoadError(errorMessage(error));
+        if (!controller.signal.aborted)
+          setLoaded({ filter, batches: null, error: errorMessage(error) });
       });
     return () => controller.abort();
-  }, []);
+  }, [filter]);
 
   return (
     <>
@@ -187,12 +198,20 @@ export function PublisherListPage() {
         }
       />
 
+      <IdeaFilterTabs value={filter} onChange={setFilter} />
+
       {loadError ? (
         <Alert>{loadError}</Alert>
       ) : batches === null ? (
         <div className="flex justify-center py-16 text-slate-400">
           <Spinner className="size-7" />
         </div>
+      ) : batches.length === 0 && filter === 'archived' ? (
+        <EmptyState
+          icon="megaphone"
+          title="Belum ada ide yang diarsip"
+          description="Ide berstatus Draft atau Selesai bisa diarsip dari halaman detailnya."
+        />
       ) : batches.length === 0 ? (
         <EmptyState
           icon="megaphone"

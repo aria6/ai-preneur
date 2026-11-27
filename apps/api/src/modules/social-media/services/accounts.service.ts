@@ -24,9 +24,11 @@ import {
 import { batchPlatforms } from '../social.mappers.js';
 import {
   assertDraft,
+  assertNotArchived,
   credentialsKeyError,
   loadBatchDetail,
   loadWorkingSet,
+  reopenIfCompleted,
 } from './batch-context.js';
 
 /**
@@ -76,7 +78,9 @@ export function createAccountsService(deps: {
     action: string,
   ): Promise<InstagramAccount[]> {
     const current = await loadWorkingSet(db, batchId, new Date());
-    assertDraft(current.batch, action);
+    // Selesai may change its account too (it becomes Draft once the account is saved).
+    assertNotArchived(current.batch);
+    if (current.batch.status !== 'completed') assertDraft(current.batch, action);
     if (!batchPlatforms(current.batch).includes('instagram')) {
       throw fieldError(
         'accessToken',
@@ -128,7 +132,7 @@ export function createAccountsService(deps: {
       try {
         await db.transaction(async (tx) => {
           const locked = await loadWorkingSet(tx, batchId, new Date(), { forUpdate: true });
-          assertDraft(locked.batch, 'Menghubungkan akun');
+          assertDraft(await reopenIfCompleted(tx, locked.batch), 'Menghubungkan akun');
           await createAccountsRepository(tx).upsertForBatch({
             batchId,
             platform: 'instagram',
@@ -166,7 +170,7 @@ export function createAccountsService(deps: {
     ): Promise<BatchDetailDto> {
       await db.transaction(async (tx) => {
         const working = await loadWorkingSet(tx, batchId, new Date(), { forUpdate: true });
-        assertDraft(working.batch, 'Memutuskan akun');
+        assertDraft(await reopenIfCompleted(tx, working.batch), 'Memutuskan akun');
         await createAccountsRepository(tx).deleteForBatch(batchId, platform);
       });
       logger.info('Social account disconnected', { actorId: ctx.user.id, batchId, platform });

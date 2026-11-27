@@ -71,7 +71,10 @@ export function PerformanceDetailPage() {
       <div className="mb-3">
         <BackLink />
       </div>
-      <PageHeader title={idea.title} description={`IDEA_ID ${idea.ideaNumber}`} />
+      <PageHeader
+        title={idea.title}
+        description={`IDEA_ID ${idea.ideaNumber}${idea.archivedAt ? ' · Arsip' : ''}`}
+      />
 
       <div
         role="tablist"

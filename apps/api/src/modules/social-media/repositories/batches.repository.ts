@@ -4,6 +4,8 @@ import {
   desc,
   eq,
   inArray,
+  isNotNull,
+  isNull,
   ne,
   smBatches,
   smPublications,
@@ -30,8 +32,15 @@ function toDate(value: unknown): Date | null {
 
 export function createBatchesRepository(db: DatabaseExecutor) {
   return {
-    async list(): Promise<SmBatchRow[]> {
-      return db.select().from(smBatches).orderBy(desc(smBatches.createdAt), desc(smBatches.id));
+    /** Active (not archived) or archived ideas, newest first. */
+    async list(filter: 'active' | 'archived'): Promise<SmBatchRow[]> {
+      return db
+        .select()
+        .from(smBatches)
+        .where(
+          filter === 'archived' ? isNotNull(smBatches.archivedAt) : isNull(smBatches.archivedAt),
+        )
+        .orderBy(desc(smBatches.createdAt), desc(smBatches.id));
     },
 
     async findById(id: string): Promise<SmBatchRow | undefined> {
@@ -143,6 +152,7 @@ export function createBatchesRepository(db: DatabaseExecutor) {
         driveFolderUrl: string;
         platforms: string[];
         status: 'draft' | 'scheduled' | 'completed';
+        archivedAt: Date | null;
         confirmedAt: Date | null;
       }>,
     ): Promise<void> {

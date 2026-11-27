@@ -310,7 +310,8 @@ export function QueueSection({ batch, canManage, now, onChange, onNotice }: Queu
     setItems(batch.items);
   }
 
-  const mutable = canManage && batch.status !== 'completed';
+  // Selesai stays editable (a change makes it Draft again); archived ideas are read-only.
+  const mutable = canManage && batch.archivedAt === null;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
