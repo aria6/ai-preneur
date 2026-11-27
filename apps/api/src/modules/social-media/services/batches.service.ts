@@ -7,6 +7,7 @@ import {
   type BatchDetailDto,
   type BatchSummaryDto,
   type CreateBatchRequest,
+  type IdeaListFilter,
   type ReorderItemsRequest,
   type ScanResponse,
   type ScanWarning,
@@ -40,7 +41,8 @@ import { createItemsRepository } from '../repositories/items.repository.js';
 import { batchPlatforms, toBatchSummary } from '../social.mappers.js';
 import {
   assertDraft,
-  assertNotCompleted,
+  assertNotArchived,
+  reopenIfCompleted,
   driveToAppError,
   hasUploads,
   loadBatchDetail,
@@ -119,8 +121,8 @@ export function createBatchesService(deps: {
   const batches = createBatchesRepository(db);
 
   return {
-    async list(): Promise<BatchSummaryDto[]> {
-      const rows = await batches.list();
+    async list(filter: IdeaListFilter): Promise<BatchSummaryDto[]> {
+      const rows = await batches.list(filter);
       const stats = await batches.stats(rows.map((row) => row.id));
       return rows.map((row) => toBatchSummary(row, stats.get(row.id)));
     },
@@ -154,13 +156,20 @@ export function createBatchesService(deps: {
       try {
         await db.transaction(async (tx) => {
           const { batch } = await loadWorkingSet(tx, id, new Date(), { forUpdate: true });
-          assertNotCompleted(batch);
+          assertNotArchived(batch);
 
+          // Title and description can change in any status; the rest is Draft only
+          // (a Selesai idea becomes Draft again).
           const draftOnly =
             input.driveFolderUrl !== undefined ||
             input.platforms !== undefined ||
             input.ideaNumber !== undefined;
-          if (draftOnly) assertDraft(batch, 'Mengubah link folder, IDEA_ID, atau media sosial');
+          if (draftOnly) {
+            assertDraft(
+              await reopenIfCompleted(tx, batch),
+              'Mengubah link folder, IDEA_ID, atau media sosial',
+            );
+          }
 
           const txBatches = createBatchesRepository(tx);
           if (input.ideaNumber !== undefined && input.ideaNumber !== batch.ideaNumber) {
@@ -210,6 +219,7 @@ export function createBatchesService(deps: {
     async delete(ctx: AuthContext, id: string): Promise<void> {
       await db.transaction(async (tx) => {
         const working = await loadWorkingSet(tx, id, new Date(), { forUpdate: true });
+        assertNotArchived(working.batch);
         assertDraft(working.batch, 'Menghapus batch');
         if (hasUploads(working.items)) {
           throw conflict(
@@ -222,17 +232,15 @@ export function createBatchesService(deps: {
     },
 
     /**
-     * "Generate antrean konten": reads the shared Drive folder and replaces the queue.
-     * Draft only, and never once something was uploaded (that history must stay).
+     * "Generate antrean konten": reads the shared Drive folder. While nothing has been
+     * uploaded it rebuilds the queue; afterwards it only appends the folder's videos that
+     * are not in the queue yet (by Drive file ID), leaving every existing row untouched.
+     * Draft or Selesai (which becomes Draft again).
      */
     async scan(ctx: AuthContext, id: string): Promise<ScanResponse> {
       const current = await loadWorkingSet(db, id, new Date());
-      assertDraft(current.batch, 'Generate antrean');
-      if (hasUploads(current.items)) {
-        throw conflict(
-          'Batch ini sudah punya video yang terunggah, sehingga antrean tidak dapat digenerate ulang.',
-        );
-      }
+      assertNotArchived(current.batch);
+      if (current.batch.status !== 'completed') assertDraft(current.batch, 'Generate antrean');
 
       const warnings: ScanWarning[] = [];
       let result: ReturnType<typeof buildQueueFromFolder>;
@@ -276,12 +284,16 @@ export function createBatchesService(deps: {
         throw fieldError('driveFolderUrl', 'Tidak ada file video di folder ini.');
       }
 
+      let outcome: { mode: 'replace' | 'append'; added: number; alreadyQueued: number } = {
+        mode: 'replace',
+        added: 0,
+        alreadyQueued: 0,
+      };
+      let reportWarnings = result.warnings;
       try {
         await db.transaction(async (tx) => {
           const locked = await loadWorkingSet(tx, id, new Date(), { forUpdate: true });
-          assertDraft(locked.batch, 'Generate antrean');
-          if (hasUploads(locked.items))
-            throw conflict('Batch ini sudah punya video yang terunggah.');
+          assertDraft(await reopenIfCompleted(tx, locked.batch), 'Generate antrean');
 
           // The IDEA_ID read from the file names must not belong to another idea.
           const txBatches = createBatchesRepository(tx);
@@ -292,15 +304,41 @@ export function createBatchesService(deps: {
           }
 
           const items = createItemsRepository(tx);
-          await items.deleteByBatch(id);
-          await items.insertMany(
-            id,
-            result.items.map((item) => ({
-              ...item,
-              scheduledAt: null,
-              isPaused: false,
-            })),
-          );
+          if (!hasUploads(locked.items)) {
+            await items.deleteByBatch(id);
+            await items.insertMany(
+              id,
+              result.items.map((item) => ({ ...item, scheduledAt: null, isPaused: false })),
+            );
+            outcome = { mode: 'replace', added: result.items.length, alreadyQueued: 0 };
+          } else {
+            // Uploads exist: their rows (and every other row) stay as they are.
+            const queued = new Set(locked.items.map(({ item }) => item.videoFileId));
+            const fresh = result.items.filter((item) => !queued.has(item.videoFileId));
+            const firstPosition =
+              Math.max(-1, ...locked.items.map(({ item }) => item.position)) + 1;
+            await items.insertMany(
+              id,
+              fresh.map((item, index) => ({
+                ...item,
+                position: firstPosition + index,
+                scheduledAt: null,
+                isPaused: false,
+              })),
+            );
+            outcome = {
+              mode: 'append',
+              added: fresh.length,
+              alreadyQueued: result.items.length - fresh.length,
+            };
+            // Notes about videos already in the queue are old news.
+            const oldNames = new Set(
+              result.items
+                .filter((item) => queued.has(item.videoFileId))
+                .map((item) => item.videoFileName),
+            );
+            reportWarnings = result.warnings.filter((warning) => !oldNames.has(warning.fileName));
+          }
           await txBatches.update(id, { ideaNumber: result.ideaNumber });
         });
       } catch (error) {
@@ -311,11 +349,11 @@ export function createBatchesService(deps: {
       logger.info('Publisher queue generated from Drive', {
         actorId: ctx.user.id,
         batchId: id,
-        items: result.items.length,
+        ...outcome,
       });
       return {
         batch: await loadBatchDetail(db, id),
-        report: { added: result.items.length, warnings: [...warnings, ...result.warnings] },
+        report: { ...outcome, warnings: [...warnings, ...reportWarnings] },
       };
     },
 
@@ -327,7 +365,7 @@ export function createBatchesService(deps: {
       await db.transaction(async (tx) => {
         const now = new Date();
         const working = await loadWorkingSet(tx, id, now, { forUpdate: true });
-        assertNotCompleted(working.batch);
+        await reopenIfCompleted(tx, working.batch);
 
         const startAt = new Date(input.startAt);
         if (working.batch.status === 'scheduled') {
@@ -370,7 +408,7 @@ export function createBatchesService(deps: {
       await db.transaction(async (tx) => {
         const now = new Date();
         const working = await loadWorkingSet(tx, id, now, { forUpdate: true });
-        assertNotCompleted(working.batch);
+        await reopenIfCompleted(tx, working.batch);
 
         const result = reorderWithSlots(
           working.items.map(({ item, lockReason }) => ({
@@ -405,6 +443,7 @@ export function createBatchesService(deps: {
       await db.transaction(async (tx) => {
         const now = new Date();
         const working = await loadWorkingSet(tx, id, now, { forUpdate: true });
+        assertNotArchived(working.batch);
         assertDraft(working.batch, 'Konfirmasi jadwal');
 
         const accounts = await createAccountsRepository(tx).listByBatch(id);
@@ -448,6 +487,42 @@ export function createBatchesService(deps: {
       });
 
       logger.info('Publisher batch schedule cancelled', { actorId: ctx.user.id, batchId: id });
+      return loadBatchDetail(db, id);
+    },
+
+    /**
+     * Archives an idea: read-only, nothing uploads, listed under "Arsip". Only Draft or
+     * Selesai (a scheduled idea would silently stop uploading) and never mid-upload.
+     */
+    async archive(ctx: AuthContext, id: string): Promise<BatchDetailDto> {
+      await db.transaction(async (tx) => {
+        const working = await loadWorkingSet(tx, id, new Date(), { forUpdate: true });
+        if (working.batch.archivedAt) throw conflict('Ide ini sudah diarsip.');
+        if (working.batch.status === 'scheduled') {
+          throw conflict(
+            'Hanya ide berstatus Draft atau Selesai yang bisa diarsip. Batalkan jadwal terlebih dahulu.',
+          );
+        }
+        const uploading = working.items.some((entry) =>
+          entry.publications.some((p) => p.status === 'queued' || p.status === 'processing'),
+        );
+        if (uploading) {
+          throw conflict('Ada video yang sedang diunggah. Tunggu sampai selesai, lalu coba lagi.');
+        }
+        await createBatchesRepository(tx).update(id, { archivedAt: new Date() });
+      });
+      logger.info('Publisher idea archived', { actorId: ctx.user.id, batchId: id });
+      return loadBatchDetail(db, id);
+    },
+
+    /** Back to the active list, in the status it had (Draft or Selesai). */
+    async unarchive(ctx: AuthContext, id: string): Promise<BatchDetailDto> {
+      await db.transaction(async (tx) => {
+        const working = await loadWorkingSet(tx, id, new Date(), { forUpdate: true });
+        if (!working.batch.archivedAt) throw conflict('Ide ini tidak sedang diarsip.');
+        await createBatchesRepository(tx).update(id, { archivedAt: null });
+      });
+      logger.info('Publisher idea unarchived', { actorId: ctx.user.id, batchId: id });
       return loadBatchDetail(db, id);
     },
   };

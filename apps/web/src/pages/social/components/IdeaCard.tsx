@@ -3,7 +3,7 @@ import {
   BATCH_TITLE_MAX_LENGTH,
   updateBatchRequestSchema,
   type BatchDetailDto,
-  type ScanWarning,
+  type ScanResponse,
   type UpdateBatchRequest,
 } from '@ai-preneur/shared';
 import { useState, type FormEvent } from 'react';
@@ -43,7 +43,7 @@ export function IdeaCard({
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [confirmRescan, setConfirmRescan] = useState(false);
-  const [report, setReport] = useState<{ added: number; warnings: ScanWarning[] } | null>(null);
+  const [report, setReport] = useState<ScanResponse['report'] | null>(null);
 
   // Re-sync the fields when the saved values change (adjust-state-during-render, not an effect).
   const savedKey = [
@@ -61,8 +61,14 @@ export function IdeaCard({
     setFolderUrl(batch.driveFolderUrl);
   }
 
-  const isDraft = batch.status === 'draft';
-  const editable = canManage && batch.status !== 'completed';
+  // Folder, IDEA_ID and "Generate antrean" are Draft-only; a Selesai idea may change them
+  // too (it becomes Draft again). Archived ideas are read-only.
+  const isDraft = batch.status === 'draft' || batch.status === 'completed';
+  const editable = canManage && batch.archivedAt === null;
+  // After an upload, generating only appends the folder's new videos.
+  const hasUploads = batch.items.some((item) =>
+    item.publications.some((publication) => publication.status !== 'failed'),
+  );
   const dirty =
     title !== batch.title ||
     description.trim() !== (batch.description ?? '') ||
@@ -128,7 +134,13 @@ export function IdeaCard({
           {formError && <Alert>{formError}</Alert>}
           {report && (
             <Alert variant={report.warnings.length > 0 ? 'info' : 'success'}>
-              <p className="font-medium">{report.added} video ditambahkan ke antrean.</p>
+              <p className="font-medium">
+                {report.mode === 'append'
+                  ? report.added > 0
+                    ? `${report.added} video baru ditambahkan di akhir antrean; ${report.alreadyQueued} video sudah ada dan tidak diubah.`
+                    : `Tidak ada video baru; ${report.alreadyQueued} video di folder sudah ada di antrean.`
+                  : `${report.added} video ditambahkan ke antrean.`}
+              </p>
               {report.warnings.length > 0 && (
                 <>
                   <p className="mt-1">Perlu diperhatikan:</p>
@@ -193,7 +205,7 @@ export function IdeaCard({
             hint={
               isDraft
                 ? 'Struktur: video di folder utama (mis. 2.1-apa-akuaponik.mp4), thumbnail bernama sama di subfolder thumbnail/, caption .txt bernama sama di subfolder caption/.'
-                : 'Link folder dan IDEA_ID hanya bisa diubah saat Draft.'
+                : 'Link folder dan IDEA_ID hanya bisa diubah saat Draft atau Selesai.'
             }
           />
         </div>
@@ -212,10 +224,18 @@ export function IdeaCard({
               {isDraft && (
                 <Button
                   variant="secondary"
-                  onClick={() => (batch.items.length > 0 ? setConfirmRescan(true) : void scan())}
+                  onClick={() =>
+                    batch.items.length > 0 && !hasUploads ? setConfirmRescan(true) : void scan()
+                  }
+                  title={
+                    dirty
+                      ? 'Simpan perubahan terlebih dahulu'
+                      : hasUploads
+                        ? 'Menambahkan video baru dari folder; antrean yang ada tidak diubah'
+                        : undefined
+                  }
                   loading={scanning}
                   disabled={saving || dirty}
-                  title={dirty ? 'Simpan perubahan terlebih dahulu' : undefined}
                 >
                   <Icon name="refresh" className="size-4" /> Generate antrean konten
                 </Button>

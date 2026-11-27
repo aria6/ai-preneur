@@ -1,6 +1,7 @@
 import { PERMISSIONS, type Permission } from '@ai-preneur/shared';
 
-export type NavIcon = 'dashboard' | 'users' | 'roles' | 'system' | 'megaphone' | 'settings';
+export type NavIcon =
+  'dashboard' | 'users' | 'roles' | 'system' | 'megaphone' | 'chart' | 'settings';
 
 export interface NavLinkItem {
   type: 'link';
@@ -43,6 +44,13 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
         label: 'Publisher AIgent',
         icon: 'megaphone',
         permission: PERMISSIONS.SOCIAL_PUBLISHER_VIEW,
+      },
+      {
+        type: 'link',
+        to: '/social/performance',
+        label: 'Performance AIgent',
+        icon: 'chart',
+        permission: PERMISSIONS.SOCIAL_PERFORMANCE_VIEW,
       },
       {
         type: 'link',

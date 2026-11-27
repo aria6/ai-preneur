@@ -1,4 +1,5 @@
 import {
+  type IdeaListFilter,
   batchListResponseSchema,
   batchResponseSchema,
   instagramAccountsResponseSchema,
@@ -53,9 +54,12 @@ export async function updateSocialSettings(
 
 // ---- Batches ----
 
-export async function listBatches(signal?: AbortSignal): Promise<BatchSummaryDto[]> {
+export async function listBatches(
+  filter: IdeaListFilter,
+  signal?: AbortSignal,
+): Promise<BatchSummaryDto[]> {
   return (
-    await apiClient.get('/social/batches', {
+    await apiClient.get(`/social/batches?filter=${filter}`, {
       schema: batchListResponseSchema,
       signal: signal ?? null,
     })
@@ -98,6 +102,14 @@ export function reorderBatchItems(id: string, itemIds: string[]): Promise<BatchD
 
 export function confirmBatch(id: string): Promise<BatchDetailDto> {
   return batchCall(apiClient.post(`${batchUrl(id)}/confirm`, { schema: batchResponseSchema }));
+}
+
+export function archiveBatch(id: string): Promise<BatchDetailDto> {
+  return batchCall(apiClient.post(`${batchUrl(id)}/archive`, { schema: batchResponseSchema }));
+}
+
+export function unarchiveBatch(id: string): Promise<BatchDetailDto> {
+  return batchCall(apiClient.post(`${batchUrl(id)}/unarchive`, { schema: batchResponseSchema }));
 }
 
 export function cancelBatchSchedule(id: string): Promise<BatchDetailDto> {

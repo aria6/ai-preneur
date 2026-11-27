@@ -19,7 +19,7 @@ import { QueueSection } from './components/QueueSection';
 const REFRESH_MS = 60_000;
 const PROGRESS_REFRESH_MS = 3_000;
 
-type PendingAction = 'confirm' | 'cancel' | 'delete' | null;
+type PendingAction = 'confirm' | 'cancel' | 'delete' | 'archive' | 'unarchive' | null;
 
 export function BatchDetailPage() {
   const { id = '' } = useParams();
@@ -93,16 +93,26 @@ export function BatchDetailPage() {
         navigate('/social/publisher', { replace: true });
         return;
       }
-      const next =
-        action === 'confirm'
-          ? await socialService.confirmBatch(batch.id)
-          : await socialService.cancelBatchSchedule(batch.id);
-      onChange(next);
-      setNotice(
-        action === 'confirm'
-          ? 'Jadwal dikonfirmasi. Video akan diunggah otomatis sesuai jadwal masing-masing.'
-          : 'Jadwal dibatalkan. Batch kembali ke Draft.',
-      );
+      const actions = {
+        confirm: {
+          run: socialService.confirmBatch,
+          notice: 'Jadwal dikonfirmasi. Video akan diunggah otomatis sesuai jadwal masing-masing.',
+        },
+        cancel: {
+          run: socialService.cancelBatchSchedule,
+          notice: 'Jadwal dibatalkan. Batch kembali ke Draft.',
+        },
+        archive: {
+          run: socialService.archiveBatch,
+          notice: 'Ide diarsip. Lihat lagi lewat filter Arsip di daftar ide.',
+        },
+        unarchive: {
+          run: socialService.unarchiveBatch,
+          notice: 'Arsip dibuka. Ide kembali ke daftar Aktif.',
+        },
+      } as const;
+      onChange(await actions[action].run(batch.id));
+      setNotice(actions[action].notice);
     } catch (error) {
       setActionError({ message: errorMessage(error), details: errorDetails(error) });
     } finally {
@@ -133,8 +143,11 @@ export function BatchDetailPage() {
     );
   }
 
-  const isDraft = batch.status === 'draft';
+  const archived = batch.archivedAt !== null;
+  const isDraft = batch.status === 'draft' && !archived;
   const isScheduled = batch.status === 'scheduled';
+  const isCompleted = batch.status === 'completed' && !archived;
+  const hasPublished = batch.publishedCount > 0;
 
   return (
     <>
@@ -145,7 +158,7 @@ export function BatchDetailPage() {
         >
           <Icon name="chevronLeft" className="size-4" /> Publisher AIgent
         </Link>
-        <BatchStatusBadge status={batch.status} />
+        <BatchStatusBadge status={batch.status} archived={archived} />
       </div>
 
       <PageHeader
@@ -155,6 +168,25 @@ export function BatchDetailPage() {
         }`}
         actions={
           <>
+            {canManage && archived && (
+              <Button
+                variant="secondary"
+                onClick={() => void runAction('unarchive')}
+                loading={pending === 'unarchive'}
+                disabled={pending !== null && pending !== 'unarchive'}
+              >
+                Buka arsip
+              </Button>
+            )}
+            {canManage && (isDraft || isCompleted) && (
+              <Button
+                variant="secondary"
+                onClick={() => setDialog('archive')}
+                disabled={pending !== null}
+              >
+                Arsipkan
+              </Button>
+            )}
             {canManage && isDraft && (
               <>
                 <Button
@@ -196,12 +228,29 @@ export function BatchDetailPage() {
             )}
           </Alert>
         )}
+        {archived && (
+          <Alert variant="info">
+            <strong>Arsip</strong> — ide ini hanya bisa dilihat; tidak ada yang diunggah. Klik{' '}
+            <strong>Buka arsip</strong> untuk mengubahnya lagi.
+          </Alert>
+        )}
         {isDraft && (
           <Alert variant="info">
-            <strong>Draft</strong> — belum ada yang diunggah. Lengkapi antrean, pilih media sosial
-            dan hubungkan akunnya, lalu klik <strong>Konfirmasi jadwal</strong>. Konten pertama
-            harus dijadwalkan minimal {batch.settings.minConfirmLeadMinutes} menit dari saat
-            konfirmasi.
+            <strong>Draft</strong> —{' '}
+            {hasPublished
+              ? 'video yang sudah terunggah tetap tercatat dan tidak diunggah ulang.'
+              : 'belum ada yang diunggah.'}{' '}
+            Lengkapi antrean, pilih media sosial dan hubungkan akunnya, lalu klik{' '}
+            <strong>Konfirmasi jadwal</strong>. Konten pertama harus dijadwalkan minimal{' '}
+            {batch.settings.minConfirmLeadMinutes} menit dari saat konfirmasi.
+          </Alert>
+        )}
+        {isCompleted && (
+          <Alert variant="info">
+            <strong>Selesai</strong> — semua video sudah terunggah. Ide ini masih bisa ditambah
+            video (Generate antrean konten atau tambah baris) dan akunnya masih bisa diganti; setiap
+            perubahan mengembalikan ide ke <strong>Draft</strong> dan perlu{' '}
+            <strong>Konfirmasi jadwal</strong> lagi. Video yang sudah terunggah tidak berubah.
           </Alert>
         )}
         {isScheduled && (
@@ -238,6 +287,20 @@ export function BatchDetailPage() {
         confirmLabel="Batalkan jadwal"
         loading={pending === 'cancel'}
         onConfirm={() => void runAction('cancel')}
+        onClose={() => setDialog(null)}
+      />
+      <ConfirmDialog
+        open={dialog === 'archive'}
+        title="Arsipkan ide?"
+        message={
+          <>
+            <strong>{batch.title}</strong> pindah ke filter Arsip dan tidak bisa diubah atau
+            diunggah sampai arsipnya dibuka. Data dan akun yang terhubung tetap tersimpan.
+          </>
+        }
+        confirmLabel="Arsipkan"
+        loading={pending === 'archive'}
+        onConfirm={() => void runAction('archive')}
         onClose={() => setDialog(null)}
       />
       <ConfirmDialog

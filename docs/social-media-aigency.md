@@ -3,12 +3,14 @@
 ```text
 Social Media AIgency
 ├── Publisher AIgent      Tahap 1 + 2 done — queue, schedule, accounts, real uploads to Instagram
+├── Performance AIgent    lite — live account & post insights per idea (Instagram; others "Segera hadir")
 ├── Intelligence AIgency  later — comments, DMs, engagement, performance patterns
 └── Pengaturan            lock window, confirmation lead time
 ```
 
 Backend module: `apps/api/src/modules/social-media` · tables: `packages/database/src/schema/social-media.schema.ts`
-· contracts: `packages/shared/src/schemas/social.ts` · UI: `apps/web/src/pages/social`.
+· contracts: `packages/shared/src/schemas/social.ts`, `social-performance.ts` · UI: `apps/web/src/pages/social`
+(Performance AIgent: `pages/social/performance`).
 
 ## Publisher AIgent — how it works
 
@@ -55,7 +57,11 @@ Backend module: `apps/api/src/modules/social-media` · tables: `packages/databas
    - Every oddity (non-video file, missing/unused thumbnail or caption, non-.txt or unreadable
      caption, caption cut, more than 30 hashtags, IDEA_ID mismatch, duplicate topic/part) is reported
      back — nothing is skipped silently.
-   - Regenerating replaces the queue (draft only, and never once something was uploaded).
+   - While **nothing has been uploaded**, regenerating replaces the queue. **Once something was
+     uploaded**, it only **appends the folder's videos that are not in the queue yet** (by Drive
+     file ID) at the end, without a schedule; every existing row stays as it is. The report says how
+     many were added and how many were already queued (notes about those are left out). A video
+     deleted from the queue earlier comes back if its file is still in the folder.
 
 3. Each row: thumbnail, playable video (Drive player), caption, hashtags (max 30), schedule, and
    upload status per selected platform. Rows can be edited, deleted, added manually (Drive file
@@ -67,6 +73,18 @@ Backend module: `apps/api/src/modules/social-media` · tables: `packages/databas
    serve two ideas** (unique index on platform + account ID).
 6. **Konfirmasi jadwal** (Draft → Terjadwal) only schedules; each row uploads at its own time.
 7. **Batalkan jadwal** returns the batch to Draft; uploaded rows stay recorded.
+8. **Selesai** only means "every video has been uploaded" — not final. The idea can still get new
+   videos (Generate antrean konten / Tambah baris), edits on rows not uploaded yet, a new
+   folder/IDEA_ID/platform/account. Such a change turns it back into **Draft**
+   (`reopenIfCompleted`), and it needs **Konfirmasi jadwal** again; uploaded rows keep their history
+   and stay read-only, and confirmation ignores them. Renaming the idea (title/description) keeps
+   the status.
+9. **Arsip**: an idea in **Draft or Selesai** (not Terjadwal, not while an upload is queued/running)
+   can be archived (`archived_at`, migration 0005). Archived ideas are read-only and never upload
+   (also no "Unggah sekarang"); they keep their IDEA_ID and accounts (an archived idea's account
+   can't serve another idea until the archive is opened and the account disconnected). **Buka arsip**
+   returns it to the status it had. The idea lists of Publisher and Performance AIgent have a filter
+   **Aktif / Arsip** (default Aktif, `?filter=arsip` in the URL).
 
 ### Rules (enforced by the API, mirrored by the UI)
 
@@ -77,10 +95,51 @@ Backend module: `apps/api/src/modules/social-media` · tables: `packages/databas
 | Reorder                                 | Time slots stay at their positions: the row dropped at position _n_ takes position _n_'s time. Locked rows can't move or be shifted. In a scheduled batch an active row can't receive an empty or too-close slot.                              |
 | Delete / pause                          | Other rows keep their schedules (no shifting). Resuming in a scheduled batch requires a new schedule outside the lock window.                                                                                                                  |
 | Edits while scheduled                   | New or changed schedules must be at least `lockMinutes` from now.                                                                                                                                                                              |
-| Platform/account/folder/IDEA_ID changes | Draft only. Deselecting a platform disconnects its account.                                                                                                                                                                                    |
+| Platform/account/folder/IDEA_ID changes | Draft or Selesai (→ Draft). Deselecting a platform disconnects its account.                                                                                                                                                                    |
+| Archived                                | Everything refused except **Buka arsip**; title edits too.                                                                                                                                                                                     |
 
 Both numbers live in **Social Media AIgency → Pengaturan** (`sm_settings`, single row;
 `minConfirmLeadMinutes ≥ lockMinutes`).
+
+## Performance AIgent (lite)
+
+Shows how each idea's connected accounts perform, read **live from the platform — nothing is
+stored** (no tables, no worker). The accounts are the ones connected per idea in Publisher AIgent.
+
+- **List** (`/social/performance`): one card per idea with its account per platform (connected /
+  needs reconnecting / not connected / "Segera hadir") and, for Instagram, followers plus 7-day
+  views and interactions.
+- **Detail** (`/social/performance/:id`): tabs Instagram · TikTok · Facebook Reels · YouTube
+  Shorts. Only Instagram works; the other tabs say "Segera hadir".
+- **Instagram tab**: range 7 / 14 / 30 days (Instagram accepts at most 30 days per account
+  request), "Perbarui", and the time the data was fetched.
+  - Profile: username, name, followers, following, posts.
+  - Totals over the range: views, reach, accounts engaged, total interactions, likes, comments,
+    shares, saves, profile link taps, new follows and unfollows (`follows_and_unfollows` by
+    `follow_type`).
+  - Daily charts: reach (`metric_type=time_series`) and new followers (`follower_count`).
+  - **Every post** of the account (not only Publisher uploads), 20 per page with "Muat lebih
+    banyak": views, reach, likes, comments, shares, saves, average watch time and 3-second skip
+    rate (Reels), plus a "views per post" chart. Posts uploaded by Publisher AIgent are matched
+    through `sm_publications.external_media_id` and show their topic/part and title.
+- "—" means Instagram returned nothing for that metric. Several account metrics (e.g. new
+  followers) are missing for accounts with fewer than 100 followers; account data only goes back
+  ~90 days. A metric Instagram refuses never hides the others: metrics are asked for together and,
+  if Instagram rejects the combination, one by one. Newer post metrics (`reels_skip_rate`,
+  `reposts`) are asked for separately. A post without insights (e.g. posted before the account
+  became professional) keeps its likes/comments and shows "Insight tidak tersedia".
+- Answers are cached **5 minutes in memory** per account (and per token, so reconnecting starts
+  fresh); "Perbarui" bypasses the cache. Failures are not cached.
+
+**Token permission.** Reading insights needs `instagram_manage_insights` (Unified login, `EAA…`)
+or `instagram_business_manage_insights` (Instagram Login, `IG…`). Without it the page says so:
+create a new token with that permission and reconnect the account in Publisher AIgent (Terjadwal:
+Batalkan jadwal → hubungkan ulang → Konfirmasi; Selesai: hubungkan ulang directly → Draft →
+Konfirmasi). Accounts in `error` are not queried. Archived ideas are listed under the **Arsip**
+filter and their performance can still be read.
+
+Code: `integrations/instagram-insights.client.ts` (Graph calls),
+`services/performance.service.ts` (accounts, cache, errors), routes in `routes/social.routes.ts`.
 
 ## Setup
 
@@ -123,7 +182,8 @@ apps use **Unified login**:
    Instagram"** and connect it to that portfolio.
 3. Use cases → Customize → **API setup with Unified login** → **Create configuration**: system-user
    access token, never expires, asset = Instagram account, permissions `instagram_basic` and
-   `instagram_content_publish` (add `instagram_manage_comments` / `instagram_manage_messages` for
+   `instagram_content_publish`, plus `instagram_manage_insights` for Performance AIgent (add
+   `instagram_manage_comments` / `instagram_manage_messages` for
    the Intelligence AIgency later). The redirect URL is only needed for a future OAuth button.
 4. App roles → Roles → add the account as **Instagram Tester**; accept the invite at
    instagram.com/accounts/manage_access (Tester invites).
@@ -140,13 +200,14 @@ When the app has a public HTTPS domain, this can be replaced by a "Login dengan 
 ### Database
 
 ```bash
-pnpm db:generate   # only after a schema change; the sm_* migrations (0001–0004) are committed
+pnpm db:generate   # only after a schema change; the sm_* migrations (0001–0005) are committed
 pnpm db:migrate
 pnpm db:seed       # syncs the new social.* permissions
 ```
 
 Then grant the permissions to roles in **Role & Akses**:
-`social.publisher.view`, `social.publisher.manage`, `social.settings.manage`.
+`social.publisher.view`, `social.publisher.manage`, `social.settings.manage`,
+`social.performance.view` (Performance AIgent). Super Admin has every permission automatically.
 
 ## API
 
@@ -155,17 +216,21 @@ All under `/api/social`; responses use the standard envelope. Mutations return t
 | Method & path                                                                    | Permission                                          |
 | -------------------------------------------------------------------------------- | --------------------------------------------------- |
 | `GET /settings` · `PUT /settings`                                                | publisher.view or settings.manage · settings.manage |
-| `GET /batches` · `POST /batches`                                                 | publisher.view · publisher.manage                   |
+| `GET /batches?filter=active\|archived` · `POST /batches`                         | publisher.view · publisher.manage                   |
 | `GET /batches/:id` · `PATCH /batches/:id` · `DELETE /batches/:id`                | view · manage · manage                              |
 | `POST /batches/:id/scan`                                                         | manage — Generate antrean konten                    |
 | `POST /batches/:id/auto-schedule`                                                | manage — Jadwalkan semua                            |
 | `PUT /batches/:id/order`                                                         | manage — drag & drop (`{ itemIds }`)                |
 | `POST /batches/:id/confirm` · `POST /batches/:id/cancel`                         | manage                                              |
+| `POST /batches/:id/archive` · `POST /batches/:id/unarchive`                      | manage — Arsipkan (Draft/Selesai) · Buka arsip      |
 | `POST /batches/:id/items` · `PATCH`/`DELETE /batches/:id/items/:itemId`          | manage                                              |
 | `POST /batches/:id/items/:itemId/pause` · `/resume`                              | manage                                              |
 | `POST /batches/:id/items/:itemId/publish-now`                                    | manage — Unggah sekarang (`{ platform }`)           |
 | `POST /batches/:id/accounts/instagram/lookup`                                    | manage — Tes token (`{ accessToken }` → accounts)   |
 | `PUT /batches/:id/accounts/instagram` · `DELETE /batches/:id/accounts/:platform` | manage (`{ accessToken, instagramAccountId? }`)     |
+| `GET /performance/ideas?filter=active\|archived` · `GET /performance/ideas/:id`  | performance.view                                    |
+| `GET /performance/ideas/:id/instagram/overview?days=7\|14\|30&refresh=true`      | performance.view — profile, totals, daily charts    |
+| `GET /performance/ideas/:id/instagram/media?after=<cursor>&refresh=true`         | performance.view — posts with metrics (20/page)     |
 
 ## Upload engine (worker)
 
@@ -256,4 +321,6 @@ Drive (%) → Mengunggah video → Diproses platform → Mempublikasikan.
 - Generate caption & hashtag with AI (button present, disabled — `// TODO` in `QueueSection.tsx`).
 - TikTok, Facebook Reels, YouTube Shorts publishers and account connection.
 - "Login dengan Instagram" (OAuth) once the app has an HTTPS domain.
+- Performance AIgent: TikTok / Facebook / YouTube tabs once those accounts can be connected;
+  stored snapshots (history beyond Instagram's ~90 days) to be re-evaluated later.
 - Intelligence AIgency.

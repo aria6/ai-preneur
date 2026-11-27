@@ -237,8 +237,9 @@ export function PlatformsCard({
   const [saving, setSaving] = useState<SocialPlatform | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<SocialPlatform | null>(null);
 
-  const isDraft = batch.status === 'draft';
-  const editable = canManage && isDraft;
+  // Selesai may change too: saving makes it Draft again.
+  const changeable = batch.status === 'draft' || batch.status === 'completed';
+  const editable = canManage && changeable && batch.archivedAt === null;
 
   const setPlatform = async (platform: SocialPlatform, checked: boolean) => {
     const platforms = checked
@@ -272,8 +273,10 @@ export function PlatformsCard({
       </div>
       <div className="space-y-3 px-5 py-4">
         {error && <Alert>{error}</Alert>}
-        {!isDraft && canManage && (
-          <Alert variant="info">Media sosial dan akun hanya bisa diubah saat Draft.</Alert>
+        {!changeable && canManage && batch.archivedAt === null && (
+          <Alert variant="info">
+            Media sosial dan akun hanya bisa diubah saat Draft atau Selesai.
+          </Alert>
         )}
         <ul className="space-y-3">
           {SOCIAL_PLATFORMS.map((platform) => {

@@ -258,6 +258,8 @@ export const batchSummarySchema = z.object({
   publishedCount: z.number().int(),
   nextScheduledAt: z.string().nullable(),
   confirmedAt: z.string().nullable(),
+  /** Set while the idea is archived (read-only, nothing uploads). */
+  archivedAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -273,6 +275,13 @@ export const batchDetailSchema = batchSummarySchema.extend({
 export type BatchDetailDto = z.infer<typeof batchDetailSchema>;
 
 export const batchListResponseSchema = z.object({ items: z.array(batchSummarySchema) });
+
+/** Filter "Aktif" / "Arsip" of the idea lists (Publisher and Performance AIgent). */
+export const IDEA_LIST_FILTERS = ['active', 'archived'] as const;
+export type IdeaListFilter = (typeof IDEA_LIST_FILTERS)[number];
+export const ideaListQuerySchema = z.object({
+  filter: z.enum(IDEA_LIST_FILTERS, { error: 'Filter tidak dikenal' }).default('active'),
+});
 export type BatchListResponse = z.infer<typeof batchListResponseSchema>;
 
 export const batchResponseSchema = z.object({ batch: batchDetailSchema });
@@ -284,7 +293,14 @@ export type ScanWarning = z.infer<typeof scanWarningSchema>;
 export const scanResponseSchema = z.object({
   batch: batchDetailSchema,
   report: z.object({
+    /**
+     * replace = the queue was rebuilt (nothing uploaded yet); append = only videos not yet
+     * in the queue were added, existing rows untouched.
+     */
+    mode: z.enum(['replace', 'append']),
     added: z.number().int(),
+    /** append: videos of the folder already in the queue (left as they are). */
+    alreadyQueued: z.number().int(),
     warnings: z.array(scanWarningSchema),
   }),
 });

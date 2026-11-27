@@ -45,6 +45,7 @@ export function toBatchSummary(batch: SmBatchRow, stats: BatchStats | undefined)
     publishedCount: stats?.publishedCount ?? 0,
     nextScheduledAt: iso(stats?.nextScheduledAt ?? null),
     confirmedAt: iso(batch.confirmedAt),
+    archivedAt: iso(batch.archivedAt),
     createdAt: batch.createdAt.toISOString(),
     updatedAt: batch.updatedAt.toISOString(),
   };

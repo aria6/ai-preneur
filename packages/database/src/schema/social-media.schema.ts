@@ -78,6 +78,8 @@ export const smBatches = pgTable(
       .default(sql`'{}'::text[]`),
     status: smBatchStatus().notNull().default('draft'),
     confirmedAt: timestamp({ withTimezone: true }),
+    /** Set while the idea is archived: read-only, nothing uploads. Only Draft/Selesai. */
+    archivedAt: timestamp({ withTimezone: true }),
     createdById: uuid(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

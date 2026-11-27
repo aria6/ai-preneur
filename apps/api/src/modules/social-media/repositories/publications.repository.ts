@@ -29,8 +29,43 @@ const freshAttempt = {
   publishRequestedAt: null,
 };
 
+export interface PublishedItemRef {
+  externalMediaId: string;
+  topicNumber: number;
+  partNumber: number | null;
+  title: string;
+}
+
 export function createPublicationsRepository(db: DatabaseExecutor) {
   return {
+    /** Queue rows of an idea published as these platform media IDs (Performance AIgent). */
+    async findPublishedByMediaIds(
+      batchId: string,
+      platform: Platform,
+      mediaIds: readonly string[],
+    ): Promise<PublishedItemRef[]> {
+      if (mediaIds.length === 0) return [];
+      const rows = await db
+        .select({
+          externalMediaId: smPublications.externalMediaId,
+          topicNumber: smQueueItems.topicNumber,
+          partNumber: smQueueItems.partNumber,
+          title: smQueueItems.title,
+        })
+        .from(smPublications)
+        .innerJoin(smQueueItems, eq(smPublications.itemId, smQueueItems.id))
+        .where(
+          and(
+            eq(smQueueItems.batchId, batchId),
+            eq(smPublications.platform, platform),
+            inArray(smPublications.externalMediaId, [...mediaIds]),
+          ),
+        );
+      return rows.flatMap((row) =>
+        row.externalMediaId ? [{ ...row, externalMediaId: row.externalMediaId }] : [],
+      );
+    },
+
     async listByItems(itemIds: string[]): Promise<SmPublicationRow[]> {
       if (itemIds.length === 0) return [];
       return db.select().from(smPublications).where(inArray(smPublications.itemId, itemIds));

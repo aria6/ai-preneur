@@ -51,8 +51,27 @@ export function lockMessage(reason: ItemLockReason, lockMinutes: number): string
   }
 }
 
-export function assertNotCompleted(batch: SmBatchRow): void {
-  if (batch.status === 'completed') throw conflict('Batch sudah selesai dan tidak dapat diubah.');
+export function assertNotArchived(batch: SmBatchRow): void {
+  if (batch.archivedAt) {
+    throw conflict('Ide ini diarsip, sehingga tidak dapat diubah. Buka arsip terlebih dahulu.');
+  }
+}
+
+/**
+ * Selesai only means "everything has been uploaded": the idea can still change. A change
+ * to its queue, folder or accounts turns it back into Draft (to upload, confirm again);
+ * rows already uploaded keep their history and stay read-only. Call inside the
+ * transaction of the change, so a refused change leaves the status untouched.
+ * Archived ideas are read-only.
+ */
+export async function reopenIfCompleted(
+  db: DatabaseExecutor,
+  batch: SmBatchRow,
+): Promise<SmBatchRow> {
+  assertNotArchived(batch);
+  if (batch.status !== 'completed') return batch;
+  await createBatchesRepository(db).update(batch.id, { status: 'draft', confirmedAt: null });
+  return { ...batch, status: 'draft', confirmedAt: null };
 }
 
 export function assertDraft(batch: SmBatchRow, action: string): void {
@@ -136,6 +155,7 @@ export async function loadBatchDetail(
             blockedReason: manualUploadBlock(
               {
                 batchStatus: working.batch.status,
+                archived: working.batch.archivedAt !== null,
                 isPaused: entry.item.isPaused,
                 scheduledAt: entry.item.scheduledAt,
                 hasVideo: entry.item.videoFileId !== '',

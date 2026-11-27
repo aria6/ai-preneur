@@ -44,6 +44,8 @@ export function computeItemLock(
 
 export interface ManualUploadInput {
   batchStatus: BatchStatus;
+  /** Archived ideas never upload. */
+  archived: boolean;
   isPaused: boolean;
   scheduledAt: Date | null;
   hasVideo: boolean;
@@ -64,6 +66,7 @@ export function manualUploadBlock(
   lockMinutes: number,
   now: Date,
 ): string | null {
+  if (input.archived) return 'Ide ini diarsip. Buka arsip dulu untuk mengunggah.';
   if (input.batchStatus === 'draft') return 'Konfirmasi jadwal dulu untuk mengunggah manual.';
   if (input.publicationStatus === 'published') return 'Sudah terunggah.';
   if (input.publicationStatus === 'queued' || input.publicationStatus === 'processing') {

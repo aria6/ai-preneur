@@ -17,6 +17,7 @@ export const PERMISSIONS = {
   SOCIAL_PUBLISHER_VIEW: 'social.publisher.view',
   SOCIAL_PUBLISHER_MANAGE: 'social.publisher.manage',
   SOCIAL_SETTINGS_MANAGE: 'social.settings.manage',
+  SOCIAL_PERFORMANCE_VIEW: 'social.performance.view',
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -90,6 +91,13 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     category: 'Social Media AIgency',
     label: 'Kelola pengaturan Social Media AIgency',
     description: 'Mengubah batas waktu kunci edit dan jeda minimal konfirmasi jadwal.',
+  },
+  {
+    key: PERMISSIONS.SOCIAL_PERFORMANCE_VIEW,
+    category: 'Social Media AIgency',
+    label: 'Lihat Performance AIgent',
+    description:
+      'Melihat data performa akun dan postingan media sosial yang terhubung ke tiap ide.',
   },
 ];
 
