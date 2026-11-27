@@ -5,7 +5,7 @@ import { cn } from '../../../lib/cn';
 
 const LABELS: Record<IdeaListFilter, string> = { active: 'Aktif', archived: 'Arsip' };
 
-/** Aktif / Arsip filter of the idea lists, kept in the URL (`?filter=arsip`). Default Aktif. */
+/** Aktif / Arsip filter of the idea lists (right-aligned on its own row), kept in the URL (`?filter=arsip`). Default Aktif. */
 export function useIdeaListFilter(): [IdeaListFilter, (next: IdeaListFilter) => void] {
   const [searchParams, setSearchParams] = useSearchParams();
   const filter: IdeaListFilter = searchParams.get('filter') === 'arsip' ? 'archived' : 'active';
@@ -23,7 +23,7 @@ export function IdeaFilterTabs({
 }) {
   return (
     <div
-      className="mb-5 inline-flex rounded-lg border border-slate-300 bg-white p-0.5"
+      className="mb-5 ml-auto flex w-fit rounded-lg border border-slate-300 bg-white p-0.5"
       role="group"
       aria-label="Filter ide"
     >
