@@ -24,6 +24,16 @@ import {
   type PerformanceIdeaListResponse,
   type PerformanceIdeaResponse,
   type ScanResponse,
+  commentListQuerySchema,
+  conversationListQuerySchema,
+  type AnalysisIdeaListResponse,
+  type AnalysisIdeaResponse,
+  type CollectedCommentPageDto,
+  type CollectedPostListResponse,
+  type CollectionRunListResponse,
+  type CollectionStatusResponse,
+  type DmConversationDetailResponse,
+  type DmConversationPageDto,
 } from '@ai-preneur/shared';
 import express, { type Router } from 'express';
 import { z } from 'zod';
@@ -33,6 +43,7 @@ import { parseInput } from '../../../core/validation.js';
 import { requireAnyPermission, requireAuthContext, requirePermission } from '../../iam/index.js';
 import type { AccountsService } from '../services/accounts.service.js';
 import type { BatchesService } from '../services/batches.service.js';
+import type { CollectionService } from '../services/collection.service.js';
 import type { ItemsService } from '../services/items.service.js';
 import type { PerformanceService } from '../services/performance.service.js';
 import type { SettingsService } from '../services/settings.service.js';
@@ -40,10 +51,13 @@ import type { SettingsService } from '../services/settings.service.js';
 const batchParams = z.object({ id: uuidSchema });
 const itemParams = z.object({ id: uuidSchema, itemId: uuidSchema });
 const accountParams = z.object({ id: uuidSchema, platform: socialPlatformSchema });
+const conversationParams = z.object({ id: uuidSchema, conversationId: uuidSchema });
 
 const canView = requirePermission(PERMISSIONS.SOCIAL_PUBLISHER_VIEW);
 const canManage = requirePermission(PERMISSIONS.SOCIAL_PUBLISHER_MANAGE);
 const canViewPerformance = requirePermission(PERMISSIONS.SOCIAL_PERFORMANCE_VIEW);
+const canViewAnalysis = requirePermission(PERMISSIONS.SOCIAL_ANALYSIS_VIEW);
+const canCollect = requirePermission(PERMISSIONS.SOCIAL_ANALYSIS_COLLECT);
 
 /**
  * Social Media AIgency — mounted at /api/social.
@@ -76,6 +90,17 @@ const canViewPerformance = requirePermission(PERMISSIONS.SOCIAL_PERFORMANCE_VIEW
  * GET    /performance/ideas/:id                      performance.view
  * GET    /performance/ideas/:id/instagram/overview   performance.view  (?days=7|14|30&refresh)
  * GET    /performance/ideas/:id/instagram/media      performance.view  (?after=cursor&refresh)
+ *
+ * Analysis Engine — Data Collection AIgent (comments and DMs stored in the database):
+ * GET    /analysis/ideas?filter=active|archived                         analysis.view
+ * GET    /analysis/ideas/:id                                            analysis.view
+ * GET    /analysis/ideas/:id/instagram/status                           analysis.view   (polled while running)
+ * POST   /analysis/ideas/:id/instagram/collect                          analysis.collect (Ambil data / Perbarui data)
+ * GET    /analysis/ideas/:id/instagram/runs                             analysis.view   (Riwayat)
+ * GET    /analysis/ideas/:id/instagram/posts                            analysis.view
+ * GET    /analysis/ideas/:id/instagram/comments                         analysis.view   (?page&q&postId&author)
+ * GET    /analysis/ideas/:id/instagram/conversations                    analysis.view   (?page&q)
+ * GET    /analysis/ideas/:id/instagram/conversations/:conversationId    analysis.view
  */
 export function createSocialRouter(deps: {
   batches: BatchesService;
@@ -83,8 +108,9 @@ export function createSocialRouter(deps: {
   accounts: AccountsService;
   settings: SettingsService;
   performance: PerformanceService;
+  collection: CollectionService;
 }): Router {
-  const { batches, items, accounts, settings, performance } = deps;
+  const { batches, items, accounts, settings, performance, collection } = deps;
   const router = express.Router();
 
   // ---- Settings ----
@@ -286,6 +312,65 @@ export function createSocialRouter(deps: {
       await performance.instagramMedia(id, query.after, query.refresh),
     );
   });
+
+  // ---- Analysis Engine: Data Collection AIgent ----
+  router.get('/analysis/ideas', canViewAnalysis, async (req, res) => {
+    const { filter } = parseInput(ideaListQuerySchema, req.query);
+    sendSuccess<AnalysisIdeaListResponse>(res, { items: await collection.listIdeas(filter) });
+  });
+
+  router.get('/analysis/ideas/:id', canViewAnalysis, async (req, res) => {
+    const { id } = parseInput(batchParams, req.params);
+    sendSuccess<AnalysisIdeaResponse>(res, { idea: await collection.getIdea(id) });
+  });
+
+  router.get('/analysis/ideas/:id/instagram/status', canViewAnalysis, async (req, res) => {
+    const { id } = parseInput(batchParams, req.params);
+    sendSuccess<CollectionStatusResponse>(res, { status: await collection.status(id) });
+  });
+
+  router.post('/analysis/ideas/:id/instagram/collect', canCollect, async (req, res) => {
+    const { id } = parseInput(batchParams, req.params);
+    sendSuccess<CollectionStatusResponse>(
+      res,
+      { status: await collection.start(requireAuthContext(req), id) },
+      202,
+    );
+  });
+
+  router.get('/analysis/ideas/:id/instagram/runs', canViewAnalysis, async (req, res) => {
+    const { id } = parseInput(batchParams, req.params);
+    sendSuccess<CollectionRunListResponse>(res, { items: await collection.runs(id) });
+  });
+
+  router.get('/analysis/ideas/:id/instagram/posts', canViewAnalysis, async (req, res) => {
+    const { id } = parseInput(batchParams, req.params);
+    sendSuccess<CollectedPostListResponse>(res, { items: await collection.posts(id) });
+  });
+
+  router.get('/analysis/ideas/:id/instagram/comments', canViewAnalysis, async (req, res) => {
+    const { id } = parseInput(batchParams, req.params);
+    const query = parseInput(commentListQuerySchema, req.query);
+    sendSuccess<CollectedCommentPageDto>(res, await collection.comments(id, query));
+  });
+
+  router.get('/analysis/ideas/:id/instagram/conversations', canViewAnalysis, async (req, res) => {
+    const { id } = parseInput(batchParams, req.params);
+    const query = parseInput(conversationListQuerySchema, req.query);
+    sendSuccess<DmConversationPageDto>(res, await collection.conversations(id, query));
+  });
+
+  router.get(
+    '/analysis/ideas/:id/instagram/conversations/:conversationId',
+    canViewAnalysis,
+    async (req, res) => {
+      const { id, conversationId } = parseInput(conversationParams, req.params);
+      sendSuccess<DmConversationDetailResponse>(
+        res,
+        await collection.conversation(id, conversationId),
+      );
+    },
+  );
 
   return router;
 }

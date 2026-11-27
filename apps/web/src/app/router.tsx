@@ -13,6 +13,8 @@ import { LoginPage } from '../pages/LoginPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { ProfilePage } from '../pages/ProfilePage';
 import { RolesPage } from '../pages/roles/RolesPage';
+import { AnalysisDetailPage } from '../pages/social/analysis/AnalysisDetailPage';
+import { AnalysisListPage } from '../pages/social/analysis/AnalysisListPage';
 import { BatchDetailPage } from '../pages/social/BatchDetailPage';
 import { PerformanceDetailPage } from '../pages/social/performance/PerformanceDetailPage';
 import { PerformanceListPage } from '../pages/social/performance/PerformanceListPage';
@@ -76,6 +78,22 @@ export const router = createBrowserRouter([
         element: (
           <RequirePermission permission={PERMISSIONS.SOCIAL_PERFORMANCE_VIEW}>
             <PerformanceDetailPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: 'social/analysis',
+        element: (
+          <RequirePermission permission={PERMISSIONS.SOCIAL_ANALYSIS_VIEW}>
+            <AnalysisListPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: 'social/analysis/:id',
+        element: (
+          <RequirePermission permission={PERMISSIONS.SOCIAL_ANALYSIS_VIEW}>
+            <AnalysisDetailPage />
           </RequirePermission>
         ),
       },

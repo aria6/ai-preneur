@@ -43,6 +43,13 @@
       "when": 1795744294705,
       "tag": "0005_illegal_mystique",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795751806705,
+      "tag": "0006_dazzling_thaddeus_ross",
+      "breakpoints": true
     }
   ]
 }
