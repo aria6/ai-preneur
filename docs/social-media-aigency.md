@@ -4,13 +4,16 @@
 Social Media AIgency
 ├── Publisher AIgent      Tahap 1 + 2 done — queue, schedule, accounts, real uploads to Instagram
 ├── Performance AIgent    lite — live account & post insights per idea (Instagram; others "Segera hadir")
-├── Intelligence AIgency  later — comments, DMs, engagement, performance patterns
+├── Analysis Engine                     (sub-menu with two pages)
+│   ├── Data Collection AIgent           comments + DMs per idea collected incrementally (Instagram)
+│   └── Audience Insight Analysis AIgent "Segera hadir" — AI analysis of the collected data
 └── Pengaturan            lock window, confirmation lead time
 ```
 
 Backend module: `apps/api/src/modules/social-media` · tables: `packages/database/src/schema/social-media.schema.ts`
-· contracts: `packages/shared/src/schemas/social.ts`, `social-performance.ts` · UI: `apps/web/src/pages/social`
-(Performance AIgent: `pages/social/performance`).
+· contracts: `packages/shared/src/schemas/social.ts`, `social-performance.ts`, `social-analysis.ts`
+· UI: `apps/web/src/pages/social` (Performance AIgent: `pages/social/performance`, Analysis Engine:
+`pages/social/analysis`).
 
 ## Publisher AIgent — how it works
 
@@ -141,6 +144,75 @@ filter and their performance can still be read.
 Code: `integrations/instagram-insights.client.ts` (Graph calls),
 `services/performance.service.ts` (accounts, cache, errors), routes in `routes/social.routes.ts`.
 
+## Analysis Engine — Data Collection AIgent
+
+Collects the **comments** (text, author, the post it was written on, time, likes, replies) and
+**DMs** (conversation partner, text, direction, attachment kinds, time) of each idea's connected
+Instagram account **into the database**, so the coming Audience Insight Analysis AIgent can work on
+them. Sidebar: Social Media AIgency → **Analysis Engine** (a sub-group) → two menus:
+**Data Collection AIgent** (`/social/analysis/collection`, ideas with Aktif/Arsip filter; detail
+`/social/analysis/collection/:id`) and **Audience Insight Analysis AIgent**
+(`/social/analysis/insight`, "Segera hadir"). `/social/analysis` redirects to the first. Both use
+`social.analysis.view` for now. The sidebar supports nested groups (`NavGroupItem.children` may
+hold groups; labels of nested items wrap instead of being cut).
+
+**Buttons.** The first press is **Ambil data (90 hari terakhir)**; once that finished, the button is
+**Perbarui data**. Both start a background collection inside the API process (`202`); the page polls
+`…/status` every 3 s and shows the step (postingan → komentar → DM) and what was added so far. One
+collection per account at a time (partial unique index `sm_collection_runs_one_running`). Archived
+ideas can still be collected (comments keep coming in on their posts).
+
+**Incremental fetch** (`services/collection.service.ts`):
+
+| Data     | How only new data is read                                                                                                                                                                                                                                                                                                                                                      |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Posts    | All posts of the account inside the window (from `windowStart` = first fetch − 90 days), newest first; listing stops at the first older post. New posts are added, known ones get their `comments_count` refreshed.                                                                                                                                                            |
+| Comments | Instagram **can't filter comments by time** (max 50 per page). Only posts whose `comments_count` differs from the count last read completely (`comments_synced_count`) are opened. Pages are read until a page is entirely known **and** the stored count reaches the reported one (so a new reply on an old comment is still found). Upsert by comment ID — never duplicated. |
+| DMs      | Conversations come most recently active first with `updated_time`; only those newer than `dm_watermark` (the newest conversation fully read) are opened. Messages are inserted by ID.                                                                                                                                                                                          |
+
+Everything is idempotent: a failed or cut-off collection is continued by the next press (posts
+already synced are not read again). A collection whose heartbeat stopped for 10 minutes (server
+restarted) is marked failed with that explanation.
+
+**Errors.** Token invalid, rate limit or network → the collection fails (data already stored stays,
+message on the page and in Riwayat). A DM-only problem (missing `instagram_manage_messages`,
+unsupported setup) does **not** fail it: comments are collected and the DM problem becomes a
+warning.
+
+**Instagram limits shown to the user** ("Batasan data dari Instagram" on the page):
+
+- Only the **20 latest messages** of a conversation can be read. A conversation with older messages
+  that couldn't be read (new conversation with > 20 messages, or > 20 new messages since the last
+  fetch) is flagged `possibly_incomplete` ("Tidak lengkap") and the run carries a warning — update
+  often.
+- Conversations in the Requests folder inactive for 30 days are not returned.
+- Deleted comments/messages stay stored (the API doesn't report deletions).
+- **DMs with a Unified login token (`EAA…`)**: Meta documents reading Instagram conversations on
+  `graph.facebook.com` through a **Facebook Page** linked to the Instagram account. The app asks
+  `/{ig-user-id}/conversations?platform=instagram`; if Instagram refuses, the warning says so and
+  suggests linking a Page. Not verified against the real API yet.
+
+**Permissions on the token**: `instagram_manage_comments` and `instagram_manage_messages` (Unified
+login) or `instagram_business_manage_comments` and `instagram_business_manage_messages` (Instagram
+Login). After adding them, reconnect the account in Publisher AIgent. Collected data is keyed by
+idea + platform + **platform account ID** (`sm_collection_sources`), not by the `sm_accounts` row,
+so reconnecting (even disconnect + connect) the same account keeps everything; when no account is
+connected, the idea's latest collected data is still shown (read-only).
+
+**Views**: Komentar (search text/username, filter by post and by author: all / audience / own
+account; 50 per page; replies marked, own account's comments badged "Akun ini"), DM (conversation
+list with search over username and message text, chat view), Riwayat pengambilan (last 20 runs:
+type, status, what was added, errors/warnings).
+
+Tables (migration `0006`): `sm_collection_sources`, `sm_collection_runs`, `sm_collected_posts`,
+`sm_comments`, `sm_dm_conversations`, `sm_dm_messages`. DM text is stored as plain text in the
+database — treat database backups accordingly.
+
+Code: `integrations/instagram-engagement.client.ts` (Graph calls),
+`repositories/collection.repository.ts`, `services/collection.service.ts`,
+`services/instagram-access.ts` (account + token for the read-only agents, shared with Performance
+AIgent).
+
 ## Setup
 
 ### Google Drive (read public folders)
@@ -182,9 +254,9 @@ apps use **Unified login**:
    Instagram"** and connect it to that portfolio.
 3. Use cases → Customize → **API setup with Unified login** → **Create configuration**: system-user
    access token, never expires, asset = Instagram account, permissions `instagram_basic` and
-   `instagram_content_publish`, plus `instagram_manage_insights` for Performance AIgent (add
-   `instagram_manage_comments` / `instagram_manage_messages` for
-   the Intelligence AIgency later). The redirect URL is only needed for a future OAuth button.
+   `instagram_content_publish`, plus `instagram_manage_insights` for Performance AIgent and
+   `instagram_manage_comments` + `instagram_manage_messages` for the Data Collection AIgent. The
+   redirect URL is only needed for a future OAuth button.
 4. App roles → Roles → add the account as **Instagram Tester**; accept the invite at
    instagram.com/accounts/manage_access (Tester invites).
 5. Back in step 2 of that page ("Buat token akses") → **Add account** → generate the token (`EAA…`).
@@ -200,14 +272,16 @@ When the app has a public HTTPS domain, this can be replaced by a "Login dengan 
 ### Database
 
 ```bash
-pnpm db:generate   # only after a schema change; the sm_* migrations (0001–0005) are committed
+pnpm db:generate   # only after a schema change; the sm_* migrations (0001–0006) are committed
 pnpm db:migrate
 pnpm db:seed       # syncs the new social.* permissions
 ```
 
 Then grant the permissions to roles in **Role & Akses**:
 `social.publisher.view`, `social.publisher.manage`, `social.settings.manage`,
-`social.performance.view` (Performance AIgent). Super Admin has every permission automatically.
+`social.performance.view` (Performance AIgent), `social.analysis.view` and
+`social.analysis.collect` (Analysis Engine: view data · Ambil/Perbarui data). Super Admin has every
+permission automatically.
 
 ## API
 
@@ -231,6 +305,13 @@ All under `/api/social`; responses use the standard envelope. Mutations return t
 | `GET /performance/ideas?filter=active\|archived` · `GET /performance/ideas/:id`  | performance.view                                    |
 | `GET /performance/ideas/:id/instagram/overview?days=7\|14\|30&refresh=true`      | performance.view — profile, totals, daily charts    |
 | `GET /performance/ideas/:id/instagram/media?after=<cursor>&refresh=true`         | performance.view — posts with metrics (20/page)     |
+| `GET /analysis/ideas?filter=active\|archived` · `GET /analysis/ideas/:id`        | analysis.view — ideas with collected counts         |
+| `GET /analysis/ideas/:id/instagram/status`                                       | analysis.view — summary, running/last run           |
+| `POST /analysis/ideas/:id/instagram/collect`                                     | analysis.collect — Ambil data / Perbarui data (202) |
+| `GET /analysis/ideas/:id/instagram/runs`                                         | analysis.view — Riwayat (last 20)                   |
+| `GET /analysis/ideas/:id/instagram/posts`                                        | analysis.view — collected posts (filter list)       |
+| `GET /analysis/ideas/:id/instagram/comments?page&q&postId&author`                | analysis.view — 50/page                             |
+| `GET /analysis/ideas/:id/instagram/conversations?page&q` · `…/:conversationId`   | analysis.view — 30/page · messages                  |
 
 ## Upload engine (worker)
 
@@ -323,4 +404,5 @@ Drive (%) → Mengunggah video → Diproses platform → Mempublikasikan.
 - "Login dengan Instagram" (OAuth) once the app has an HTTPS domain.
 - Performance AIgent: TikTok / Facebook / YouTube tabs once those accounts can be connected;
   stored snapshots (history beyond Instagram's ~90 days) to be re-evaluated later.
-- Intelligence AIgency.
+- Audience Insight Analysis AIgent (what to analyse is still to be decided).
+- Data Collection AIgent for TikTok / Facebook / YouTube; replying to comments/DMs.

@@ -20,12 +20,11 @@ import {
   listPosts,
 } from '../integrations/instagram-insights.client.js';
 import { InstagramApiError, instagramTokenKind } from '../integrations/instagram.client.js';
-import { parseInstagramCredentials } from '../publishers/instagram.publisher.js';
 import { createAccountsRepository } from '../repositories/accounts.repository.js';
 import { createBatchesRepository } from '../repositories/batches.repository.js';
 import { createPublicationsRepository } from '../repositories/publications.repository.js';
-import { credentialsContext, type CredentialsCipher } from '../security/credentials-cipher.js';
-import { credentialsKeyError } from './batch-context.js';
+import type { CredentialsCipher } from '../security/credentials-cipher.js';
+import { createInstagramAccess } from './instagram-access.js';
 
 /** Instagram answers are kept this long, so browsing around does not hit its rate limit. */
 const CACHE_TTL_MS = 5 * 60_000;
@@ -81,7 +80,10 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
-function toIdeaDto(batch: SmBatchRow, accounts: readonly SmAccountRow[]): PerformanceIdeaDto {
+export function toIdeaDto(
+  batch: SmBatchRow,
+  accounts: readonly SmAccountRow[],
+): PerformanceIdeaDto {
   return {
     id: batch.id,
     ideaNumber: batch.ideaNumber,
@@ -134,36 +136,11 @@ export function createPerformanceService(deps: {
   const accounts = createAccountsRepository(db);
   const publications = createPublicationsRepository(db);
   const cache = createCache();
+  const access = createInstagramAccess({ db, cipher });
 
-  /** The idea's Instagram account and its token, or an error telling what is missing. */
+  /** The idea's Instagram account and its token, cached per token version. */
   async function instagramAccount(batchId: string) {
-    const batch = await batches.findById(batchId);
-    if (!batch) throw notFound('Ide tidak ditemukan.');
-    const account = await accounts.findForBatch(batchId, 'instagram');
-    if (!account) {
-      throw conflict(
-        'Ide ini belum punya akun Instagram yang terhubung. Hubungkan akun di Publisher AIgent.',
-      );
-    }
-    if (account.status === 'error') {
-      throw conflict(
-        account.lastError ??
-          'Akun Instagram ide ini bermasalah. Hubungkan ulang akun di Publisher AIgent.',
-      );
-    }
-
-    let accessToken: string;
-    try {
-      accessToken = parseInstagramCredentials(
-        cipher.decrypt(account.encryptedCredentials, credentialsContext(batchId, 'instagram')),
-      ).accessToken;
-    } catch (error) {
-      const keyError = credentialsKeyError(error);
-      if (keyError !== error) throw keyError;
-      throw conflict(
-        'Kredensial Instagram tidak terbaca. Hubungkan ulang akun di Publisher AIgent.',
-      );
-    }
+    const { account, accessToken } = await access.load(batchId);
     // The account (and token) can be reconnected at any time: cache per token version.
     const cacheKey = `${account.id}:${account.encryptedCredentials.slice(-16)}`;
     return { account, accessToken, cacheKey };

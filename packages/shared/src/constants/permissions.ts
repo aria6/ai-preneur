@@ -18,6 +18,8 @@ export const PERMISSIONS = {
   SOCIAL_PUBLISHER_MANAGE: 'social.publisher.manage',
   SOCIAL_SETTINGS_MANAGE: 'social.settings.manage',
   SOCIAL_PERFORMANCE_VIEW: 'social.performance.view',
+  SOCIAL_ANALYSIS_VIEW: 'social.analysis.view',
+  SOCIAL_ANALYSIS_COLLECT: 'social.analysis.collect',
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -98,6 +100,19 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     label: 'Lihat Performance AIgent',
     description:
       'Melihat data performa akun dan postingan media sosial yang terhubung ke tiap ide.',
+  },
+  {
+    key: PERMISSIONS.SOCIAL_ANALYSIS_VIEW,
+    category: 'Social Media AIgency',
+    label: 'Lihat Analysis Engine',
+    description:
+      'Melihat komentar dan DM yang sudah dikumpulkan Data Collection AIgent beserta riwayat pengambilannya.',
+  },
+  {
+    key: PERMISSIONS.SOCIAL_ANALYSIS_COLLECT,
+    category: 'Social Media AIgency',
+    label: 'Ambil data Analysis Engine',
+    description: 'Menjalankan "Ambil data" dan "Perbarui data" (komentar dan DM) untuk tiap ide.',
   },
 ];
 

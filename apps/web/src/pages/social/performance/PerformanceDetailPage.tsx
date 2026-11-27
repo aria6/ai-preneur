@@ -1,20 +1,14 @@
-import {
-  AVAILABLE_SOCIAL_PLATFORMS,
-  SOCIAL_PLATFORM_LABELS,
-  SOCIAL_PLATFORMS,
-  socialPlatformSchema,
-  type PerformanceIdeaDto,
-  type SocialPlatform,
-} from '@ai-preneur/shared';
+import { SOCIAL_PLATFORM_LABELS, type PerformanceIdeaDto } from '@ai-preneur/shared';
 import { useEffect, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 
-import { Alert, EmptyState, PageHeader } from '../../../components/ui/feedback';
+import { Alert, EmptyState } from '../../../components/ui/feedback';
 import { Icon } from '../../../components/ui/Icon';
 import { Spinner } from '../../../components/ui/Spinner';
-import { cn } from '../../../lib/cn';
 import { errorMessage } from '../../../lib/errors';
 import * as performanceService from '../../../services/social-performance.service';
+import { IdeaDetailHeader } from '../components/IdeaDetailHeader';
+import { usePlatformParam } from '../components/PlatformTabs';
 import { InstagramPanel } from './InstagramPanel';
 
 const BackLink = () => (
@@ -28,9 +22,7 @@ const BackLink = () => (
 
 export function PerformanceDetailPage() {
   const { id = '' } = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const parsedPlatform = socialPlatformSchema.safeParse(searchParams.get('platform'));
-  const platform: SocialPlatform = parsedPlatform.success ? parsedPlatform.data : 'instagram';
+  const [platform, selectPlatform] = usePlatformParam();
 
   const [idea, setIdea] = useState<PerformanceIdeaDto | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -63,51 +55,15 @@ export function PerformanceDetailPage() {
     );
   }
 
-  const selectPlatform = (next: SocialPlatform) =>
-    setSearchParams(next === 'instagram' ? {} : { platform: next }, { replace: true });
-
   return (
     <>
-      <div className="mb-3">
-        <BackLink />
-      </div>
-      <PageHeader
-        title={idea.title}
-        description={`IDEA_ID ${idea.ideaNumber}${idea.archivedAt ? ' · Arsip' : ''}`}
+      <IdeaDetailHeader
+        backTo="/social/performance"
+        backLabel="Performance AIgent"
+        idea={idea}
+        platform={platform}
+        onPlatformChange={selectPlatform}
       />
-
-      <div
-        role="tablist"
-        aria-label="Platform"
-        className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200"
-      >
-        {SOCIAL_PLATFORMS.map((candidate) => {
-          const available = AVAILABLE_SOCIAL_PLATFORMS.includes(candidate);
-          const selected = candidate === platform;
-          return (
-            <button
-              key={candidate}
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              onClick={() => selectPlatform(candidate)}
-              className={cn(
-                '-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm whitespace-nowrap',
-                selected
-                  ? 'border-primary-600 font-medium text-primary-700'
-                  : 'border-transparent text-slate-600 hover:text-slate-900',
-              )}
-            >
-              {SOCIAL_PLATFORM_LABELS[candidate]}
-              {!available && (
-                <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
-                  Segera hadir
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
 
       <div role="tabpanel">
         {platform === 'instagram' ? (

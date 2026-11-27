@@ -4,6 +4,7 @@ import { NavLink, useLocation } from 'react-router';
 import { useAuth } from '../../hooks/use-auth';
 import { cn } from '../../lib/cn';
 import {
+  flattenNavLinks,
   isPathActive,
   visibleNavEntries,
   type NavGroupItem,
@@ -32,15 +33,19 @@ interface SidebarProps {
   onCloseMobile: () => void;
 }
 
+/** Left padding per nesting level (level 0 = top level, with icon). */
+const LEVEL_PADDING = ['', 'pl-11', 'pl-14'] as const;
+
 function SidebarLink({
   item,
   collapsed,
-  nested = false,
+  level = 0,
 }: {
   item: NavLinkItem;
   collapsed: boolean;
-  nested?: boolean;
+  level?: number;
 }) {
+  const nested = level > 0;
   return (
     <NavLink
       to={item.to}
@@ -48,34 +53,43 @@ function SidebarLink({
       className={({ isActive }) =>
         cn(
           ITEM_BASE,
-          nested && 'pl-11',
+          LEVEL_PADDING[Math.min(level, LEVEL_PADDING.length - 1)],
           collapsed && 'md:justify-center md:px-0',
           isActive ? ITEM_ACTIVE : ITEM_IDLE,
         )
       }
     >
       {!nested && <Icon name={item.icon} className="size-5 shrink-0" />}
-      <span className={cn('truncate', collapsed && 'md:sr-only')}>{item.label}</span>
+      {/* Nested labels can be long ("Audience Insight Analysis AIgent"): wrap, don't cut. */}
+      <span className={cn(nested ? 'leading-snug' : 'truncate', collapsed && 'md:sr-only')}>
+        {item.label}
+      </span>
     </NavLink>
   );
 }
 
 /**
- * Expandable menu group. Opens automatically when one of its pages is active.
- * In the collapsed rail, clicking it expands the sidebar and opens the group.
+ * Expandable menu group (top level or a sub-group inside a group). Opens automatically
+ * when one of its pages is active. In the collapsed rail, clicking a top-level group
+ * expands the sidebar and opens the group.
  */
 function SidebarGroup({
   group,
   collapsed,
   onExpand,
+  level = 0,
 }: {
   group: NavGroupItem;
   collapsed: boolean;
   onExpand: () => void;
+  level?: number;
 }) {
   const { pathname } = useLocation();
   const panelId = useId();
-  const containsActive = group.children.some((child) => isPathActive(pathname, child.to));
+  const nested = level > 0;
+  const containsActive = flattenNavLinks(group.children).some((child) =>
+    isPathActive(pathname, child.to),
+  );
   const [open, setOpen] = useState(containsActive);
 
   // Open the group when navigation enters it (adjust-state-during-render, not an effect).
@@ -106,6 +120,7 @@ function SidebarGroup({
         title={collapsed ? group.label : undefined}
         className={cn(
           ITEM_BASE,
+          LEVEL_PADDING[Math.min(level, LEVEL_PADDING.length - 1)],
           collapsed && 'md:justify-center md:px-0',
           collapsed && containsActive
             ? ITEM_ACTIVE
@@ -114,8 +129,14 @@ function SidebarGroup({
               : ITEM_IDLE,
         )}
       >
-        <Icon name={group.icon} className="size-5 shrink-0" />
-        <span className={cn('flex-1 truncate text-left', collapsed && 'md:sr-only')}>
+        {!nested && <Icon name={group.icon} className="size-5 shrink-0" />}
+        <span
+          className={cn(
+            'flex-1 text-left',
+            nested ? 'leading-snug' : 'truncate',
+            collapsed && 'md:sr-only',
+          )}
+        >
           {group.label}
         </span>
         <Icon
@@ -128,9 +149,19 @@ function SidebarGroup({
         />
       </button>
       <div id={panelId} hidden={!expanded} className="mt-1 space-y-1">
-        {group.children.map((child) => (
-          <SidebarLink key={child.to} item={child} collapsed={false} nested />
-        ))}
+        {group.children.map((child) =>
+          child.type === 'link' ? (
+            <SidebarLink key={child.to} item={child} collapsed={false} level={level + 1} />
+          ) : (
+            <SidebarGroup
+              key={child.id}
+              group={child}
+              collapsed={false}
+              onExpand={onExpand}
+              level={level + 1}
+            />
+          ),
+        )}
       </div>
     </div>
   );

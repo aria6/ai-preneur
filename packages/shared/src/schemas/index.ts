@@ -4,4 +4,5 @@ export * from './health.js';
 export * from './roles.js';
 export * from './social.js';
 export * from './social-performance.js';
+export * from './social-analysis.js';
 export * from './users.js';

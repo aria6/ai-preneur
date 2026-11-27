@@ -2,8 +2,9 @@
  * Public API of the Social Media AIgency module.
  *
  * Today: Publisher AIgent (content queue from Google Drive, scheduling, accounts),
- * Performance AIgent (live account/post insights of each idea's accounts) and the
- * settings. Later: Intelligence AIgency (comments, DMs, engagement).
+ * Performance AIgent (live account/post insights of each idea's accounts), Analysis
+ * Engine — Data Collection AIgent (comments and DMs collected into the database) — and
+ * the settings. Later: Audience Insight Analysis AIgent.
  */
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -19,6 +20,7 @@ import { createSocialRouter } from './routes/social.routes.js';
 import { createCredentialsCipher, parseCredentialsKey } from './security/credentials-cipher.js';
 import { createAccountsService } from './services/accounts.service.js';
 import { createBatchesService } from './services/batches.service.js';
+import { createCollectionService } from './services/collection.service.js';
 import { createItemsService } from './services/items.service.js';
 import { createPerformanceService } from './services/performance.service.js';
 import { createSettingsService } from './services/settings.service.js';
@@ -54,6 +56,7 @@ export function createSocialMediaRouter(
     accounts: createAccountsService({ ...services, cipher }),
     settings: createSettingsService(services),
     performance: createPerformanceService({ ...services, cipher }),
+    collection: createCollectionService({ ...services, cipher }),
   });
 }
 
