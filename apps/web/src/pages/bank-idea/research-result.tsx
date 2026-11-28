@@ -184,8 +184,9 @@ export function TargetSegmentsPanel({
   return (
     <div>
       <p className="mb-4 text-sm text-slate-500">
-        Diurutkan dari skor saringan tertinggi (rata-rata ukuran, kemauan bayar, kemudahan
-        dijangkau, dan persaingan). Penilaian lengkap riset ini dihitung untuk segmen bertanda.
+        Diurutkan dari skor saringan tertinggi (rata-rata ukuran, kemauan bayar, jangkauan, dan
+        persaingan). Penilaian lengkap riset ini dihitung untuk segmen bertanda. "Riset ulang segmen
+        ini" menjalankan riset baru yang dikunci ke segmen tersebut.
       </p>
       <ol className="space-y-4">
         {segments.map((segment, index) => {
@@ -209,10 +210,12 @@ export function TargetSegmentsPanel({
                   {index + 1}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <p className="text-sm font-medium text-slate-900">{segment.segment}</p>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="min-w-0 flex-1 text-sm font-medium text-slate-900">
+                      {segment.segment}
+                    </p>
                     {segment.screening && (
-                      <span className="text-sm font-semibold text-slate-900 tabular-nums">
+                      <span className="shrink-0 text-sm font-semibold text-slate-900 tabular-nums">
                         {segment.screening.score.toLocaleString('id-ID')}
                         <span className="text-xs font-normal text-slate-400">/10</span>
                       </span>
@@ -270,37 +273,33 @@ export function TargetSegmentsPanel({
                     </details>
                   )}
 
-                  {!isScored && (
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      {run && run.id !== currentRunId && (
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => actions.viewRun(run.id)}
-                        >
-                          Lihat hasil v{run.version}
-                          {run.totalScore !== null ? ` · ${run.totalScore}` : ''}
-                        </Button>
-                      )}
-                      {actions.research ? (
-                        <Button
-                          variant={run ? 'ghost' : 'secondary'}
-                          size="sm"
-                          onClick={() => actions.research?.(segment.segment)}
-                          loading={actions.busy}
-                        >
-                          <Icon name="search" className="size-4" />
-                          {run ? 'Riset ulang segmen ini' : 'Riset lengkap untuk segmen ini'}
-                        </Button>
-                      ) : (
-                        actions.researchDisabledReason && (
-                          <span className="text-xs text-slate-500">
-                            {actions.researchDisabledReason}
-                          </span>
-                        )
-                      )}
-                    </div>
-                  )}
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {run && run.id !== currentRunId && (
+                      <Button variant="secondary" size="sm" onClick={() => actions.viewRun(run.id)}>
+                        Lihat hasil v{run.version}
+                        {run.totalScore !== null ? ` · ${run.totalScore}` : ''}
+                      </Button>
+                    )}
+                    {actions.research ? (
+                      <Button
+                        variant={run || isScored ? 'ghost' : 'secondary'}
+                        size="sm"
+                        onClick={() => actions.research?.(segment.segment)}
+                        loading={actions.busy}
+                      >
+                        <Icon name="search" className="size-4" />
+                        {isScored || run
+                          ? 'Riset ulang segmen ini'
+                          : 'Riset lengkap untuk segmen ini'}
+                      </Button>
+                    ) : (
+                      actions.researchDisabledReason && (
+                        <span className="text-xs text-slate-500">
+                          {actions.researchDisabledReason}
+                        </span>
+                      )
+                    )}
+                  </div>
                 </div>
               </div>
             </li>

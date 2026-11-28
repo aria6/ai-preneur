@@ -389,7 +389,7 @@ export const BANK_IDEA_SCREENING_DEFINITIONS: readonly {
   },
   {
     key: 'reach',
-    label: 'Kemudahan dijangkau',
+    label: 'Jangkauan',
     question: 'Seberapa mudah ditemui dan dijual (kanal, biaya akuisisi)?',
   },
   {
