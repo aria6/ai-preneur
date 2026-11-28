@@ -1,5 +1,4 @@
 import {
-  BANK_IDEA_AGENCY_LABELS,
   BANK_IDEA_LABEL_TEXT,
   BANK_IDEA_MARKET_SCOPE_LABELS,
   PERMISSIONS,
@@ -73,7 +72,6 @@ function EditIdeaModal({
     problem: idea.problem,
     targetMarket: idea.targetMarket,
     solution: idea.solution,
-    agency: idea.agency,
     marketScope: idea.marketScope,
   });
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -255,8 +253,7 @@ export function BankIdeaDetailPage() {
             {activeRun && <ActiveRunBadge run={activeRun} />}
           </div>
           <p className="mt-1 text-sm text-slate-500">
-            {BANK_IDEA_AGENCY_LABELS[idea.agency]} · Pasar{' '}
-            {BANK_IDEA_MARKET_SCOPE_LABELS[idea.marketScope]} · Dibuat{' '}
+            Pasar {BANK_IDEA_MARKET_SCOPE_LABELS[idea.marketScope]} · Dibuat{' '}
             {formatDateTime(idea.createdAt)}
           </p>
         </div>

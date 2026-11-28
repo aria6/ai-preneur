@@ -1,6 +1,4 @@
 import {
-  BANK_IDEA_AGENCIES,
-  BANK_IDEA_AGENCY_LABELS,
   BANK_IDEA_LABEL_TEXT,
   BANK_IDEA_LABELS,
   BANK_IDEA_MARKET_SCOPE_LABELS,
@@ -64,8 +62,7 @@ function IdeaRow({ idea }: { idea: BankIdeaSummaryDto }) {
         </div>
         <p className="mt-1 line-clamp-2 text-sm text-slate-500">{idea.summary}</p>
         <p className="mt-2 text-xs text-slate-500">
-          {BANK_IDEA_AGENCY_LABELS[idea.agency]} · Pasar{' '}
-          {BANK_IDEA_MARKET_SCOPE_LABELS[idea.marketScope]} ·{' '}
+          Pasar {BANK_IDEA_MARKET_SCOPE_LABELS[idea.marketScope]} ·{' '}
           {idea.lastResearchedAt
             ? `Riset ${formatDateTime(idea.lastResearchedAt)}`
             : 'Belum diriset'}
@@ -91,7 +88,6 @@ export function BankIdeaListPage() {
 
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebouncedValue(query);
-  const [agency, setAgency] = useState('');
   const [label, setLabel] = useState('');
   const [stage, setStage] = useState('');
   const [sort, setSort] = useState<Sort>('newest');
@@ -123,12 +119,11 @@ export function BankIdeaListPage() {
     const filtered = items.filter(
       (idea) =>
         (!q || idea.title.toLowerCase().includes(q) || idea.summary.toLowerCase().includes(q)) &&
-        (!agency || idea.agency === agency) &&
         (!label || (label === 'none' ? idea.latestLabel === null : idea.latestLabel === label)) &&
         (!stage || idea.stage === stage),
     );
     return sortIdeas(filtered, sort);
-  }, [items, debouncedQuery, agency, label, stage, sort]);
+  }, [items, debouncedQuery, label, stage, sort]);
 
   const addButton = canManage && (
     <Button onClick={() => navigate('/bank-idea/baru')}>
@@ -147,7 +142,7 @@ export function BankIdeaListPage() {
       <IdeaFilterTabs value={filter} onChange={setFilter} />
 
       {items && items.length > 0 && (
-        <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <div className="col-span-2 lg:col-span-1">
             <TextField
               label="Cari"
@@ -156,18 +151,6 @@ export function BankIdeaListPage() {
               onChange={(event) => setQuery(event.target.value)}
             />
           </div>
-          <SelectField
-            label="Kategori"
-            value={agency}
-            onChange={(event) => setAgency(event.target.value)}
-          >
-            <option value="">Semua kategori</option>
-            {BANK_IDEA_AGENCIES.map((key) => (
-              <option key={key} value={key}>
-                {BANK_IDEA_AGENCY_LABELS[key]}
-              </option>
-            ))}
-          </SelectField>
           <SelectField
             label="Label skor"
             value={label}

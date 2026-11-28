@@ -3,7 +3,6 @@ import {
   type BankIdeaResearchRunRow,
   type Database,
 } from '@ai-preneur/database';
-import { BANK_IDEA_AGENCY_LABELS } from '@ai-preneur/shared';
 
 import type { Logger } from '../../core/logger.js';
 import type { BankIdeaAi } from './ai/bank-idea-ai.js';
@@ -84,7 +83,6 @@ export function createResearchWorker(deps: {
           problem: idea.problem,
           targetMarket: idea.targetMarket,
           solution: idea.solution,
-          agencyLabel: BANK_IDEA_AGENCY_LABELS[idea.agency],
           marketScope: run.marketScope,
         },
         controller.signal,

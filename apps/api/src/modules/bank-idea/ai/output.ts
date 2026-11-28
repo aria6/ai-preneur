@@ -1,9 +1,7 @@
 import {
-  BANK_IDEA_AGENCIES,
   BANK_IDEA_CRITERIA,
   BANK_IDEA_TEXT_MAX_LENGTH,
   BANK_IDEA_TITLE_MAX_LENGTH,
-  type BankIdeaAgency,
   type BankIdeaCompetitor,
   type BankIdeaConfidence,
   type BankIdeaCriterion,
@@ -69,7 +67,6 @@ const draftOutputSchema = z.object({
   problem: z.unknown().optional(),
   targetMarket: z.unknown().optional(),
   solution: z.unknown().optional(),
-  agency: z.unknown().optional(),
 });
 
 export function parseDraft(text: string): BankIdeaDraft {
@@ -79,16 +76,12 @@ export function parseDraft(text: string): BankIdeaDraft {
   const title = cut(value.title, BANK_IDEA_TITLE_MAX_LENGTH);
   const summary = cut(value.summary, BANK_IDEA_TEXT_MAX_LENGTH);
   if (!title || !summary) throw new OutputError('judul atau ringkasan kosong');
-  const agency = (BANK_IDEA_AGENCIES as readonly string[]).includes(String(value.agency))
-    ? (value.agency as BankIdeaAgency)
-    : 'other';
   return {
     title,
     summary,
     problem: cut(value.problem, BANK_IDEA_TEXT_MAX_LENGTH),
     targetMarket: cut(value.targetMarket, BANK_IDEA_TEXT_MAX_LENGTH),
     solution: cut(value.solution, BANK_IDEA_TEXT_MAX_LENGTH),
-    agency,
   };
 }
 

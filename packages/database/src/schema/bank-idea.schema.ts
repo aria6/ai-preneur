@@ -27,17 +27,6 @@ const updatedAt = () =>
     .defaultNow()
     .$onUpdate(() => new Date());
 
-export const biAgency = pgEnum('bi_agency', [
-  'social_media',
-  'business_development',
-  'software_house',
-  'iot',
-  'digital_marketing',
-  'education',
-  'digital_content',
-  'food_estate',
-  'other',
-]);
 export const biMarketScope = pgEnum('bi_market_scope', ['indonesia', 'global']);
 export const biStage = pgEnum('bi_stage', ['new', 'researched', 'executed']);
 export const biLabel = pgEnum('bi_label', ['execute', 'validate', 'park']);
@@ -62,7 +51,6 @@ export const bankIdeas = pgTable(
     problem: varchar({ length: 2000 }).notNull().default(''),
     targetMarket: varchar({ length: 2000 }).notNull().default(''),
     solution: varchar({ length: 2000 }).notNull().default(''),
-    agency: biAgency().notNull(),
     marketScope: biMarketScope().notNull().default('indonesia'),
     stage: biStage().notNull().default('new'),
     /** Copied from the latest successful research, for the list (sorting, filtering). */

@@ -32,7 +32,6 @@ const CONTENT_FIELDS = [
   'problem',
   'targetMarket',
   'solution',
-  'agency',
   'marketScope',
 ] as const;
 

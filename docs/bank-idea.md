@@ -11,7 +11,7 @@ Menampung semua ide, merapikan ide mentah dengan AI, lalu meriset tiap ide di we
 ## Alur
 
 1. **Ide mentah** → "Rapikan dengan AI" (tanpa web) → draf: judul, ringkasan, masalah, target
-   pasar, solusi, kategori agency. Bisa juga "Isi manual".
+   pasar, solusi. Bisa juga "Isi manual".
 2. User mengedit → **Simpan** atau **Simpan & Riset**.
 3. Riset masuk **antrean**; worker menjalankan **1 riset sekaligus** di seluruh platform.
 4. Hasil disimpan per **versi** (riset ulang = versi baru, versi lama tetap ada).

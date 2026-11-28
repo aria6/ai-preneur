@@ -1,6 +1,4 @@
 import {
-  BANK_IDEA_AGENCIES,
-  BANK_IDEA_AGENCY_LABELS,
   BANK_IDEA_CRITERIA,
   BANK_IDEA_MARKET_SCOPE_LABELS,
   BANK_IDEA_RUBRIC,
@@ -15,19 +13,12 @@ export interface ResearchPromptInput {
   problem: string;
   targetMarket: string;
   solution: string;
-  agencyLabel: string;
   marketScope: BankIdeaMarketScope;
 }
 
 export function structurePrompt(rawInput: string): string {
-  const agencies = BANK_IDEA_AGENCIES.map(
-    (key) => `- ${key}: ${BANK_IDEA_AGENCY_LABELS[key]}`,
-  ).join('\n');
   return `Kamu membantu merapikan ide bisnis mentah menjadi ide terstruktur, dalam Bahasa Indonesia.
 Jangan memakai tool apa pun. Jangan menambah fakta, angka, atau klaim yang tidak ada di teks; boleh merumuskan ulang agar jelas.
-
-Kategori agency yang tersedia (pilih satu key yang paling cocok, "other" jika tidak ada yang cocok):
-${agencies}
 
 Teks ide mentah (di antara tanda <ide>):
 <ide>
@@ -40,8 +31,7 @@ Balas HANYA dengan satu objek JSON (tanpa teks lain, tanpa markdown) dengan form
   "summary": "ringkasan ide 2–4 kalimat",
   "problem": "masalah yang diselesaikan (kosongkan \\"\\" jika tidak disebut)",
   "targetMarket": "siapa calon pembeli/penggunanya (kosongkan jika tidak disebut)",
-  "solution": "solusi/produk yang ditawarkan (kosongkan jika tidak disebut)",
-  "agency": "salah satu key kategori di atas"
+  "solution": "solusi/produk yang ditawarkan (kosongkan jika tidak disebut)"
 }`;
 }
 
@@ -73,7 +63,6 @@ Tugas: riset ide bisnis di bawah ini di web lalu nilai dengan rubrik yang diberi
 
 IDE
 - Judul: ${idea.title}
-- Kategori: ${idea.agencyLabel}
 - Ringkasan: ${idea.summary}
 - Masalah: ${idea.problem || '(tidak disebut)'}
 - Target pasar: ${idea.targetMarket || '(tidak disebut)'}

@@ -30,7 +30,6 @@ export function toIdeaSummary(
     id: idea.id,
     title: idea.title,
     summary: idea.summary,
-    agency: idea.agency,
     marketScope: idea.marketScope,
     stage: idea.stage,
     latestScore: idea.latestScore,

@@ -1,6 +1,4 @@
 import {
-  BANK_IDEA_AGENCIES,
-  BANK_IDEA_AGENCY_LABELS,
   BANK_IDEA_LABEL_TEXT,
   BANK_IDEA_MARKET_SCOPE_LABELS,
   BANK_IDEA_MARKET_SCOPES,
@@ -8,7 +6,6 @@ import {
   BANK_IDEA_TEXT_MAX_LENGTH,
   BANK_IDEA_TITLE_MAX_LENGTH,
   type BankIdeaActiveRunDto,
-  type BankIdeaAgency,
   type BankIdeaLabel,
   type BankIdeaMarketScope,
   type BankIdeaStage,
@@ -98,7 +95,6 @@ export interface IdeaFormValues {
   problem: string;
   targetMarket: string;
   solution: string;
-  agency: BankIdeaAgency;
   marketScope: BankIdeaMarketScope;
 }
 
@@ -108,7 +104,6 @@ export const EMPTY_IDEA_FORM: IdeaFormValues = {
   problem: '',
   targetMarket: '',
   solution: '',
-  agency: 'other',
   marketScope: 'indonesia',
 };
 
@@ -170,18 +165,6 @@ export function IdeaFields({
         maxLength={BANK_IDEA_TEXT_MAX_LENGTH}
       />
       <div className="grid gap-4 sm:grid-cols-2">
-        <SelectField
-          label="Kategori agency"
-          value={values.agency}
-          onChange={(event) => set('agency', event.target.value as BankIdeaAgency)}
-          error={errors.agency}
-        >
-          {BANK_IDEA_AGENCIES.map((agency) => (
-            <option key={agency} value={agency}>
-              {BANK_IDEA_AGENCY_LABELS[agency]}
-            </option>
-          ))}
-        </SelectField>
         <SelectField
           label="Cakupan pasar riset"
           value={values.marketScope}

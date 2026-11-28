@@ -11,31 +11,6 @@ import { z } from 'zod';
 
 // ---- Idea fields ---------------------------------------------------------------------
 
-export const BANK_IDEA_AGENCIES = [
-  'social_media',
-  'business_development',
-  'software_house',
-  'iot',
-  'digital_marketing',
-  'education',
-  'digital_content',
-  'food_estate',
-  'other',
-] as const;
-export type BankIdeaAgency = (typeof BANK_IDEA_AGENCIES)[number];
-
-export const BANK_IDEA_AGENCY_LABELS: Record<BankIdeaAgency, string> = {
-  social_media: 'Social Media Agency',
-  business_development: 'Business Development Agency',
-  software_house: 'Software House Agency',
-  iot: 'IoT Agency',
-  digital_marketing: 'Digital Marketing Agency',
-  education: 'Education Agency',
-  digital_content: 'Digital Content Agency',
-  food_estate: 'Food Estate Agency',
-  other: 'Lainnya',
-};
-
 export const BANK_IDEA_MARKET_SCOPES = ['indonesia', 'global'] as const;
 export type BankIdeaMarketScope = (typeof BANK_IDEA_MARKET_SCOPES)[number];
 export const BANK_IDEA_MARKET_SCOPE_LABELS: Record<BankIdeaMarketScope, string> = {
@@ -273,7 +248,6 @@ const optionalText = (label: string, max: number) =>
     .trim()
     .max(max, `${label} maksimal ${max.toLocaleString('id-ID')} karakter`);
 
-const agencySchema = z.enum(BANK_IDEA_AGENCIES, { error: 'Kategori agency tidak dikenal' });
 const marketScopeSchema = z.enum(BANK_IDEA_MARKET_SCOPES, { error: 'Cakupan pasar tidak dikenal' });
 
 export const bankIdeaRawInputSchema = z
@@ -295,7 +269,6 @@ const contentFields = {
   problem: optionalText('Masalah', BANK_IDEA_TEXT_MAX_LENGTH),
   targetMarket: optionalText('Target pasar', BANK_IDEA_TEXT_MAX_LENGTH),
   solution: optionalText('Solusi', BANK_IDEA_TEXT_MAX_LENGTH),
-  agency: agencySchema,
   marketScope: marketScopeSchema,
 };
 
@@ -315,7 +288,6 @@ export const bankIdeaDraftSchema = z.object({
   problem: contentFields.problem,
   targetMarket: contentFields.targetMarket,
   solution: contentFields.solution,
-  agency: agencySchema,
 });
 export type BankIdeaDraft = z.infer<typeof bankIdeaDraftSchema>;
 export const structureBankIdeaResponseSchema = z.object({ draft: bankIdeaDraftSchema });
@@ -339,7 +311,6 @@ export const updateBankIdeaRequestSchema = z
     problem: contentFields.problem.optional(),
     targetMarket: contentFields.targetMarket.optional(),
     solution: contentFields.solution.optional(),
-    agency: contentFields.agency.optional(),
     marketScope: contentFields.marketScope.optional(),
     /** "Tandai dieksekusi" / undo. */
     executed: z.boolean().optional(),
@@ -448,7 +419,6 @@ export const bankIdeaSummarySchema = z.object({
   id: z.string(),
   title: z.string(),
   summary: z.string(),
-  agency: z.enum(BANK_IDEA_AGENCIES),
   marketScope: z.enum(BANK_IDEA_MARKET_SCOPES),
   stage: z.enum(BANK_IDEA_STAGES),
   latestScore: z.number().int().nullable(),
