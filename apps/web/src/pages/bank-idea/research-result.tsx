@@ -162,7 +162,7 @@ export function scoredSegment(result: BankIdeaResearchResult): BankIdeaTargetSeg
 
 export interface SegmentActions {
   /** Full research of one segment; null when not allowed now (with the reason). */
-  research: ((segment: string) => void) | null;
+  research: ((segment: string, rerun: boolean) => void) | null;
   researchDisabledReason: string | null;
   busy: boolean;
   /** A finished full research of this segment, if any, to jump to. */
@@ -282,12 +282,14 @@ export function TargetSegmentsPanel({
                     )}
                     {actions.research ? (
                       <Button
-                        variant={run || isScored ? 'ghost' : 'secondary'}
+                        variant={run || isScored ? 'warning' : 'secondary'}
                         size="sm"
-                        onClick={() => actions.research?.(segment.segment)}
+                        onClick={() =>
+                          actions.research?.(segment.segment, Boolean(isScored || run))
+                        }
                         loading={actions.busy}
                       >
-                        <Icon name="search" className="size-4" />
+                        <Icon name={isScored || run ? 'refresh' : 'search'} className="size-4" />
                         {isScored || run
                           ? 'Riset ulang segmen ini'
                           : 'Riset lengkap untuk segmen ini'}

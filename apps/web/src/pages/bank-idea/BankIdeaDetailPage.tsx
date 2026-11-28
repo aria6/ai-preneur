@@ -161,6 +161,11 @@ export function BankIdeaDetailPage() {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [panel, setPanel] = useState<Panel | null>(null);
+  /** Research waiting for confirmation: a segment (locked) or null for the automatic one. */
+  const [confirmResearch, setConfirmResearch] = useState<{
+    segment: string | null;
+    rerun: boolean;
+  } | null>(null);
 
   /** Opens a detail modal; for "Detail penilaian" it can scroll to one dimension. */
   const openPanel = (next: Panel, dimensionKey?: string) => {
@@ -306,9 +311,9 @@ export function BankIdeaDetailPage() {
   const segmentActions: SegmentActions = {
     research:
       canResearch && !archived && !activeRun
-        ? (segment) => {
+        ? (segment, rerun) => {
             setPanel(null);
-            void act('segment', () => bankIdeaService.startResearch(idea.id, segment));
+            setConfirmResearch({ segment, rerun });
           }
         : null,
     researchDisabledReason: !canResearch
@@ -350,7 +355,11 @@ export function BankIdeaDetailPage() {
         <div className="flex flex-wrap gap-2 xl:shrink-0 xl:justify-end">
           {canResearch && !archived && !activeRun && (
             <Button
-              onClick={() => void act('research', () => bankIdeaService.startResearch(idea.id))}
+              onClick={() =>
+                succeeded.length > 0
+                  ? setConfirmResearch({ segment: null, rerun: true })
+                  : void act('research', () => bankIdeaService.startResearch(idea.id))
+              }
               loading={busy === 'research'}
               disabled={busy !== null}
             >
@@ -611,6 +620,46 @@ export function BankIdeaDetailPage() {
           </>
         )}
       </Modal>
+
+      <ConfirmDialog
+        open={confirmResearch !== null}
+        title={
+          confirmResearch?.segment
+            ? confirmResearch.rerun
+              ? 'Riset ulang segmen ini?'
+              : 'Riset lengkap untuk segmen ini?'
+            : 'Riset ulang ide ini?'
+        }
+        message={
+          confirmResearch?.segment ? (
+            <>
+              <strong>“{confirmResearch.segment}”</strong> akan diriset{' '}
+              {confirmResearch.rerun ? 'ulang dari awal' : 'lengkap'}, dengan semua skor dihitung
+              untuk segmen ini. Hasilnya masuk sebagai versi baru dan memakai kuota Claude. Riset
+              lama tetap tersimpan.
+            </>
+          ) : (
+            <>
+              AI akan meriset ide ini dari awal (mencari ulang target pasar potensial dan memilih
+              segmen yang dinilai). Hasilnya masuk sebagai versi baru dan memakai kuota Claude.
+              Riset lama tetap tersimpan.
+            </>
+          )
+        }
+        confirmLabel={
+          confirmResearch?.segment && !confirmResearch.rerun ? 'Ya, riset' : 'Ya, riset ulang'
+        }
+        confirmVariant={confirmResearch?.segment && confirmResearch.rerun ? 'warning' : 'primary'}
+        onClose={() => setConfirmResearch(null)}
+        onConfirm={() => {
+          const target = confirmResearch;
+          setConfirmResearch(null);
+          if (!target) return;
+          void act(target.segment ? 'segment' : 'research', () =>
+            bankIdeaService.startResearch(idea.id, target.segment ?? undefined),
+          );
+        }}
+      />
 
       <ConfirmDialog
         open={confirmDelete}

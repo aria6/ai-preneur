@@ -141,6 +141,7 @@ export function ConfirmDialog({
   title,
   message,
   confirmLabel = 'Hapus',
+  confirmVariant = 'danger',
   loading = false,
   error,
   onConfirm,
@@ -150,6 +151,7 @@ export function ConfirmDialog({
   title: string;
   message: ReactNode;
   confirmLabel?: string;
+  confirmVariant?: 'danger' | 'primary' | 'warning';
   loading?: boolean;
   error?: string | null;
   onConfirm: () => void;
@@ -166,7 +168,7 @@ export function ConfirmDialog({
           <Button variant="secondary" onClick={onClose} disabled={loading}>
             Batal
           </Button>
-          <Button variant="danger" onClick={onConfirm} loading={loading}>
+          <Button variant={confirmVariant} onClick={onConfirm} loading={loading}>
             {confirmLabel}
           </Button>
         </>

@@ -3,7 +3,7 @@ import type { ButtonHTMLAttributes } from 'react';
 import { cn } from '../../lib/cn';
 import { Spinner } from './Spinner';
 
-type Variant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'dangerGhost';
+type Variant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'dangerGhost' | 'warning';
 /** `icon` = square 32px button for icon-only actions (always pass aria-label). */
 type Size = 'sm' | 'md' | 'icon';
 
@@ -16,6 +16,9 @@ const VARIANTS: Record<Variant, string> = {
   ghost: 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-slate-400',
   /** Destructive action that should be noticeable but not shout (e.g. row delete). */
   dangerGhost: 'text-red-500 hover:bg-red-50 hover:text-red-600 focus-visible:outline-red-400',
+  /** Soft red: an action worth a second look (e.g. re-running something costly). */
+  warning:
+    'bg-red-50 text-red-700 ring-1 ring-red-200 ring-inset hover:bg-red-100 focus-visible:outline-red-400',
 };
 
 const SIZES: Record<Size, string> = {
