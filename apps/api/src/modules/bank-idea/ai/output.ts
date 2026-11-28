@@ -1,4 +1,5 @@
 import {
+  bankIdeaSegmentKey,
   BANK_IDEA_CRITERIA,
   BANK_IDEA_SCREENING_CRITERIA,
   BANK_IDEA_TEXT_MAX_LENGTH,
@@ -10,6 +11,7 @@ import {
   type BankIdeaDraft,
   type BankIdeaResearchResult,
   type BankIdeaSource,
+  type BankIdeaSynthesisResult,
   type BankIdeaScreening,
   type BankIdeaScreeningCriterion,
   type BankIdeaTargetSegment,
@@ -171,16 +173,20 @@ function parseScreening(value: unknown): BankIdeaScreening | null {
 function parseTargetSegments(
   value: unknown[] | undefined,
   focusSegment: string | null,
+  existingSegments: readonly string[],
 ): BankIdeaTargetSegment[] {
   const segments: BankIdeaTargetSegment[] = [];
   const seen = new Set<string>();
-  const key = (text: string) => text.toLowerCase().replace(/\s+/g, ' ');
+  const key = bankIdeaSegmentKey;
+  // A segment the idea already has keeps its existing wording.
+  const canonical = new Map(existingSegments.map((text) => [key(text), text]));
   for (const item of value ?? []) {
     if (typeof item !== 'object' || item === null) continue;
     const record = item as Record<string, unknown>;
     const raw = cut(record.segment, 500);
     if (!raw) continue;
-    const segment = segments.length === 0 && focusSegment ? focusSegment : raw;
+    const picked = segments.length === 0 && focusSegment ? focusSegment : raw;
+    const segment = canonical.get(key(picked)) ?? picked;
     if (seen.has(key(segment))) continue; // e.g. the locked segment repeated as an alternative
     seen.add(key(segment));
     segments.push({
@@ -203,7 +209,11 @@ function parseTargetSegments(
     .map(({ segment }) => segment);
 }
 
-export function parseResearch(text: string, focusSegment: string | null = null): ParsedResearch {
+export function parseResearch(
+  text: string,
+  focusSegment: string | null = null,
+  existingSegments: readonly string[] = [],
+): ParsedResearch {
   const parsed = researchOutputSchema.safeParse(extractJson(text));
   if (!parsed.success) throw new OutputError('format hasil riset tidak sesuai');
 
@@ -237,7 +247,11 @@ export function parseResearch(text: string, focusSegment: string | null = null):
   }
 
   // The scores are computed for the first segment, so a research without one is incomplete.
-  const targetSegments = parseTargetSegments(parsed.data.targetSegments, focusSegment);
+  const targetSegments = parseTargetSegments(
+    parsed.data.targetSegments,
+    focusSegment,
+    existingSegments,
+  );
   if (targetSegments.length === 0) throw new OutputError('target pasar tidak ditentukan');
 
   const summary = parsed.data.summary ?? {};
@@ -251,5 +265,41 @@ export function parseResearch(text: string, focusSegment: string | null = null):
       risks: list(summary.risks),
       nextSteps: list(summary.nextSteps),
     },
+  };
+}
+
+// ---- Combined conclusion ------------------------------------------------------------
+
+const synthesisOutputSchema = z.object({
+  recommendedSegment: z.unknown().optional(),
+  verdict: z.unknown(),
+  strengths: z.unknown().optional(),
+  risks: z.unknown().optional(),
+  nextSteps: z.unknown().optional(),
+  notes: z.unknown().optional(),
+});
+
+/** The recommended segment must be one of the idea's segments (matched by key). */
+export function parseSynthesis(
+  text: string,
+  segments: readonly string[],
+): Omit<BankIdeaSynthesisResult, 'versions'> {
+  const parsed = synthesisOutputSchema.safeParse(extractJson(text));
+  if (!parsed.success) throw new OutputError('format kesimpulan gabungan tidak sesuai');
+  const value = parsed.data;
+  const verdict = cut(value.verdict, 1_500);
+  if (!verdict) throw new OutputError('kesimpulan kosong');
+  const byKey = new Map(segments.map((segment) => [bankIdeaSegmentKey(segment), segment]));
+  const recommended =
+    typeof value.recommendedSegment === 'string'
+      ? (byKey.get(bankIdeaSegmentKey(value.recommendedSegment)) ?? null)
+      : null;
+  return {
+    recommendedSegment: recommended,
+    verdict,
+    strengths: list(value.strengths).slice(0, 4),
+    risks: list(value.risks).slice(0, 4),
+    nextSteps: list(value.nextSteps).slice(0, 4),
+    notes: list(value.notes).slice(0, 4),
   };
 }

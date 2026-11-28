@@ -16,6 +16,8 @@ export interface ResearchPromptInput {
   marketScope: BankIdeaMarketScope;
   /** Locked target market ("Riset lengkap untuk segmen ini"), or null. */
   focusSegment: string | null;
+  /** Target markets the idea already has (from earlier versions), to reuse their wording. */
+  existingSegments: readonly string[];
 }
 
 export function structurePrompt(rawInput: string): string {
@@ -61,6 +63,14 @@ export function researchPrompt(idea: ResearchPromptInput, today: string): string
   const targetTask = idea.focusSegment
     ? `Target pasar riset ini SUDAH DITENTUKAN: "${idea.focusSegment}". Taruh segmen ini sebagai item PERTAMA "targetSegments" dengan teks "segment" persis sama. Tambahkan 1–3 segmen potensial lain sebagai pembanding.`
     : `Riset siapa saja calon pembeli potensial ide ini, lalu tentukan 2–4 segmen yang paling menjanjikan. Hitung skor saringan tiap segmen; segmen dengan rata-rata skor saringan TERTINGGI ditaruh PERTAMA di "targetSegments".`;
+  const existing =
+    idea.existingSegments.length > 0
+      ? `\nSegmen yang SUDAH ADA di ide ini (dari riset sebelumnya):\n${idea.existingSegments
+          .map((segment) => `  - "${segment}"`)
+          .join(
+            '\n',
+          )}\nJika segmen yang kamu maksud sama atau sangat mirip dengan salah satu di atas, WAJIB pakai teks "segment" yang PERSIS sama (jangan ditulis ulang dengan kata lain). Segmen baru hanya boleh ditambahkan jika benar-benar berbeda.`
+      : '';
   const firstSegmentExample = idea.focusSegment
     ? JSON.stringify(idea.focusSegment)
     : '"segmen dengan skor saringan tertinggi (dipakai untuk semua skor)"';
@@ -82,7 +92,7 @@ IDE
 CAKUPAN PASAR: ${BANK_IDEA_MARKET_SCOPE_LABELS[idea.marketScope]} — ${scope}
 
 TARGET PASAR (langkah pertama)
-${targetTask}
+${targetTask}${existing}
 Untuk SETIAP segmen, beri skor saringan 1–10 (dasarkan pada data, bukan tebakan):
 ${screening}
 Seluruh skor kriteria di bawah dan seluruh isi "summary" (kesimpulan, kekuatan, risiko, langkah validasi) WAJIB dihitung/ditulis untuk segmen PERTAMA di "targetSegments", bukan untuk ide secara umum.
@@ -130,4 +140,66 @@ Balas HANYA dengan JSON-nya.
 <teks>
 ${brokenOutput}
 </teks>`;
+}
+
+export interface SynthesisPromptInput {
+  title: string;
+  summary: string;
+  marketScopeLabel: string;
+  runs: {
+    version: number;
+    segment: string;
+    locked: boolean;
+    totalScore: number;
+    labelText: string;
+    dimensions: string;
+    verdict: string;
+    strengths: string[];
+    risks: string[];
+    nextSteps: string[];
+    competitors: string[];
+  }[];
+  segments: { segment: string; screening: string; full: string }[];
+}
+
+/** "Kesimpulan gabungan": one conclusion over every version, no tools. */
+export function synthesisPrompt(input: SynthesisPromptInput): string {
+  const runs = input.runs
+    .map((run) =>
+      [
+        `### Versi ${run.version}: dihitung untuk "${run.segment}"${run.locked ? ' (segmen dipilih manual)' : ''}`,
+        `Skor total ${run.totalScore}/100 (${run.labelText}). Dimensi: ${run.dimensions}.`,
+        `Kesimpulan: ${run.verdict || '-'}`,
+        `Kekuatan: ${run.strengths.join(' | ') || '-'}`,
+        `Risiko: ${run.risks.join(' | ') || '-'}`,
+        `Langkah validasi: ${run.nextSteps.join(' | ') || '-'}`,
+        `Kompetitor: ${run.competitors.join(', ') || '-'}`,
+      ].join('\n'),
+    )
+    .join('\n\n');
+  const segments = input.segments
+    .map((s) => `- "${s.segment}" — saringan ${s.screening}; riset lengkap ${s.full}`)
+    .join('\n');
+
+  return `Kamu analis bisnis. Jangan memakai tool apa pun dan jangan menambah data baru di luar yang diberikan.
+Tugas: gabungkan semua versi riset ide di bawah menjadi SATU kesimpulan untuk pemilik ide yang ingin memutuskan apakah dan bagaimana menjalankan bisnis ini. Tulis dalam Bahasa Indonesia.
+
+IDE: ${input.title}
+Ringkasan: ${input.summary}
+Cakupan pasar: ${input.marketScopeLabel}
+
+DAFTAR TARGET PASAR (semua versi digabung)
+${segments}
+
+HASIL RISET PER VERSI
+${runs}
+
+ATURAN
+1. "recommendedSegment": segmen yang paling layak dimulai, ditulis PERSIS sama dengan salah satu teks di DAFTAR TARGET PASAR. Utamakan segmen yang sudah diriset lengkap dengan skor tertinggi; boleh memilih yang lain jika alasannya kuat. null jika tidak ada yang layak.
+2. "verdict": 2–4 kalimat: kenapa segmen itu, dan bagaimana posisi segmen lain (mis. cocok sebagai tahap berikutnya).
+3. "strengths", "risks", "nextSteps": gabungan dari semua versi untuk segmen yang direkomendasikan, tanpa duplikat, masing-masing maksimal 4 butir. Langkah validasi harus konkret: ke siapa, lewat kanal apa, berapa lama, kriteria lolos.
+4. "notes": maksimal 4 catatan penting: hasil yang bertentangan antar versi (sebut versinya), segmen di daftar yang sebenarnya sama, atau data yang tipis. [] jika tidak ada.
+
+Balas HANYA dengan satu objek JSON:
+{ "recommendedSegment": "... atau null", "verdict": "...", "strengths": [], "risks": [], "nextSteps": [], "notes": [] }`;
 }

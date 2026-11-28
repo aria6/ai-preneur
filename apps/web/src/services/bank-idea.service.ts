@@ -95,3 +95,8 @@ export async function cancelResearch(
     schema: bankIdeaResearchStatusResponseSchema,
   });
 }
+
+/** Starts "Kesimpulan gabungan"; returns the detail (status running). */
+export async function startSynthesis(id: string): Promise<BankIdeaDetailResponse> {
+  return apiClient.post(`${ideaUrl(id)}/synthesis`, { schema: bankIdeaDetailResponseSchema });
+}

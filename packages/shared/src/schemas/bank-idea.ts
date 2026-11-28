@@ -516,9 +516,72 @@ export const bankIdeaResponseSchema = z.object({ idea: bankIdeaSchema });
 export type BankIdeaResponse = z.infer<typeof bankIdeaResponseSchema>;
 
 /** Detail page: the idea plus every research run, newest first. */
+// ---- Idea-level segments and combined conclusion -------------------------------------
+
+/**
+ * Key used to treat two segment texts as the same segment: case, spacing, dash style
+ * and trailing punctuation do not matter. Same-meaning but different wording is left
+ * to the AI (it is given the existing list and told to reuse the exact text).
+ */
+export function bankIdeaSegmentKey(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[\u2010-\u2015\u2212]/g, '-')
+    .replace(/\s*-\s*/g, '-')
+    .replace(/[\s.,;:!?]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** One target market across every version of an idea. */
+export const bankIdeaSegmentSummarySchema = z.object({
+  segment: z.string(),
+  /** Latest screening of this segment and the version it came from. */
+  screening: bankIdeaScreeningSchema.nullable(),
+  screeningVersion: z.number().int().nullable(),
+  /** Latest full research computed for this segment, if any. */
+  fullRunId: z.string().nullable(),
+  fullVersion: z.number().int().nullable(),
+  fullScore: z.number().int().nullable(),
+  fullLabel: z.enum(BANK_IDEA_LABELS).nullable(),
+});
+export type BankIdeaSegmentSummaryDto = z.infer<typeof bankIdeaSegmentSummarySchema>;
+
+/** AI-written conclusion over every successful version (no web, made on request). */
+export const bankIdeaSynthesisResultSchema = z.object({
+  /** One of the idea's segments (exact text), or null when none stands out. */
+  recommendedSegment: z.string().nullable(),
+  verdict: z.string(),
+  strengths: z.array(z.string()),
+  risks: z.array(z.string()),
+  nextSteps: z.array(z.string()),
+  /** Contradictions between versions, duplicate-looking segments, thin data. */
+  notes: z.array(z.string()),
+  /** Versions the conclusion was made from. */
+  versions: z.array(z.number().int()),
+});
+export type BankIdeaSynthesisResult = z.infer<typeof bankIdeaSynthesisResultSchema>;
+
+export const BANK_IDEA_SYNTHESIS_STATUSES = ['none', 'running', 'ready', 'failed'] as const;
+export type BankIdeaSynthesisStatus = (typeof BANK_IDEA_SYNTHESIS_STATUSES)[number];
+
+export const bankIdeaSynthesisSchema = z.object({
+  status: z.enum(BANK_IDEA_SYNTHESIS_STATUSES),
+  /** Last successful conclusion (kept while a new one runs or after a failure). */
+  result: bankIdeaSynthesisResultSchema.nullable(),
+  createdAt: isoDate.nullable(),
+  /** A successful research finished after this conclusion was made. */
+  outdated: z.boolean(),
+  errorMessage: z.string().nullable(),
+});
+export type BankIdeaSynthesisDto = z.infer<typeof bankIdeaSynthesisSchema>;
+
 export const bankIdeaDetailResponseSchema = z.object({
   idea: bankIdeaSchema,
   runs: z.array(bankIdeaRunSchema),
+  /** Every target market found across versions, deduplicated, best screening first. */
+  segments: z.array(bankIdeaSegmentSummarySchema),
+  synthesis: bankIdeaSynthesisSchema,
 });
 export type BankIdeaDetailResponse = z.infer<typeof bankIdeaDetailResponseSchema>;
 

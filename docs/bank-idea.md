@@ -33,6 +33,19 @@ sama; rata-rata dihitung backend). Daftar diurutkan dari skor saringan tertinggi
   Segmen yang sudah punya riset lengkap menampilkan "Lihat hasil vN" untuk membandingkan.
 - `result.targetSegments`; riset lama tidak punya skor saringan (segmen pertama dianggap yang dinilai).
 
+## Segmen per ide & kesimpulan gabungan
+
+- **Daftar segmen per ide** = gabungan segmen dari semua versi yang berhasil (`domain/segments.ts`),
+  disatukan dengan `bankIdeaSegmentKey` (huruf besar-kecil, spasi, gaya tanda hubung, tanda baca akhir).
+  Setiap riset diberi daftar segmen yang sudah ada dan wajib memakai teks persis untuk segmen yang sama;
+  backend juga menyamakan teks yang cocok ke teks lama. Segmen baru boleh bertambah.
+- **Tampilan Gabungan | Per versi** (default Gabungan jika ≥2 versi berhasil): kesimpulan gabungan +
+  tabel perbandingan segmen (saringan terbaru, skor lengkap terbaru, "Lihat vN" / "Riset").
+- **Kesimpulan gabungan** (`POST /:id/synthesis`, izin research): AI tanpa web membaca semua versi →
+  segmen yang direkomendasikan (harus salah satu dari daftar), kesimpulan, kekuatan, risiko, langkah
+  validasi, catatan. Dibuat manual, jalan di background (kolom `synthesis_*` di `bank_ideas`, migrasi 0011),
+  1 sekaligus; ditandai "ada riset baru" jika ada versi berhasil yang lebih baru.
+
 ## Halaman detail
 
 Kolom utama = ringkasan: skor + label + "Dihitung untuk: segmen #1" + kesimpulan, 4 bar dimensi,

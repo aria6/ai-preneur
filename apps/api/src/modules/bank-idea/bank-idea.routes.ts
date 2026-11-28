@@ -40,6 +40,7 @@ const canResearch = requirePermission(PERMISSIONS.BANK_IDEA_RESEARCH);
  * DELETE /:id                                manage     (hapus permanen)
  * POST   /:id/research                       research   (queue a research / riset ulang; { focusSegment? })
  * GET    /:id/research/status                view       (polled while queued/running)
+ * POST   /:id/synthesis                      research   (Kesimpulan gabungan, background; page polls GET /:id)
  * POST   /:id/research/:runId/cancel         research
  */
 export function createBankIdeaRouter(deps: { service: BankIdeaService }): Router {
@@ -105,6 +106,15 @@ export function createBankIdeaRouter(deps: { service: BankIdeaService }): Router
     sendSuccess<BankIdeaResearchStatusResponse>(
       res,
       await service.startResearch(requireAuthContext(req), id, focusSegment ?? null),
+      202,
+    );
+  });
+
+  router.post('/:id/synthesis', canResearch, async (req, res) => {
+    const { id } = parseInput(ideaParams, req.params);
+    sendSuccess<BankIdeaDetailResponse>(
+      res,
+      await service.startSynthesis(requireAuthContext(req), id),
       202,
     );
   });

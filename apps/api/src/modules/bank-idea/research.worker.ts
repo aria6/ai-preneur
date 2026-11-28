@@ -7,7 +7,9 @@ import {
 import type { Logger } from '../../core/logger.js';
 import type { BankIdeaAi } from './ai/bank-idea-ai.js';
 import { AiError } from './ai/llm-runner.js';
+import { toRunDto } from './bank-idea.mappers.js';
 import { createBankIdeaRepository } from './bank-idea.repository.js';
+import { ideaSegments } from './domain/segments.js';
 
 const HEARTBEAT_MS = 30_000;
 /** A running row without heartbeat this long belongs to a server that stopped. */
@@ -76,6 +78,9 @@ export function createResearchWorker(deps: {
     });
 
     try {
+      const existingSegments = ideaSegments((await repo.listRuns(idea.id)).map(toRunDto)).map(
+        (segment) => segment.segment,
+      );
       const { result, meta } = await ai.research(
         {
           title: idea.title,
@@ -84,6 +89,7 @@ export function createResearchWorker(deps: {
           solution: idea.solution,
           marketScope: run.marketScope,
           focusSegment: run.focusSegment,
+          existingSegments,
         },
         controller.signal,
       );

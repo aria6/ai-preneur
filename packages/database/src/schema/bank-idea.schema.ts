@@ -58,6 +58,14 @@ export const bankIdeas = pgTable(
     lastResearchedAt: timestamp({ withTimezone: true }),
     /** Last change of the researched fields (not stage/archive) — "berubah sejak riset". */
     contentUpdatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    /** "Kesimpulan gabungan": AI conclusion over every successful research (shared contract). */
+    synthesisStatus: varchar({ length: 20 }).notNull().default('none'),
+    synthesis: jsonb(),
+    synthesisAt: timestamp({ withTimezone: true }),
+    /** Latest successful run when the conclusion was made: a newer one makes it outdated. */
+    synthesisRunId: uuid(),
+    synthesisStartedAt: timestamp({ withTimezone: true }),
+    synthesisError: varchar({ length: 1000 }),
     /** Archived ideas are read-only (no edit, no research) until unarchived. */
     archivedAt: timestamp({ withTimezone: true }),
     createdById: uuid(),

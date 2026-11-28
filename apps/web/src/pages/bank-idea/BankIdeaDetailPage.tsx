@@ -33,8 +33,11 @@ import {
   TargetSegmentsPanel,
   type SegmentActions,
 } from './research-result';
+import { CombinedView } from './combined-view';
 
 const POLL_MS = 5_000;
+const SYNTHESIS_POLL_MS = 4_000;
+const MIN_COMBINED_VERSIONS = 2;
 
 const normalize = (text: string) => text.trim().toLowerCase().replace(/\s+/g, ' ');
 
@@ -159,6 +162,8 @@ export function BankIdeaDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  /** null = automatic: "Gabungan" when there are 2+ successful versions. */
+  const [view, setView] = useState<'combined' | 'version' | null>(null);
   const [editing, setEditing] = useState(false);
   const [panel, setPanel] = useState<Panel | null>(null);
   /** Research waiting for confirmation: a segment (locked) or null for the automatic one. */
@@ -238,6 +243,24 @@ export function BankIdeaDetailPage() {
     };
   }, [id, activeRun, reload]);
 
+  const synthesisRunning = detail?.synthesis.status === 'running';
+
+  // While "Kesimpulan gabungan" is being made: reload the detail until it is done.
+  useEffect(() => {
+    if (!synthesisRunning) return;
+    const controller = new AbortController();
+    const timer = setInterval(() => {
+      bankIdeaService
+        .getIdea(id, controller.signal)
+        .then(setDetail)
+        .catch(() => undefined);
+    }, SYNTHESIS_POLL_MS);
+    return () => {
+      controller.abort();
+      clearInterval(timer);
+    };
+  }, [id, synthesisRunning]);
+
   const elapsed = useElapsed(activeRun?.status === 'running' ? activeRun.startedAt : null);
 
   const act = async (key: string, action: () => Promise<unknown>) => {
@@ -276,6 +299,8 @@ export function BankIdeaDetailPage() {
     (selectedRunId ? runs.find((run) => run.id === selectedRunId) : undefined) ?? succeeded[0];
   const lastRun = runs[0];
   const isLatestSucceeded = selectedRun?.id === succeeded[0]?.id;
+  const canCombine = succeeded.length >= MIN_COMBINED_VERSIONS;
+  const currentView = canCombine ? (view ?? 'combined') : 'version';
   const result = selectedRun?.result ?? null;
   const noResult = 'Belum ada hasil riset';
   const navItems: {
@@ -329,6 +354,7 @@ export function BankIdeaDetailPage() {
       succeeded.find((run) => normalize(segmentOf(run) ?? '') === normalize(segment)),
     viewRun: (runId) => {
       setSelectedRunId(runId);
+      setView('version');
       setPanel(null);
     },
   };
@@ -461,7 +487,54 @@ export function BankIdeaDetailPage() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0">
-          {selectedRun?.result ? (
+          {canCombine && (
+            <div className="mb-4 inline-flex rounded-lg bg-slate-100 p-1 text-sm" role="tablist">
+              {(
+                [
+                  ['combined', 'Gabungan'],
+                  ['version', 'Per versi'],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={currentView === key}
+                  onClick={() => setView(key)}
+                  className={
+                    'rounded-md px-4 py-1.5 font-medium focus-visible:outline-2 focus-visible:outline-primary-500 ' +
+                    (currentView === key
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800')
+                  }
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+          {currentView === 'combined' ? (
+            <CombinedView
+              segments={detail.segments}
+              synthesis={detail.synthesis}
+              versionCount={succeeded.length}
+              generate={
+                canResearch && !archived
+                  ? () =>
+                      void act('synthesis', async () => {
+                        setDetail(await bankIdeaService.startSynthesis(idea.id));
+                      })
+                  : null
+              }
+              generating={busy === 'synthesis'}
+              viewRun={segmentActions.viewRun}
+              research={
+                segmentActions.research
+                  ? (segment) => segmentActions.research?.(segment, false)
+                  : null
+              }
+            />
+          ) : selectedRun?.result ? (
             <ResearchSummary
               run={selectedRun}
               result={selectedRun.result}
@@ -514,13 +587,16 @@ export function BankIdeaDetailPage() {
               <ul className="space-y-1">
                 {runs.map((run) => {
                   const viewable = run.status === 'succeeded' && run.result !== null;
-                  const selected = run.id === selectedRun?.id;
+                  const selected = currentView === 'version' && run.id === selectedRun?.id;
                   return (
                     <li key={run.id}>
                       <button
                         type="button"
                         disabled={!viewable}
-                        onClick={() => setSelectedRunId(run.id)}
+                        onClick={() => {
+                          setSelectedRunId(run.id);
+                          setView('version');
+                        }}
                         aria-pressed={selected}
                         className={
                           'flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm ' +
