@@ -83,6 +83,7 @@ export function createResearchWorker(deps: {
           problem: idea.problem,
           solution: idea.solution,
           marketScope: run.marketScope,
+          focusSegment: run.focusSegment,
         },
         controller.signal,
       );

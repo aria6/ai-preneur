@@ -316,6 +316,17 @@ export const updateBankIdeaRequestSchema = z
   });
 export type UpdateBankIdeaRequest = z.input<typeof updateBankIdeaRequestSchema>;
 
+export const BANK_IDEA_FOCUS_SEGMENT_MAX_LENGTH = 500;
+export const startBankIdeaResearchRequestSchema = z.object({
+  focusSegment: z
+    .string()
+    .trim()
+    .min(1, 'Segmen wajib diisi')
+    .max(BANK_IDEA_FOCUS_SEGMENT_MAX_LENGTH, 'Segmen terlalu panjang')
+    .optional(),
+});
+export type StartBankIdeaResearchRequest = z.infer<typeof startBankIdeaResearchRequestSchema>;
+
 export const BANK_IDEA_LIST_FILTERS = ['active', 'archived'] as const;
 export type BankIdeaListFilter = (typeof BANK_IDEA_LIST_FILTERS)[number];
 export const bankIdeaListQuerySchema = z.object({
@@ -354,8 +365,50 @@ export const bankIdeaCompetitorSchema = z.object({
 export type BankIdeaCompetitor = z.infer<typeof bankIdeaCompetitorSchema>;
 
 /**
- * A potential target market found by the research. The list is ranked; the first
- * segment is the one every score was computed for.
+ * Screening of every potential target market: 4 quick criteria scored 1–10 by the AI,
+ * averaged (equal weights) by the API. Segments are ranked by this average.
+ */
+export const BANK_IDEA_SCREENING_CRITERIA = [
+  'size',
+  'willingness_to_pay',
+  'reach',
+  'competition',
+] as const;
+export type BankIdeaScreeningCriterion = (typeof BANK_IDEA_SCREENING_CRITERIA)[number];
+
+export const BANK_IDEA_SCREENING_DEFINITIONS: readonly {
+  key: BankIdeaScreeningCriterion;
+  label: string;
+  question: string;
+}[] = [
+  { key: 'size', label: 'Ukuran', question: 'Seberapa banyak calon pembelinya?' },
+  {
+    key: 'willingness_to_pay',
+    label: 'Kemauan bayar',
+    question: 'Seberapa mau dan mampu mereka membayar?',
+  },
+  {
+    key: 'reach',
+    label: 'Kemudahan dijangkau',
+    question: 'Seberapa mudah ditemui dan dijual (kanal, biaya akuisisi)?',
+  },
+  {
+    key: 'competition',
+    label: 'Persaingan',
+    question: 'Seberapa kosong segmen ini dari kompetitor? (Makin kosong, makin tinggi.)',
+  },
+];
+
+export const bankIdeaScreeningSchema = z.object({
+  scores: z.record(z.enum(BANK_IDEA_SCREENING_CRITERIA), z.number().int().min(1).max(10)),
+  /** Average of the 4 criteria, one decimal. */
+  score: z.number(),
+});
+export type BankIdeaScreening = z.infer<typeof bankIdeaScreeningSchema>;
+
+/**
+ * A potential target market found by the research, ranked by screening score.
+ * Exactly one segment is `scored`: the one the 9 criteria (and the total) were computed for.
  */
 export const bankIdeaTargetSegmentSchema = z.object({
   segment: z.string(),
@@ -363,6 +416,9 @@ export const bankIdeaTargetSegmentSchema = z.object({
   /** Rough size with its unit (e.g. "±2,1 juta rumah tangga"), or null without data. */
   sizeEstimate: z.string().nullable(),
   sources: z.array(bankIdeaSourceSchema),
+  /** Missing on researches made before screening existed (there the first one is scored). */
+  scored: z.boolean().optional(),
+  screening: bankIdeaScreeningSchema.nullable().optional(),
 });
 export type BankIdeaTargetSegment = z.infer<typeof bankIdeaTargetSegmentSchema>;
 
@@ -401,6 +457,8 @@ const isoDate = z.string();
 export const bankIdeaRunSchema = z.object({
   id: z.string(),
   version: z.number().int(),
+  /** Set when the research was locked to one target market ("Riset lengkap untuk segmen ini"). */
+  focusSegment: z.string().nullable(),
   status: z.enum(BANK_IDEA_RUN_STATUSES),
   marketScope: z.enum(BANK_IDEA_MARKET_SCOPES),
   totalScore: z.number().int().nullable(),

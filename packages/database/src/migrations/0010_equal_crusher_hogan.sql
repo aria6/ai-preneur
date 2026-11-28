@@ -1,0 +1,1 @@
+ALTER TABLE "bank_idea_research_runs" ADD COLUMN "focus_segment" varchar(500);

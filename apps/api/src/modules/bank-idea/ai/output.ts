@@ -1,5 +1,6 @@
 import {
   BANK_IDEA_CRITERIA,
+  BANK_IDEA_SCREENING_CRITERIA,
   BANK_IDEA_TEXT_MAX_LENGTH,
   BANK_IDEA_TITLE_MAX_LENGTH,
   type BankIdeaCompetitor,
@@ -9,6 +10,8 @@ import {
   type BankIdeaDraft,
   type BankIdeaResearchResult,
   type BankIdeaSource,
+  type BankIdeaScreening,
+  type BankIdeaScreeningCriterion,
   type BankIdeaTargetSegment,
 } from '@ai-preneur/shared';
 import { z } from 'zod';
@@ -144,25 +147,63 @@ export interface ParsedResearch {
 
 const MAX_SEGMENTS = 4;
 
-function parseTargetSegments(value: unknown[] | undefined): BankIdeaTargetSegment[] {
+function parseScreening(value: unknown): BankIdeaScreening | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const record = value as Record<string, unknown>;
+  const scores = {} as Record<BankIdeaScreeningCriterion, number>;
+  for (const key of BANK_IDEA_SCREENING_CRITERIA) {
+    const n = Number(record[key]);
+    if (!Number.isFinite(n)) return null;
+    scores[key] = Math.min(10, Math.max(1, Math.round(n)));
+  }
+  const avg =
+    BANK_IDEA_SCREENING_CRITERIA.reduce((sum, key) => sum + scores[key], 0) /
+    BANK_IDEA_SCREENING_CRITERIA.length;
+  return { scores, score: Math.round(avg * 10) / 10 };
+}
+
+/**
+ * The first segment is the one the AI scored in full (`scored`). The list is then
+ * ranked by screening score (equal-weight average), highest first; on a tie the scored
+ * segment stays ahead. Segments without a complete screening go last.
+ * With a locked segment, the scored segment keeps exactly the locked text.
+ */
+function parseTargetSegments(
+  value: unknown[] | undefined,
+  focusSegment: string | null,
+): BankIdeaTargetSegment[] {
   const segments: BankIdeaTargetSegment[] = [];
+  const seen = new Set<string>();
+  const key = (text: string) => text.toLowerCase().replace(/\s+/g, ' ');
   for (const item of value ?? []) {
     if (typeof item !== 'object' || item === null) continue;
     const record = item as Record<string, unknown>;
-    const segment = cut(record.segment, 500);
-    if (!segment) continue;
+    const raw = cut(record.segment, 500);
+    if (!raw) continue;
+    const segment = segments.length === 0 && focusSegment ? focusSegment : raw;
+    if (seen.has(key(segment))) continue; // e.g. the locked segment repeated as an alternative
+    seen.add(key(segment));
     segments.push({
       segment,
       reason: cut(record.reason, MAX_REASON),
       sizeEstimate: cut(record.sizeEstimate, 300) || null,
       sources: parseSources(Array.isArray(record.sources) ? record.sources : undefined),
+      scored: segments.length === 0,
+      screening: parseScreening(record.screening),
     });
     if (segments.length >= MAX_SEGMENTS) break;
   }
-  return segments;
+  return segments
+    .map((segment, index) => ({ segment, index }))
+    .sort((a, b) => {
+      const sa = a.segment.screening?.score ?? -1;
+      const sb = b.segment.screening?.score ?? -1;
+      return sb - sa || a.index - b.index;
+    })
+    .map(({ segment }) => segment);
 }
 
-export function parseResearch(text: string): ParsedResearch {
+export function parseResearch(text: string, focusSegment: string | null = null): ParsedResearch {
   const parsed = researchOutputSchema.safeParse(extractJson(text));
   if (!parsed.success) throw new OutputError('format hasil riset tidak sesuai');
 
@@ -196,7 +237,7 @@ export function parseResearch(text: string): ParsedResearch {
   }
 
   // The scores are computed for the first segment, so a research without one is incomplete.
-  const targetSegments = parseTargetSegments(parsed.data.targetSegments);
+  const targetSegments = parseTargetSegments(parsed.data.targetSegments, focusSegment);
   if (targetSegments.length === 0) throw new OutputError('target pasar tidak ditentukan');
 
   const summary = parsed.data.summary ?? {};

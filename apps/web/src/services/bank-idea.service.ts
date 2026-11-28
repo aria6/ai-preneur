@@ -67,8 +67,12 @@ export async function deleteIdea(id: string): Promise<void> {
   await apiClient.delete(ideaUrl(id));
 }
 
-export async function startResearch(id: string): Promise<BankIdeaResearchStatusResponse> {
+export async function startResearch(
+  id: string,
+  focusSegment?: string,
+): Promise<BankIdeaResearchStatusResponse> {
   return apiClient.post(`${ideaUrl(id)}/research`, {
+    body: focusSegment ? { focusSegment } : {},
     schema: bankIdeaResearchStatusResponseSchema,
   });
 }

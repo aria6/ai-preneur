@@ -2,6 +2,7 @@ import {
   bankIdeaListQuerySchema,
   createBankIdeaRequestSchema,
   PERMISSIONS,
+  startBankIdeaResearchRequestSchema,
   structureBankIdeaRequestSchema,
   updateBankIdeaRequestSchema,
   uuidSchema,
@@ -37,7 +38,7 @@ const canResearch = requirePermission(PERMISSIONS.BANK_IDEA_RESEARCH);
  * PATCH  /:id                                manage     (content, cakupan pasar, Tandai dieksekusi)
  * POST   /:id/archive · /unarchive           manage
  * DELETE /:id                                manage     (hapus permanen)
- * POST   /:id/research                       research   (queue a research / riset ulang)
+ * POST   /:id/research                       research   (queue a research / riset ulang; { focusSegment? })
  * GET    /:id/research/status                view       (polled while queued/running)
  * POST   /:id/research/:runId/cancel         research
  */
@@ -100,9 +101,10 @@ export function createBankIdeaRouter(deps: { service: BankIdeaService }): Router
 
   router.post('/:id/research', canResearch, async (req, res) => {
     const { id } = parseInput(ideaParams, req.params);
+    const { focusSegment } = parseInput(startBankIdeaResearchRequestSchema, req.body ?? {});
     sendSuccess<BankIdeaResearchStatusResponse>(
       res,
-      await service.startResearch(requireAuthContext(req), id),
+      await service.startResearch(requireAuthContext(req), id, focusSegment ?? null),
       202,
     );
   });

@@ -71,7 +71,7 @@ export function createBankIdeaAi(deps: {
       let parsed: ParsedResearch;
       let repaired = false;
       try {
-        parsed = parseResearch(first.text);
+        parsed = parseResearch(first.text, idea.focusSegment);
       } catch (error) {
         if (!(error instanceof OutputError)) throw error;
         // One cheap repair pass (no tools) instead of redoing the whole research.
@@ -84,7 +84,7 @@ export function createBankIdeaAi(deps: {
           { tools: 'none', timeoutMs: Math.min(REPAIR_TIMEOUT_MS, remaining), maxTurns: 3, signal },
         );
         try {
-          parsed = parseResearch(fixed.text);
+          parsed = parseResearch(fixed.text, idea.focusSegment);
           repaired = true;
         } catch (again) {
           if (again instanceof OutputError) {

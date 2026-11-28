@@ -29,10 +29,20 @@ import {
   CompetitorsPanel,
   CriteriaPanel,
   ResearchSummary,
+  scoredSegment,
   TargetSegmentsPanel,
+  type SegmentActions,
 } from './research-result';
 
 const POLL_MS = 5_000;
+
+const normalize = (text: string) => text.trim().toLowerCase().replace(/\s+/g, ' ');
+
+/** The segment a research was computed for (locked one, else the AI's scored pick). */
+function segmentOf(run: BankIdeaRunDto): string | null {
+  if (run.focusSegment) return run.focusSegment;
+  return run.result ? (scoredSegment(run.result)?.segment ?? null) : null;
+}
 
 type Panel = 'target' | 'criteria' | 'competitors' | 'idea';
 const PANEL_TITLES: Record<Panel, string> = {
@@ -293,6 +303,31 @@ export function BankIdeaDetailPage() {
     },
   ];
 
+  const segmentActions: SegmentActions = {
+    research:
+      canResearch && !archived && !activeRun
+        ? (segment) => {
+            setPanel(null);
+            void act('segment', () => bankIdeaService.startResearch(idea.id, segment));
+          }
+        : null,
+    researchDisabledReason: !canResearch
+      ? null
+      : archived
+        ? 'Pulihkan ide dulu untuk meriset.'
+        : activeRun
+          ? 'Tunggu riset yang sedang berjalan selesai.'
+          : null,
+    busy: busy === 'segment',
+    // Latest finished full research of that segment (locked or picked by the AI).
+    findRun: (segment) =>
+      succeeded.find((run) => normalize(segmentOf(run) ?? '') === normalize(segment)),
+    viewRun: (runId) => {
+      setSelectedRunId(runId);
+      setPanel(null);
+    },
+  };
+
   return (
     <>
       <BackLink />
@@ -488,15 +523,24 @@ export function BankIdeaDetailPage() {
                         }
                         title={run.errorMessage ?? undefined}
                       >
-                        <span>
+                        <span className="min-w-0">
                           <span className="font-medium">v{run.version}</span>{' '}
                           <span className="text-xs text-slate-500">
                             {formatDateTime(run.finishedAt ?? run.createdAt)}
                           </span>
+                          {segmentOf(run) && (
+                            <span className="block truncate text-xs text-slate-500">
+                              {run.focusSegment ? 'Segmen pilihan: ' : 'Untuk: '}
+                              {segmentOf(run)}
+                            </span>
+                          )}
                         </span>
                         {viewable && run.totalScore !== null && run.label ? (
-                          <span className="text-xs font-semibold tabular-nums">
-                            {run.totalScore} · {BANK_IDEA_LABEL_TEXT[run.label]}
+                          <span className="shrink-0 text-right text-xs tabular-nums">
+                            <span className="block text-sm font-semibold">{run.totalScore}</span>
+                            <span className="block text-slate-500">
+                              {BANK_IDEA_LABEL_TEXT[run.label]}
+                            </span>
                           </span>
                         ) : (
                           <Badge color={run.status === 'failed' ? 'red' : 'gray'}>
@@ -536,7 +580,11 @@ export function BankIdeaDetailPage() {
         }
       >
         {panel === 'target' && result?.targetSegments && (
-          <TargetSegmentsPanel segments={result.targetSegments} />
+          <TargetSegmentsPanel
+            result={result}
+            currentRunId={selectedRun!.id}
+            actions={segmentActions}
+          />
         )}
         {panel === 'criteria' && result && <CriteriaPanel result={result} />}
         {panel === 'competitors' && result && <CompetitorsPanel result={result} />}

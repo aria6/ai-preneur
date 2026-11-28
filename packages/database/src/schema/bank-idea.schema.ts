@@ -82,6 +82,8 @@ export const bankIdeaResearchRuns = pgTable(
     /** Market scope used for this research (the idea's at queue time). */
     marketScope: biMarketScope().notNull(),
     rubricVersion: varchar({ length: 20 }).notNull(),
+    /** Target market this research is locked to; null = the AI picks by screening. */
+    focusSegment: varchar({ length: 500 }),
     totalScore: integer(),
     label: biLabel(),
     /** BankIdeaResearchResult (shared contract), set when succeeded. */

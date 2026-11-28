@@ -2,6 +2,7 @@ import {
   BANK_IDEA_CRITERIA,
   BANK_IDEA_MARKET_SCOPE_LABELS,
   BANK_IDEA_RUBRIC,
+  BANK_IDEA_SCREENING_DEFINITIONS,
   type BankIdeaMarketScope,
 } from '@ai-preneur/shared';
 
@@ -13,6 +14,8 @@ export interface ResearchPromptInput {
   problem: string;
   solution: string;
   marketScope: BankIdeaMarketScope;
+  /** Locked target market ("Riset lengkap untuk segmen ini"), or null. */
+  focusSegment: string | null;
 }
 
 export function structurePrompt(rawInput: string): string {
@@ -51,6 +54,17 @@ export function researchPrompt(idea: ResearchPromptInput, today: string): string
     return `${dimension.label}:\n${criteria}`;
   }).join('\n\n');
 
+  const screening = BANK_IDEA_SCREENING_DEFINITIONS.map(
+    (c) => `  - "${c.key}" (${c.label}): ${c.question}`,
+  ).join('\n');
+  const screeningExample = `{ ${BANK_IDEA_SCREENING_DEFINITIONS.map((c) => `"${c.key}": 1-10`).join(', ')} }`;
+  const targetTask = idea.focusSegment
+    ? `Target pasar riset ini SUDAH DITENTUKAN: "${idea.focusSegment}". Taruh segmen ini sebagai item PERTAMA "targetSegments" dengan teks "segment" persis sama. Tambahkan 1–3 segmen potensial lain sebagai pembanding.`
+    : `Riset siapa saja calon pembeli potensial ide ini, lalu tentukan 2–4 segmen yang paling menjanjikan. Hitung skor saringan tiap segmen; segmen dengan rata-rata skor saringan TERTINGGI ditaruh PERTAMA di "targetSegments".`;
+  const firstSegmentExample = idea.focusSegment
+    ? JSON.stringify(idea.focusSegment)
+    : '"segmen dengan skor saringan tertinggi (dipakai untuk semua skor)"';
+
   const criteriaExample = BANK_IDEA_CRITERIA.map(
     (key) =>
       `    "${key}": { "score": 1-10, "confidence": "low|medium|high", "reason": "...", "sources": [{ "title": "...", "url": "https://..." }] }`,
@@ -68,8 +82,10 @@ IDE
 CAKUPAN PASAR: ${BANK_IDEA_MARKET_SCOPE_LABELS[idea.marketScope]} — ${scope}
 
 TARGET PASAR (langkah pertama)
-Riset siapa saja calon pembeli potensial ide ini, lalu tentukan 2–4 segmen yang paling menjanjikan, diurutkan dari yang terbaik (paling besar, paling mau bayar, paling mudah dijangkau). Dasarkan pada data, bukan tebakan.
-Segmen pertama dipakai untuk menghitung SEMUA skor di bawah, dan seluruh isi "summary" (kesimpulan, kekuatan, risiko, langkah validasi) juga WAJIB ditulis untuk segmen pertama itu, bukan untuk ide secara umum.
+${targetTask}
+Untuk SETIAP segmen, beri skor saringan 1–10 (dasarkan pada data, bukan tebakan):
+${screening}
+Seluruh skor kriteria di bawah dan seluruh isi "summary" (kesimpulan, kekuatan, risiko, langkah validasi) WAJIB dihitung/ditulis untuk segmen PERTAMA di "targetSegments", bukan untuk ide secara umum.
 Segmen yang baik itu spesifik (mis. "ibu rumah tangga 25–45 tahun di kota besar Jawa yang aktif belanja online"), bukan "semua orang". "sizeEstimate" = perkiraan jumlah/nilai segmen beserta satuannya, atau null jika tidak ada data.
 
 CARA KERJA
@@ -89,8 +105,8 @@ Balas HANYA dengan satu objek JSON (tanpa teks lain, tanpa markdown) persis deng
 ${criteriaExample}
   },
   "targetSegments": [
-    { "segment": "segmen terbaik (dipakai untuk semua skor)", "reason": "kenapa segmen ini, 2–4 kalimat dengan data", "sizeEstimate": "perkiraan ukuran dengan satuan, atau null", "sources": [{ "title": "...", "url": "https://..." }] },
-    { "segment": "segmen potensial berikutnya", "reason": "...", "sizeEstimate": "... atau null", "sources": [] }
+    { "segment": ${firstSegmentExample}, "reason": "kenapa segmen ini, 2–4 kalimat dengan data", "sizeEstimate": "perkiraan ukuran dengan satuan, atau null", "screening": ${screeningExample}, "sources": [{ "title": "...", "url": "https://..." }] },
+    { "segment": "segmen potensial lain", "reason": "...", "sizeEstimate": "... atau null", "screening": ${screeningExample}, "sources": [] }
   ],
   "competitors": [{ "name": "...", "url": "https://... atau null", "note": "apa yang mereka tawarkan, harga jika ada" }],
   "summary": {
@@ -107,7 +123,7 @@ Isi semua ${BANK_IDEA_CRITERIA.length} kriteria. Maksimal 6 sumber per kriteria,
 export function repairPrompt(brokenOutput: string, problem: string): string {
   return `Teks di bawah seharusnya berupa satu objek JSON hasil riset ide, tetapi tidak valid: ${problem}.
 Jangan memakai tool apa pun dan jangan menambah data baru. Ubah menjadi JSON valid dengan struktur:
-{ "targetSegments": [{ "segment": "...", "reason": "...", "sizeEstimate": "... atau null", "sources": [] }], "criteria": { "<key>": { "score": 1-10, "confidence": "low|medium|high", "reason": "...", "sources": [{ "title": "...", "url": "..." }] } }, "competitors": [{ "name": "...", "url": "... atau null", "note": "..." }], "summary": { "verdict": "...", "strengths": [], "risks": [], "nextSteps": [] } }
+{ "targetSegments": [{ "segment": "...", "reason": "...", "sizeEstimate": "... atau null", "screening": { "size": 1-10, "willingness_to_pay": 1-10, "reach": 1-10, "competition": 1-10 }, "sources": [] }], "criteria": { "<key>": { "score": 1-10, "confidence": "low|medium|high", "reason": "...", "sources": [{ "title": "...", "url": "..." }] } }, "competitors": [{ "name": "...", "url": "... atau null", "note": "..." }], "summary": { "verdict": "...", "strengths": [], "risks": [], "nextSteps": [] } }
 Key kriteria: ${BANK_IDEA_CRITERIA.join(', ')}. Pakai hanya nilai yang ada di teks; jangan mengarang skor untuk kriteria yang tidak ada.
 Balas HANYA dengan JSON-nya.
 

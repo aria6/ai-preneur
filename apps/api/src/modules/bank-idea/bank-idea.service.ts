@@ -37,6 +37,7 @@ async function queueResearch(
   ideaId: string,
   marketScope: 'indonesia' | 'global',
   auth: AuthContext,
+  focusSegment: string | null = null,
 ): Promise<void> {
   const txRepo = createBankIdeaRepository(tx);
   try {
@@ -45,6 +46,7 @@ async function queueResearch(
       version: await txRepo.nextVersion(ideaId),
       marketScope,
       rubricVersion: BANK_IDEA_RUBRIC_VERSION,
+      focusSegment,
       requestedById: auth.user.id,
     });
   } catch (error) {
@@ -187,15 +189,23 @@ export function createBankIdeaService(deps: {
       logger.info('Bank Idea deleted permanently', { ideaId: id, userId: auth.user.id });
     },
 
-    async startResearch(auth: AuthContext, id: string): Promise<BankIdeaResearchStatusResponse> {
+    async startResearch(
+      auth: AuthContext,
+      id: string,
+      focusSegment: string | null = null,
+    ): Promise<BankIdeaResearchStatusResponse> {
       await db.transaction(async (tx) => {
         const idea = await createBankIdeaRepository(tx).findIdeaForUpdate(id);
         if (!idea) throw notFound('Ide tidak ditemukan.');
         if (idea.archivedAt) throw conflict('Ide yang diarsip tidak bisa diriset. Pulihkan dulu.');
-        await queueResearch(tx, id, idea.marketScope, auth);
+        await queueResearch(tx, id, idea.marketScope, auth, focusSegment);
       });
       worker?.wake();
-      logger.info('Bank Idea research queued', { ideaId: id, userId: auth.user.id });
+      logger.info('Bank Idea research queued', {
+        ideaId: id,
+        focused: focusSegment !== null,
+        userId: auth.user.id,
+      });
       return researchStatus(id);
     },
 

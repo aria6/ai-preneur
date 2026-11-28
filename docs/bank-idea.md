@@ -22,10 +22,16 @@ Mengubah isi ide setelah riset menandai "Berubah sejak riset".
 
 ## Target pasar
 
-Ide tidak punya isian target pasar. Setiap riset dimulai dengan mencari 2–4 **target pasar potensial**
-(berdasarkan data), diurutkan dari yang paling menjanjikan; **semua skor dihitung untuk segmen #1**.
-Tiap segmen: alasan, perkiraan ukuran, sumber (`result.targetSegments`; riset lama tidak punya bagian ini).
-Menilai ketepatan target pasar bisa jadi fitur skoring terpisah nanti.
+Ide tidak punya isian target pasar. Setiap riset dimulai dengan mencari 2–4 **target pasar potensial**.
+Tiap segmen diberi **skor saringan**: Ukuran, Kemauan bayar, Kemudahan dijangkau, Persaingan (1–10, bobot
+sama; rata-rata dihitung backend). Daftar diurutkan dari skor saringan tertinggi.
+
+- AI menaruh segmen dengan saringan tertinggi pertama dan menilai segmen itu lengkap (9 sub-poin + kesimpulan,
+  kekuatan, risiko, langkah validasi) → `scored: true`, tampil sebagai "Dihitung untuk".
+- **Riset lengkap untuk segmen ini** (modal Target pasar potensial): riset baru yang dikunci ke satu segmen
+  (`bank_idea_research_runs.focus_segment`, body `{ focusSegment }`), masuk riwayat sebagai versi baru.
+  Segmen yang sudah punya riset lengkap menampilkan "Lihat hasil vN" untuk membandingkan.
+- `result.targetSegments`; riset lama tidak punya skor saringan (segmen pertama dianggap yang dinilai).
 
 ## Halaman detail
 

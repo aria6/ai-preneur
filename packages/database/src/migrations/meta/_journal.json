@@ -71,6 +71,13 @@
       "when": 1795856204445,
       "tag": "0009_nostalgic_ink",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795861156735,
+      "tag": "0010_equal_crusher_hogan",
+      "breakpoints": true
     }
   ]
 }

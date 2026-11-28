@@ -59,6 +59,7 @@ export function toRunDto(run: BankIdeaResearchRunRow): BankIdeaRunDto {
   return {
     id: run.id,
     version: run.version,
+    focusSegment: run.focusSegment,
     status: run.status,
     marketScope: run.marketScope,
     totalScore: run.totalScore,

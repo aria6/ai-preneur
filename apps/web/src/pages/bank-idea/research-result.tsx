@@ -4,6 +4,7 @@ import {
   BANK_IDEA_MARKET_SCOPE_LABELS,
   BANK_IDEA_RUBRIC,
   BANK_IDEA_RED_FLAG_MAX,
+  BANK_IDEA_SCREENING_DEFINITIONS,
   type BankIdeaConfidence,
   type BankIdeaDimensionResult,
   type BankIdeaRunDto,
@@ -12,6 +13,7 @@ import {
 } from '@ai-preneur/shared';
 import type { ReactNode } from 'react';
 
+import { Button } from '../../components/ui/Button';
 import { Alert, Badge, Card } from '../../components/ui/feedback';
 import { Icon } from '../../components/ui/Icon';
 import { cn } from '../../lib/cn';
@@ -152,45 +154,158 @@ function BulletCard({
 
 // ---- Detail panels (shown in modals) ---------------------------------------------------
 
-export function TargetSegmentsPanel({ segments }: { segments: BankIdeaTargetSegment[] }) {
+/** The segment the 9 criteria were computed for (older results: the first one). */
+export function scoredSegment(result: BankIdeaResearchResult): BankIdeaTargetSegment | undefined {
+  const segments = result.targetSegments ?? [];
+  return segments.find((s) => s.scored) ?? segments[0];
+}
+
+export interface SegmentActions {
+  /** Full research of one segment; null when not allowed now (with the reason). */
+  research: ((segment: string) => void) | null;
+  researchDisabledReason: string | null;
+  busy: boolean;
+  /** A finished full research of this segment, if any, to jump to. */
+  findRun: (segment: string) => BankIdeaRunDto | undefined;
+  viewRun: (runId: string) => void;
+}
+
+export function TargetSegmentsPanel({
+  result,
+  currentRunId,
+  actions,
+}: {
+  result: BankIdeaResearchResult;
+  currentRunId: string;
+  actions: SegmentActions;
+}) {
+  const segments = result.targetSegments ?? [];
+  const scored = scoredSegment(result);
   return (
     <div>
       <p className="mb-4 text-sm text-slate-500">
-        Diurutkan dari yang paling menjanjikan. Skor dihitung untuk segmen #1.
+        Diurutkan dari skor saringan tertinggi (rata-rata ukuran, kemauan bayar, kemudahan
+        dijangkau, dan persaingan). Penilaian lengkap riset ini dihitung untuk segmen bertanda.
       </p>
-      <ol className="space-y-5">
-        {segments.map((segment, index) => (
-          <li key={segment.segment} className="flex gap-3">
-            <span
+      <ol className="space-y-4">
+        {segments.map((segment, index) => {
+          const isScored = segment === scored;
+          const run = isScored ? undefined : actions.findRun(segment.segment);
+          return (
+            <li
+              key={segment.segment}
               className={cn(
-                'flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
-                index === 0 ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-600',
+                'rounded-xl border p-4',
+                isScored ? 'border-primary-200 bg-primary-50/40' : 'border-slate-200',
               )}
             >
-              {index + 1}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-slate-900">{segment.segment}</p>
-              {segment.sizeEstimate && (
-                <p className="text-xs text-slate-500">Perkiraan ukuran: {segment.sizeEstimate}</p>
-              )}
-              {segment.reason && (
-                <p className="mt-1.5 text-sm whitespace-pre-line text-slate-600">
-                  {segment.reason}
-                </p>
-              )}
-              {segment.sources.length > 0 && (
-                <ul className="mt-1 space-y-0.5 text-xs">
-                  {segment.sources.map((source) => (
-                    <li key={source.url} className="truncate">
-                      <ExternalLink href={source.url}>{source.title}</ExternalLink>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </li>
-        ))}
+              <div className="flex gap-3">
+                <span
+                  className={cn(
+                    'flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
+                    isScored ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-600',
+                  )}
+                >
+                  {index + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <p className="text-sm font-medium text-slate-900">{segment.segment}</p>
+                    {segment.screening && (
+                      <span className="text-sm font-semibold text-slate-900 tabular-nums">
+                        {segment.screening.score.toLocaleString('id-ID')}
+                        <span className="text-xs font-normal text-slate-400">/10</span>
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    {isScored && <Badge color="violet">Dinilai lengkap di riset ini</Badge>}
+                    {segment.sizeEstimate && (
+                      <span className="text-xs text-slate-500">
+                        Perkiraan ukuran: {segment.sizeEstimate}
+                      </span>
+                    )}
+                  </div>
+
+                  {segment.screening && (
+                    <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
+                      {BANK_IDEA_SCREENING_DEFINITIONS.map((criterion) => {
+                        const score = segment.screening!.scores[criterion.key];
+                        return (
+                          <div key={criterion.key} title={criterion.question}>
+                            <p className="flex justify-between text-xs text-slate-500">
+                              <span>{criterion.label}</span>
+                              <span className="font-medium text-slate-700 tabular-nums">
+                                {score}
+                              </span>
+                            </p>
+                            <div className="mt-1">
+                              <ScoreBar score={score} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {(segment.reason || segment.sources.length > 0) && (
+                    <details className="mt-3 text-sm">
+                      <summary className="cursor-pointer text-xs font-medium text-primary-700">
+                        Alasan & sumber
+                      </summary>
+                      {segment.reason && (
+                        <p className="mt-1.5 whitespace-pre-line text-slate-600">
+                          {segment.reason}
+                        </p>
+                      )}
+                      {segment.sources.length > 0 && (
+                        <ul className="mt-1 space-y-0.5 text-xs">
+                          {segment.sources.map((source) => (
+                            <li key={source.url} className="truncate">
+                              <ExternalLink href={source.url}>{source.title}</ExternalLink>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </details>
+                  )}
+
+                  {!isScored && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      {run && run.id !== currentRunId && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => actions.viewRun(run.id)}
+                        >
+                          Lihat hasil v{run.version}
+                          {run.totalScore !== null ? ` · ${run.totalScore}` : ''}
+                        </Button>
+                      )}
+                      {actions.research ? (
+                        <Button
+                          variant={run ? 'ghost' : 'secondary'}
+                          size="sm"
+                          onClick={() => actions.research?.(segment.segment)}
+                          loading={actions.busy}
+                        >
+                          <Icon name="search" className="size-4" />
+                          {run ? 'Riset ulang segmen ini' : 'Riset lengkap untuk segmen ini'}
+                        </Button>
+                      ) : (
+                        actions.researchDisabledReason && (
+                          <span className="text-xs text-slate-500">
+                            {actions.researchDisabledReason}
+                          </span>
+                        )
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </li>
+          );
+        })}
       </ol>
     </div>
   );
@@ -255,7 +370,7 @@ export function ResearchSummary({
   onOpenDetails: () => void;
 }) {
   const redFlags = result.dimensions.filter((d) => d.redFlag);
-  const primarySegment = result.targetSegments?.[0];
+  const primarySegment = scoredSegment(result);
 
   return (
     <div className="space-y-6">
