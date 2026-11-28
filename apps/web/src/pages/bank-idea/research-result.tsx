@@ -246,11 +246,13 @@ export function ResearchSummary({
   result,
   outdated,
   onOpenDimension,
+  onOpenDetails,
 }: {
   run: BankIdeaRunDto;
   result: BankIdeaResearchResult;
   outdated: boolean;
   onOpenDimension: (key: string) => void;
+  onOpenDetails: () => void;
 }) {
   const redFlags = result.dimensions.filter((d) => d.redFlag);
   const primarySegment = result.targetSegments?.[0];
@@ -302,6 +304,15 @@ export function ResearchSummary({
               </div>
             </button>
           ))}
+        </div>
+        <div className="mt-2 flex justify-end">
+          <button
+            type="button"
+            onClick={onOpenDetails}
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-primary-700 hover:bg-primary-50 focus-visible:outline-2 focus-visible:outline-primary-500"
+          >
+            Lihat detail penilaian <Icon name="chevronRight" className="size-4" />
+          </button>
         </div>
       </Card>
 

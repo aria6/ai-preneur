@@ -263,7 +263,12 @@ export function BankIdeaDetailPage() {
   const isLatestSucceeded = selectedRun?.id === succeeded[0]?.id;
   const result = selectedRun?.result ?? null;
   const noResult = 'Belum ada hasil riset';
-  const navItems: { key: Panel; label: string; meta: string; disabled: boolean }[] = [
+  const navItems: {
+    key: Exclude<Panel, 'criteria'>;
+    label: string;
+    meta: string;
+    disabled: boolean;
+  }[] = [
     {
       key: 'target',
       label: 'Target pasar potensial',
@@ -273,12 +278,6 @@ export function BankIdeaDetailPage() {
           ? 'Tidak ada di riset ini'
           : noResult,
       disabled: !result?.targetSegments?.length,
-    },
-    {
-      key: 'criteria',
-      label: 'Detail penilaian',
-      meta: result ? '9 sub-poin, alasan & sumber' : noResult,
-      disabled: !result,
     },
     {
       key: 'competitors',
@@ -424,6 +423,7 @@ export function BankIdeaDetailPage() {
               result={selectedRun.result}
               outdated={isLatestSucceeded && idea.changedSinceResearch}
               onOpenDimension={(key) => openPanel('criteria', key)}
+              onOpenDetails={() => openPanel('criteria')}
             />
           ) : (
             <EmptyState
