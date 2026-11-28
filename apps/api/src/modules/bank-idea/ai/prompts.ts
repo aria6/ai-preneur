@@ -69,7 +69,7 @@ CAKUPAN PASAR: ${BANK_IDEA_MARKET_SCOPE_LABELS[idea.marketScope]} — ${scope}
 
 TARGET PASAR (langkah pertama)
 Riset siapa saja calon pembeli potensial ide ini, lalu tentukan 2–4 segmen yang paling menjanjikan, diurutkan dari yang terbaik (paling besar, paling mau bayar, paling mudah dijangkau). Dasarkan pada data, bukan tebakan.
-Segmen pertama dipakai untuk menghitung SEMUA skor di bawah.
+Segmen pertama dipakai untuk menghitung SEMUA skor di bawah, dan seluruh isi "summary" (kesimpulan, kekuatan, risiko, langkah validasi) juga WAJIB ditulis untuk segmen pertama itu, bukan untuk ide secara umum.
 Segmen yang baik itu spesifik (mis. "ibu rumah tangga 25–45 tahun di kota besar Jawa yang aktif belanja online"), bukan "semua orang". "sizeEstimate" = perkiraan jumlah/nilai segmen beserta satuannya, atau null jika tidak ada data.
 
 CARA KERJA
@@ -94,10 +94,10 @@ ${criteriaExample}
   ],
   "competitors": [{ "name": "...", "url": "https://... atau null", "note": "apa yang mereka tawarkan, harga jika ada" }],
   "summary": {
-    "verdict": "kesimpulan 2–3 kalimat",
-    "strengths": ["kekuatan utama"],
-    "risks": ["risiko terbesar"],
-    "nextSteps": ["langkah validasi berikutnya yang konkret dan murah"]
+    "verdict": "kesimpulan 2–3 kalimat untuk segmen #1",
+    "strengths": ["kekuatan utama ide di segmen #1"],
+    "risks": ["risiko terbesar ide di segmen #1"],
+    "nextSteps": ["langkah validasi konkret dan murah untuk segmen #1: sebut ke siapa, di mana/lewat kanal apa, berapa lama, dan kriteria lolosnya (mis. 'pre-order 7 hari di 3 grup Facebook ibu-ibu urban farming Jabodetabek, lolos jika ≥10 pembeli')"]
   }
 }
 Isi semua ${BANK_IDEA_CRITERIA.length} kriteria. Maksimal 6 sumber per kriteria, maksimal 8 kompetitor, maksimal 5 butir per daftar di summary.`;

@@ -132,8 +132,8 @@ function BulletCard({
   icon: 'check' | 'alert' | 'chevronRight';
 }) {
   return (
-    <Card className="p-5">
-      <h3 className="mb-3 font-semibold text-slate-900">{title}</h3>
+    <div>
+      <h3 className="mb-2 text-sm font-semibold text-slate-900">{title}</h3>
       {items.length === 0 ? (
         <p className="text-sm text-slate-400">—</p>
       ) : (
@@ -146,7 +146,7 @@ function BulletCard({
           ))}
         </ul>
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -305,7 +305,16 @@ export function ResearchSummary({
             </button>
           ))}
         </div>
-        <div className="mt-2 flex justify-end">
+        <div className="mt-4 grid gap-5 border-t border-slate-100 pt-4 lg:grid-cols-3">
+          <BulletCard title="Kekuatan" items={result.summary.strengths} icon="check" />
+          <BulletCard title="Risiko terbesar" items={result.summary.risks} icon="alert" />
+          <BulletCard
+            title="Langkah validasi berikutnya"
+            items={result.summary.nextSteps}
+            icon="chevronRight"
+          />
+        </div>
+        <div className="mt-4 flex justify-end border-t border-slate-100 pt-2">
           <button
             type="button"
             onClick={onOpenDetails}
@@ -329,16 +338,6 @@ export function ResearchSummary({
           Ide sudah diubah setelah riset ini. Jalankan riset ulang agar skornya sesuai isi terbaru.
         </Alert>
       )}
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <BulletCard title="Kekuatan" items={result.summary.strengths} icon="check" />
-        <BulletCard title="Risiko terbesar" items={result.summary.risks} icon="alert" />
-        <BulletCard
-          title="Langkah validasi berikutnya"
-          items={result.summary.nextSteps}
-          icon="chevronRight"
-        />
-      </div>
     </div>
   );
 }
