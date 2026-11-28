@@ -1,7 +1,6 @@
 import {
   BANK_IDEA_LABEL_TEXT,
   BANK_IDEA_MARKET_SCOPE_LABELS,
-  BANK_IDEA_TEXT_MAX_LENGTH,
   PERMISSIONS,
   updateBankIdeaRequestSchema,
   type BankIdeaDetailResponse,
@@ -21,6 +20,7 @@ import { formatDateTime } from '../../lib/format';
 import * as bankIdeaService from '../../services/bank-idea.service';
 import {
   ActiveRunBadge,
+  CollapsibleCard,
   formatDuration,
   IdeaFields,
   StageBadge,
@@ -71,7 +71,6 @@ function EditIdeaModal({
     title: idea.title,
     summary: idea.summary,
     problem: idea.problem,
-    targetMarket: idea.targetMarket,
     solution: idea.solution,
     marketScope: idea.marketScope,
   });
@@ -239,24 +238,6 @@ export function BankIdeaDetailPage() {
     (selectedRunId ? runs.find((run) => run.id === selectedRunId) : undefined) ?? succeeded[0];
   const lastRun = runs[0];
   const isLatestSucceeded = selectedRun?.id === succeeded[0]?.id;
-  const aiTarget = selectedRun?.result?.targetMarket;
-  // Offered only for the AI's pick on the latest research, when the idea still differs.
-  const applyTarget =
-    canManage &&
-    !archived &&
-    isLatestSucceeded &&
-    aiTarget?.source === 'ai' &&
-    idea.targetMarket.trim() !== aiTarget.segment.trim()
-      ? {
-          busy: busy === 'target',
-          onApply: () =>
-            void act('target', () =>
-              bankIdeaService.updateIdea(idea.id, {
-                targetMarket: aiTarget.segment.slice(0, BANK_IDEA_TEXT_MAX_LENGTH),
-              }),
-            ),
-        }
-      : null;
 
   return (
     <>
@@ -387,7 +368,6 @@ export function BankIdeaDetailPage() {
               run={selectedRun}
               result={selectedRun.result}
               outdated={isLatestSucceeded && idea.changedSinceResearch}
-              applyTarget={applyTarget}
             />
           ) : (
             <EmptyState
@@ -403,13 +383,11 @@ export function BankIdeaDetailPage() {
         </div>
 
         <aside className="space-y-4">
-          <Card className="p-5">
-            <h2 className="mb-3 font-semibold text-slate-900">Isi ide</h2>
+          <CollapsibleCard title="Isi ide">
             <dl className="space-y-3 text-sm">
               {[
                 ['Ringkasan', idea.summary],
                 ['Masalah', idea.problem],
-                ['Target pasar', idea.targetMarket],
                 ['Solusi', idea.solution],
               ].map(([label, value]) => (
                 <div key={label}>
@@ -426,7 +404,7 @@ export function BankIdeaDetailPage() {
                 <p className="mt-2 whitespace-pre-line text-slate-600">{idea.rawInput}</p>
               </details>
             )}
-          </Card>
+          </CollapsibleCard>
 
           <Card className="p-5">
             <h2 className="mb-3 font-semibold text-slate-900">Riwayat riset</h2>

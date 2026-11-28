@@ -1,0 +1,1 @@
+ALTER TABLE "bank_ideas" DROP COLUMN "target_market";

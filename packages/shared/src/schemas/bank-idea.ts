@@ -267,7 +267,6 @@ const contentFields = {
   title: requiredText('Judul', BANK_IDEA_TITLE_MAX_LENGTH),
   summary: requiredText('Ringkasan', BANK_IDEA_TEXT_MAX_LENGTH),
   problem: optionalText('Masalah', BANK_IDEA_TEXT_MAX_LENGTH),
-  targetMarket: optionalText('Target pasar', BANK_IDEA_TEXT_MAX_LENGTH),
   solution: optionalText('Solusi', BANK_IDEA_TEXT_MAX_LENGTH),
   marketScope: marketScopeSchema,
 };
@@ -275,7 +274,6 @@ const contentFields = {
 export const bankIdeaContentSchema = z.object({
   ...contentFields,
   problem: contentFields.problem.default(''),
-  targetMarket: contentFields.targetMarket.default(''),
   solution: contentFields.solution.default(''),
   marketScope: marketScopeSchema.default('indonesia'),
 });
@@ -286,7 +284,6 @@ export const bankIdeaDraftSchema = z.object({
   title: contentFields.title,
   summary: contentFields.summary,
   problem: contentFields.problem,
-  targetMarket: contentFields.targetMarket,
   solution: contentFields.solution,
 });
 export type BankIdeaDraft = z.infer<typeof bankIdeaDraftSchema>;
@@ -309,7 +306,6 @@ export const updateBankIdeaRequestSchema = z
     title: contentFields.title.optional(),
     summary: contentFields.summary.optional(),
     problem: contentFields.problem.optional(),
-    targetMarket: contentFields.targetMarket.optional(),
     solution: contentFields.solution.optional(),
     marketScope: contentFields.marketScope.optional(),
     /** "Tandai dieksekusi" / undo. */
@@ -357,23 +353,18 @@ export const bankIdeaCompetitorSchema = z.object({
 });
 export type BankIdeaCompetitor = z.infer<typeof bankIdeaCompetitorSchema>;
 
-/** Who chose the segment the research scored: the user's target market or the AI. */
-export const BANK_IDEA_TARGET_SOURCES = ['user', 'ai'] as const;
-export type BankIdeaTargetSource = (typeof BANK_IDEA_TARGET_SOURCES)[number];
-
-export const bankIdeaTargetMarketResultSchema = z.object({
-  source: z.enum(BANK_IDEA_TARGET_SOURCES),
-  /** The segment every score was computed for. */
+/**
+ * A potential target market found by the research. The list is ranked; the first
+ * segment is the one every score was computed for.
+ */
+export const bankIdeaTargetSegmentSchema = z.object({
   segment: z.string(),
   reason: z.string(),
-  /** Rough size of the segment, as text with its unit (e.g. "±2,1 juta rumah tangga"). */
+  /** Rough size with its unit (e.g. "±2,1 juta rumah tangga"), or null without data. */
   sizeEstimate: z.string().nullable(),
   sources: z.array(bankIdeaSourceSchema),
-  alternatives: z.array(z.object({ segment: z.string(), reason: z.string() })),
-  /** When the user's target looks weak: a suggestion (the scores still use the user's target). */
-  note: z.string().nullable(),
 });
-export type BankIdeaTargetMarketResult = z.infer<typeof bankIdeaTargetMarketResultSchema>;
+export type BankIdeaTargetSegment = z.infer<typeof bankIdeaTargetSegmentSchema>;
 
 export const bankIdeaResearchResultSchema = z.object({
   rubricVersion: z.string(),
@@ -383,8 +374,8 @@ export const bankIdeaResearchResultSchema = z.object({
   cappedByRedFlag: z.boolean(),
   dimensions: z.array(bankIdeaDimensionResultSchema),
   competitors: z.array(bankIdeaCompetitorSchema),
-  /** Missing on researches made before this section existed. */
-  targetMarket: bankIdeaTargetMarketResultSchema.nullable().optional(),
+  /** Ranked potential target markets; missing on researches made before this existed. */
+  targetSegments: z.array(bankIdeaTargetSegmentSchema).optional(),
   summary: z.object({
     verdict: z.string(),
     strengths: z.array(z.string()),
@@ -455,7 +446,6 @@ export type BankIdeaSummaryDto = z.infer<typeof bankIdeaSummarySchema>;
 export const bankIdeaSchema = bankIdeaSummarySchema.extend({
   rawInput: z.string(),
   problem: z.string(),
-  targetMarket: z.string(),
   solution: z.string(),
   updatedAt: isoDate,
 });

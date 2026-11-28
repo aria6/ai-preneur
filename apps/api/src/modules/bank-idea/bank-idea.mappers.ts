@@ -48,7 +48,6 @@ export function toIdeaDto(idea: BankIdeaRow, activeRun: ActiveRun | undefined): 
     ...toIdeaSummary(idea, activeRun),
     rawInput: idea.rawInput,
     problem: idea.problem,
-    targetMarket: idea.targetMarket,
     solution: idea.solution,
     updatedAt: idea.updatedAt.toISOString(),
   };

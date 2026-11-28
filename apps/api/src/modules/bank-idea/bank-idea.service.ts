@@ -26,14 +26,7 @@ type CreateInput = z.output<typeof createBankIdeaRequestSchema>;
 type UpdateInput = z.output<typeof updateBankIdeaRequestSchema>;
 
 /** Fields whose change makes the latest research outdated. */
-const CONTENT_FIELDS = [
-  'title',
-  'summary',
-  'problem',
-  'targetMarket',
-  'solution',
-  'marketScope',
-] as const;
+const CONTENT_FIELDS = ['title', 'summary', 'problem', 'solution', 'marketScope'] as const;
 
 const aiUnavailable = (message: string) =>
   new AppError({ statusCode: 503, code: ERROR_CODES.SERVICE_UNAVAILABLE, message });

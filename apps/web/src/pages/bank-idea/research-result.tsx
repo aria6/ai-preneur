@@ -8,16 +8,15 @@ import {
   type BankIdeaDimensionResult,
   type BankIdeaRunDto,
   type BankIdeaResearchResult,
-  type BankIdeaTargetMarketResult,
+  type BankIdeaTargetSegment,
 } from '@ai-preneur/shared';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
-import { Button } from '../../components/ui/Button';
 import { Alert, Badge, Card } from '../../components/ui/feedback';
 import { Icon } from '../../components/ui/Icon';
 import { cn } from '../../lib/cn';
 import { formatDateTime } from '../../lib/format';
-import { LABEL_STYLES, ScoreCircle } from './bank-idea-ui';
+import { Collapsible, CollapsibleCard, LABEL_STYLES, ScoreCircle } from './bank-idea-ui';
 
 const DIMENSIONS = new Map(BANK_IDEA_RUBRIC.map((d) => [d.key, d]));
 const CRITERIA = new Map(
@@ -65,7 +64,10 @@ function ExternalLink({ href, children }: { href: string; children: ReactNode })
 function DimensionCard({ dimension }: { dimension: BankIdeaDimensionResult }) {
   const definition = DIMENSIONS.get(dimension.key);
   return (
-    <Card className="p-5">
+    <div
+      id={`dimensi-${dimension.key}`}
+      className="scroll-mt-4 rounded-xl border border-slate-200 p-5"
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="font-semibold text-slate-900">{definition?.label ?? dimension.key}</h3>
@@ -116,7 +118,7 @@ function DimensionCard({ dimension }: { dimension: BankIdeaDimensionResult }) {
           );
         })}
       </ul>
-    </Card>
+    </div>
   );
 }
 
@@ -148,88 +150,80 @@ function BulletCard({
   );
 }
 
-/** Set when the AI chose the segment and it can be copied into the idea. */
-export interface ApplyTargetAction {
-  onApply: () => void;
-  busy: boolean;
-}
-
-function TargetMarketCard({
-  target,
-  apply,
-}: {
-  target: BankIdeaTargetMarketResult;
-  apply: ApplyTargetAction | null;
-}) {
+function TargetSegments({ segments }: { segments: BankIdeaTargetSegment[] }) {
   return (
     <Card className="p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-slate-900">Target pasar</h3>
-          <Badge color={target.source === 'ai' ? 'violet' : 'gray'}>
-            {target.source === 'ai' ? 'Ditentukan AI' : 'Dari kamu'}
-          </Badge>
-        </div>
-        {apply && (
-          <Button variant="secondary" size="sm" onClick={apply.onApply} loading={apply.busy}>
-            <Icon name="check" className="size-4" /> Pakai sebagai target pasar ide
-          </Button>
-        )}
-      </div>
-      <p className="mt-3 text-sm font-medium whitespace-pre-line text-slate-900">
-        {target.segment}
+      <h3 className="font-semibold text-slate-900">Target pasar potensial</h3>
+      <p className="mt-0.5 text-xs text-slate-500">
+        Diurutkan dari yang paling menjanjikan. Skor di atas dihitung untuk segmen #1.
       </p>
-      {target.sizeEstimate && (
-        <p className="mt-1 text-sm text-slate-600">
-          <span className="text-slate-500">Perkiraan ukuran:</span> {target.sizeEstimate}
-        </p>
-      )}
-      {target.reason && (
-        <p className="mt-2 text-sm whitespace-pre-line text-slate-600">{target.reason}</p>
-      )}
-      {target.sources.length > 0 && (
-        <ul className="mt-1.5 space-y-0.5 text-xs">
-          {target.sources.map((source) => (
-            <li key={source.url} className="truncate">
-              <ExternalLink href={source.url}>{source.title}</ExternalLink>
-            </li>
-          ))}
-        </ul>
-      )}
-      {target.note && (
-        <Alert variant="warning" className="mt-3">
-          Saran: {target.note}
-        </Alert>
-      )}
-      {target.alternatives.length > 0 && (
-        <div className="mt-4 border-t border-slate-100 pt-3">
-          <p className="mb-2 text-xs font-medium text-slate-500">Segmen alternatif</p>
-          <ul className="space-y-2 text-sm">
-            {target.alternatives.map((alt) => (
-              <li key={alt.segment}>
-                <p className="font-medium text-slate-800">{alt.segment}</p>
-                {alt.reason && <p className="text-slate-600">{alt.reason}</p>}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <ol className="mt-4 space-y-3">
+        {segments.map((segment, index) => (
+          <li key={segment.segment} className="flex gap-3">
+            <span
+              className={cn(
+                'flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
+                index === 0 ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-600',
+              )}
+            >
+              {index + 1}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-slate-900">{segment.segment}</p>
+              {segment.sizeEstimate && (
+                <p className="text-xs text-slate-500">Perkiraan ukuran: {segment.sizeEstimate}</p>
+              )}
+              {(segment.reason || segment.sources.length > 0) && (
+                <details className="mt-1 text-sm">
+                  <summary className="cursor-pointer text-xs font-medium text-primary-700">
+                    Alasan & sumber
+                  </summary>
+                  {segment.reason && (
+                    <p className="mt-1.5 whitespace-pre-line text-slate-600">{segment.reason}</p>
+                  )}
+                  {segment.sources.length > 0 && (
+                    <ul className="mt-1 space-y-0.5 text-xs">
+                      {segment.sources.map((source) => (
+                        <li key={source.url} className="truncate">
+                          <ExternalLink href={source.url}>{source.title}</ExternalLink>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </details>
+              )}
+            </div>
+          </li>
+        ))}
+      </ol>
     </Card>
   );
 }
 
+/**
+ * A research as a summary first: score, dimension bars, target markets, strengths/risks/
+ * next steps. The 9 criteria and the competitors open on demand.
+ */
 export function ResearchResultView({
   run,
   result,
   outdated,
-  applyTarget,
 }: {
   run: BankIdeaRunDto;
   result: BankIdeaResearchResult;
   outdated: boolean;
-  applyTarget: ApplyTargetAction | null;
 }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const redFlags = result.dimensions.filter((d) => d.redFlag);
+
+  const openDimension = (key: string) => {
+    setDetailsOpen(true);
+    // After the section has rendered.
+    requestAnimationFrame(() =>
+      document.getElementById(`dimensi-${key}`)?.scrollIntoView({ behavior: 'smooth' }),
+    );
+  };
+
   return (
     <div className="space-y-6">
       <Card className="p-5">
@@ -250,19 +244,26 @@ export function ResearchResultView({
             )}
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4 sm:grid-cols-4">
+        <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 sm:grid-cols-4">
           {result.dimensions.map((dimension) => (
-            <div key={dimension.key}>
+            <button
+              key={dimension.key}
+              type="button"
+              onClick={() => openDimension(dimension.key)}
+              className="rounded-lg p-2 text-left hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-primary-500"
+              title="Lihat detail"
+            >
               <p className="text-xs text-slate-500">
                 {DIMENSIONS.get(dimension.key)?.label} · {dimension.weight}%
               </p>
               <p className="text-sm font-semibold text-slate-900 tabular-nums">
                 {dimension.score.toLocaleString('id-ID')}/10
+                {dimension.redFlag && <span className="ml-1 text-xs text-red-600">red flag</span>}
               </p>
               <div className="mt-1">
                 <ScoreBar score={dimension.score} />
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </Card>
@@ -281,13 +282,9 @@ export function ResearchResultView({
         </Alert>
       )}
 
-      {result.targetMarket && <TargetMarketCard target={result.targetMarket} apply={applyTarget} />}
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        {result.dimensions.map((dimension) => (
-          <DimensionCard key={dimension.key} dimension={dimension} />
-        ))}
-      </div>
+      {result.targetSegments && result.targetSegments.length > 0 && (
+        <TargetSegments segments={result.targetSegments} />
+      )}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <BulletCard title="Kekuatan" items={result.summary.strengths} icon="check" />
@@ -299,8 +296,20 @@ export function ResearchResultView({
         />
       </div>
 
-      <Card className="p-5">
-        <h3 className="mb-3 font-semibold text-slate-900">Kompetitor</h3>
+      <Collapsible
+        title="Detail penilaian"
+        meta="9 sub-poin, alasan & sumber"
+        open={detailsOpen}
+        onToggle={() => setDetailsOpen((v) => !v)}
+      >
+        <div className="grid gap-4 lg:grid-cols-2">
+          {result.dimensions.map((dimension) => (
+            <DimensionCard key={dimension.key} dimension={dimension} />
+          ))}
+        </div>
+      </Collapsible>
+
+      <CollapsibleCard title="Kompetitor" meta={`${result.competitors.length} ditemukan`}>
         {result.competitors.length === 0 ? (
           <p className="text-sm text-slate-400">Tidak ada kompetitor yang ditemukan.</p>
         ) : (
@@ -329,7 +338,7 @@ export function ResearchResultView({
             </table>
           </div>
         )}
-      </Card>
+      </CollapsibleCard>
     </div>
   );
 }

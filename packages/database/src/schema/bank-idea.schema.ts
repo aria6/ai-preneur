@@ -49,7 +49,6 @@ export const bankIdeas = pgTable(
     title: varchar({ length: 200 }).notNull(),
     summary: varchar({ length: 2000 }).notNull(),
     problem: varchar({ length: 2000 }).notNull().default(''),
-    targetMarket: varchar({ length: 2000 }).notNull().default(''),
     solution: varchar({ length: 2000 }).notNull().default(''),
     marketScope: biMarketScope().notNull().default('indonesia'),
     stage: biStage().notNull().default('new'),

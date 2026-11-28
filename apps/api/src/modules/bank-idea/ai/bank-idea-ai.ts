@@ -68,14 +68,10 @@ export function createBankIdeaAi(deps: {
         signal,
       });
 
-      const target = idea.targetMarket.trim()
-        ? { source: 'user' as const, userTarget: idea.targetMarket.trim() }
-        : { source: 'ai' as const, userTarget: '' };
-
       let parsed: ParsedResearch;
       let repaired = false;
       try {
-        parsed = parseResearch(first.text, target);
+        parsed = parseResearch(first.text);
       } catch (error) {
         if (!(error instanceof OutputError)) throw error;
         // One cheap repair pass (no tools) instead of redoing the whole research.
@@ -88,7 +84,7 @@ export function createBankIdeaAi(deps: {
           { tools: 'none', timeoutMs: Math.min(REPAIR_TIMEOUT_MS, remaining), maxTurns: 3, signal },
         );
         try {
-          parsed = parseResearch(fixed.text, target);
+          parsed = parseResearch(fixed.text);
           repaired = true;
         } catch (again) {
           if (again instanceof OutputError) {

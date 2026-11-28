@@ -81,7 +81,6 @@ export function createResearchWorker(deps: {
           title: idea.title,
           summary: idea.summary,
           problem: idea.problem,
-          targetMarket: idea.targetMarket,
           solution: idea.solution,
           marketScope: run.marketScope,
         },

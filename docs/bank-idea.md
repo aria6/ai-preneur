@@ -10,8 +10,8 @@ Menampung semua ide, merapikan ide mentah dengan AI, lalu meriset tiap ide di we
 
 ## Alur
 
-1. **Ide mentah** → "Rapikan dengan AI" (tanpa web) → draf: judul, ringkasan, masalah, target
-   pasar, solusi. Bisa juga "Isi manual".
+1. **Ide mentah** → "Rapikan dengan AI" (tanpa web) → draf: judul, ringkasan, masalah,
+   solusi. Bisa juga "Isi manual".
 2. User mengedit → **Simpan** atau **Simpan & Riset**.
 3. Riset masuk **antrean**; worker menjalankan **1 riset sekaligus** di seluruh platform.
 4. Hasil disimpan per **versi** (riset ulang = versi baru, versi lama tetap ada).
@@ -22,11 +22,16 @@ Mengubah isi ide setelah riset menandai "Berubah sejak riset".
 
 ## Target pasar
 
-- Target pasar **kosong** → AI menentukan dulu segmen paling menjanjikan (berdasarkan data), lalu semua
-  skor dihitung untuk segmen itu ("Ditentukan AI"). Tombol "Pakai sebagai target pasar ide" menyalinnya ke ide.
-- Target pasar **diisi** → skor dihitung untuk target itu ("Dari kamu"); AI boleh memberi saran segmen lain.
-- Hasil: segmen, alasan, perkiraan ukuran, sumber, 1–3 segmen alternatif (`result.targetMarket`;
-  riset lama tidak punya bagian ini). Sumber (`user`/`ai`) ditentukan backend, bukan AI.
+Ide tidak punya isian target pasar. Setiap riset dimulai dengan mencari 2–4 **target pasar potensial**
+(berdasarkan data), diurutkan dari yang paling menjanjikan; **semua skor dihitung untuk segmen #1**.
+Tiap segmen: alasan, perkiraan ukuran, sumber (`result.targetSegments`; riset lama tidak punya bagian ini).
+Menilai ketepatan target pasar bisa jadi fitur skoring terpisah nanti.
+
+## Halaman detail
+
+Ringkasan dulu: skor + label + kesimpulan, 4 bar dimensi (klik → buka detailnya), target pasar potensial,
+kekuatan / risiko / langkah validasi. Yang bisa dibuka-tutup: Detail penilaian (9 sub-poin), Kompetitor,
+Isi ide.
 
 ## Skoring (rubrik v1)
 

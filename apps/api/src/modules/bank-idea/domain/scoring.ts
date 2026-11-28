@@ -28,7 +28,7 @@ export function labelFor(totalScore: number): BankIdeaLabel {
 export function computeResearchResult(input: {
   criteria: ReadonlyMap<BankIdeaCriterion, BankIdeaCriterionResult>;
   competitors: BankIdeaCompetitor[];
-  targetMarket: BankIdeaResearchResult['targetMarket'];
+  targetSegments: NonNullable<BankIdeaResearchResult['targetSegments']>;
   summary: BankIdeaResearchResult['summary'];
 }): BankIdeaResearchResult {
   const dimensions = BANK_IDEA_RUBRIC.map((dimension) => {
@@ -62,7 +62,7 @@ export function computeResearchResult(input: {
     cappedByRedFlag: label !== raw,
     dimensions,
     competitors: input.competitors,
-    targetMarket: input.targetMarket ?? null,
+    targetSegments: input.targetSegments,
     summary: input.summary,
   };
 }
