@@ -10,13 +10,13 @@ import {
   type BankIdeaResearchResult,
   type BankIdeaTargetSegment,
 } from '@ai-preneur/shared';
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 import { Alert, Badge, Card } from '../../components/ui/feedback';
 import { Icon } from '../../components/ui/Icon';
 import { cn } from '../../lib/cn';
 import { formatDateTime } from '../../lib/format';
-import { Collapsible, CollapsibleCard, LABEL_STYLES, ScoreCircle } from './bank-idea-ui';
+import { LABEL_STYLES, ScoreCircle } from './bank-idea-ui';
 
 const DIMENSIONS = new Map(BANK_IDEA_RUBRIC.map((d) => [d.key, d]));
 const CRITERIA = new Map(
@@ -150,14 +150,15 @@ function BulletCard({
   );
 }
 
-function TargetSegments({ segments }: { segments: BankIdeaTargetSegment[] }) {
+// ---- Detail panels (shown in modals) ---------------------------------------------------
+
+export function TargetSegmentsPanel({ segments }: { segments: BankIdeaTargetSegment[] }) {
   return (
-    <Card className="p-5">
-      <h3 className="font-semibold text-slate-900">Target pasar potensial</h3>
-      <p className="mt-0.5 text-xs text-slate-500">
-        Diurutkan dari yang paling menjanjikan. Skor di atas dihitung untuk segmen #1.
+    <div>
+      <p className="mb-4 text-sm text-slate-500">
+        Diurutkan dari yang paling menjanjikan. Skor dihitung untuk segmen #1.
       </p>
-      <ol className="mt-4 space-y-3">
+      <ol className="space-y-5">
         {segments.map((segment, index) => (
           <li key={segment.segment} className="flex gap-3">
             <span
@@ -173,56 +174,86 @@ function TargetSegments({ segments }: { segments: BankIdeaTargetSegment[] }) {
               {segment.sizeEstimate && (
                 <p className="text-xs text-slate-500">Perkiraan ukuran: {segment.sizeEstimate}</p>
               )}
-              {(segment.reason || segment.sources.length > 0) && (
-                <details className="mt-1 text-sm">
-                  <summary className="cursor-pointer text-xs font-medium text-primary-700">
-                    Alasan & sumber
-                  </summary>
-                  {segment.reason && (
-                    <p className="mt-1.5 whitespace-pre-line text-slate-600">{segment.reason}</p>
-                  )}
-                  {segment.sources.length > 0 && (
-                    <ul className="mt-1 space-y-0.5 text-xs">
-                      {segment.sources.map((source) => (
-                        <li key={source.url} className="truncate">
-                          <ExternalLink href={source.url}>{source.title}</ExternalLink>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </details>
+              {segment.reason && (
+                <p className="mt-1.5 text-sm whitespace-pre-line text-slate-600">
+                  {segment.reason}
+                </p>
+              )}
+              {segment.sources.length > 0 && (
+                <ul className="mt-1 space-y-0.5 text-xs">
+                  {segment.sources.map((source) => (
+                    <li key={source.url} className="truncate">
+                      <ExternalLink href={source.url}>{source.title}</ExternalLink>
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
           </li>
         ))}
       </ol>
-    </Card>
+    </div>
   );
 }
 
-/**
- * A research as a summary first: score, dimension bars, target markets, strengths/risks/
- * next steps. The 9 criteria and the competitors open on demand.
- */
-export function ResearchResultView({
+export function CriteriaPanel({ result }: { result: BankIdeaResearchResult }) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      {result.dimensions.map((dimension) => (
+        <DimensionCard key={dimension.key} dimension={dimension} />
+      ))}
+    </div>
+  );
+}
+
+export function CompetitorsPanel({ result }: { result: BankIdeaResearchResult }) {
+  if (result.competitors.length === 0) {
+    return <p className="text-sm text-slate-400">Tidak ada kompetitor yang ditemukan.</p>;
+  }
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-sm">
+        <thead className="text-xs text-slate-500">
+          <tr>
+            <th className="py-2 pr-4 font-medium">Nama</th>
+            <th className="py-2 font-medium">Catatan</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {result.competitors.map((competitor) => (
+            <tr key={competitor.name} className="align-top">
+              <td className="py-2 pr-4 font-medium whitespace-nowrap text-slate-800">
+                {competitor.url ? (
+                  <ExternalLink href={competitor.url}>{competitor.name}</ExternalLink>
+                ) : (
+                  competitor.name
+                )}
+              </td>
+              <td className="py-2 text-slate-600">{competitor.note || '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ---- Summary (main column) --------------------------------------------------------------
+
+/** Score, dimension bars and strengths/risks/next steps. Details open in modals. */
+export function ResearchSummary({
   run,
   result,
   outdated,
+  onOpenDimension,
 }: {
   run: BankIdeaRunDto;
   result: BankIdeaResearchResult;
   outdated: boolean;
+  onOpenDimension: (key: string) => void;
 }) {
-  const [detailsOpen, setDetailsOpen] = useState(false);
   const redFlags = result.dimensions.filter((d) => d.redFlag);
-
-  const openDimension = (key: string) => {
-    setDetailsOpen(true);
-    // After the section has rendered.
-    requestAnimationFrame(() =>
-      document.getElementById(`dimensi-${key}`)?.scrollIntoView({ behavior: 'smooth' }),
-    );
-  };
+  const primarySegment = result.targetSegments?.[0];
 
   return (
     <div className="space-y-6">
@@ -237,6 +268,12 @@ export function ResearchResultView({
               Riset versi {run.version} · Pasar {BANK_IDEA_MARKET_SCOPE_LABELS[run.marketScope]} ·{' '}
               {formatDateTime(run.finishedAt)} · Rubrik {result.rubricVersion}
             </p>
+            {primarySegment && (
+              <p className="mt-2 text-sm text-slate-600">
+                <span className="text-slate-500">Dihitung untuk:</span>{' '}
+                <span className="font-medium text-slate-800">{primarySegment.segment}</span>
+              </p>
+            )}
             {result.summary.verdict && (
               <p className="mt-3 text-sm whitespace-pre-line text-slate-700">
                 {result.summary.verdict}
@@ -249,7 +286,7 @@ export function ResearchResultView({
             <button
               key={dimension.key}
               type="button"
-              onClick={() => openDimension(dimension.key)}
+              onClick={() => onOpenDimension(dimension.key)}
               className="rounded-lg p-2 text-left hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-primary-500"
               title="Lihat detail"
             >
@@ -282,10 +319,6 @@ export function ResearchResultView({
         </Alert>
       )}
 
-      {result.targetSegments && result.targetSegments.length > 0 && (
-        <TargetSegments segments={result.targetSegments} />
-      )}
-
       <div className="grid gap-4 lg:grid-cols-3">
         <BulletCard title="Kekuatan" items={result.summary.strengths} icon="check" />
         <BulletCard title="Risiko terbesar" items={result.summary.risks} icon="alert" />
@@ -295,50 +328,6 @@ export function ResearchResultView({
           icon="chevronRight"
         />
       </div>
-
-      <Collapsible
-        title="Detail penilaian"
-        meta="9 sub-poin, alasan & sumber"
-        open={detailsOpen}
-        onToggle={() => setDetailsOpen((v) => !v)}
-      >
-        <div className="grid gap-4 lg:grid-cols-2">
-          {result.dimensions.map((dimension) => (
-            <DimensionCard key={dimension.key} dimension={dimension} />
-          ))}
-        </div>
-      </Collapsible>
-
-      <CollapsibleCard title="Kompetitor" meta={`${result.competitors.length} ditemukan`}>
-        {result.competitors.length === 0 ? (
-          <p className="text-sm text-slate-400">Tidak ada kompetitor yang ditemukan.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="text-xs text-slate-500">
-                <tr>
-                  <th className="py-2 pr-4 font-medium">Nama</th>
-                  <th className="py-2 font-medium">Catatan</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {result.competitors.map((competitor) => (
-                  <tr key={competitor.name} className="align-top">
-                    <td className="py-2 pr-4 font-medium whitespace-nowrap text-slate-800">
-                      {competitor.url ? (
-                        <ExternalLink href={competitor.url}>{competitor.name}</ExternalLink>
-                      ) : (
-                        competitor.name
-                      )}
-                    </td>
-                    <td className="py-2 text-slate-600">{competitor.note || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </CollapsibleCard>
     </div>
   );
 }

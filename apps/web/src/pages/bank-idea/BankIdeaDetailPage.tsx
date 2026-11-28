@@ -20,15 +20,27 @@ import { formatDateTime } from '../../lib/format';
 import * as bankIdeaService from '../../services/bank-idea.service';
 import {
   ActiveRunBadge,
-  CollapsibleCard,
   formatDuration,
   IdeaFields,
   StageBadge,
   type IdeaFormValues,
 } from './bank-idea-ui';
-import { ResearchResultView } from './research-result';
+import {
+  CompetitorsPanel,
+  CriteriaPanel,
+  ResearchSummary,
+  TargetSegmentsPanel,
+} from './research-result';
 
 const POLL_MS = 5_000;
+
+type Panel = 'target' | 'criteria' | 'competitors' | 'idea';
+const PANEL_TITLES: Record<Panel, string> = {
+  target: 'Target pasar potensial',
+  criteria: 'Detail penilaian',
+  competitors: 'Kompetitor',
+  idea: 'Isi ide',
+};
 
 const RUN_STATUS_TEXT: Record<BankIdeaRunDto['status'], string> = {
   queued: 'Antre',
@@ -138,6 +150,17 @@ export function BankIdeaDetailPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const [panel, setPanel] = useState<Panel | null>(null);
+
+  /** Opens a detail modal; for "Detail penilaian" it can scroll to one dimension. */
+  const openPanel = (next: Panel, dimensionKey?: string) => {
+    setPanel(next);
+    if (dimensionKey) {
+      requestAnimationFrame(() =>
+        document.getElementById(`dimensi-${dimensionKey}`)?.scrollIntoView({ block: 'start' }),
+      );
+    }
+  };
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -238,6 +261,38 @@ export function BankIdeaDetailPage() {
     (selectedRunId ? runs.find((run) => run.id === selectedRunId) : undefined) ?? succeeded[0];
   const lastRun = runs[0];
   const isLatestSucceeded = selectedRun?.id === succeeded[0]?.id;
+  const result = selectedRun?.result ?? null;
+  const noResult = 'Belum ada hasil riset';
+  const navItems: { key: Panel; label: string; meta: string; disabled: boolean }[] = [
+    {
+      key: 'target',
+      label: 'Target pasar potensial',
+      meta: result?.targetSegments?.length
+        ? `${result.targetSegments.length} segmen`
+        : result
+          ? 'Tidak ada di riset ini'
+          : noResult,
+      disabled: !result?.targetSegments?.length,
+    },
+    {
+      key: 'criteria',
+      label: 'Detail penilaian',
+      meta: result ? '9 sub-poin, alasan & sumber' : noResult,
+      disabled: !result,
+    },
+    {
+      key: 'competitors',
+      label: 'Kompetitor',
+      meta: result ? `${result.competitors.length} ditemukan` : noResult,
+      disabled: !result,
+    },
+    {
+      key: 'idea',
+      label: 'Isi ide',
+      meta: 'Ringkasan, masalah, solusi, ide mentah',
+      disabled: false,
+    },
+  ];
 
   return (
     <>
@@ -364,10 +419,11 @@ export function BankIdeaDetailPage() {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0">
           {selectedRun?.result ? (
-            <ResearchResultView
+            <ResearchSummary
               run={selectedRun}
               result={selectedRun.result}
               outdated={isLatestSucceeded && idea.changedSinceResearch}
+              onOpenDimension={(key) => openPanel('criteria', key)}
             />
           ) : (
             <EmptyState
@@ -383,28 +439,28 @@ export function BankIdeaDetailPage() {
         </div>
 
         <aside className="space-y-4">
-          <CollapsibleCard title="Isi ide">
-            <dl className="space-y-3 text-sm">
-              {[
-                ['Ringkasan', idea.summary],
-                ['Masalah', idea.problem],
-                ['Solusi', idea.solution],
-              ].map(([label, value]) => (
-                <div key={label}>
-                  <dt className="text-xs text-slate-500">{label}</dt>
-                  <dd className="whitespace-pre-line text-slate-700">{value || '—'}</dd>
-                </div>
+          <Card className="p-2">
+            <h2 className="px-3 pt-3 pb-1 text-xs font-medium tracking-wide text-slate-500 uppercase">
+              Lihat detail
+            </h2>
+            <nav className="flex flex-col">
+              {navItems.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  disabled={item.disabled}
+                  onClick={() => openPanel(item.key)}
+                  className="flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left text-sm hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-primary-500 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+                >
+                  <span>
+                    <span className="block font-medium text-slate-800">{item.label}</span>
+                    <span className="block text-xs text-slate-500">{item.meta}</span>
+                  </span>
+                  <Icon name="chevronRight" className="size-4 shrink-0 text-slate-400" />
+                </button>
               ))}
-            </dl>
-            {idea.rawInput && (
-              <details className="mt-3 border-t border-slate-100 pt-3 text-sm">
-                <summary className="cursor-pointer text-xs font-medium text-slate-500">
-                  Ide mentah
-                </summary>
-                <p className="mt-2 whitespace-pre-line text-slate-600">{idea.rawInput}</p>
-              </details>
-            )}
-          </CollapsibleCard>
+            </nav>
+          </Card>
 
           <Card className="p-5">
             <h2 className="mb-3 font-semibold text-slate-900">Riwayat riset</h2>
@@ -467,6 +523,46 @@ export function BankIdeaDetailPage() {
           }}
         />
       )}
+
+      <Modal
+        open={panel !== null}
+        onClose={() => setPanel(null)}
+        size={panel === 'criteria' ? 'xl' : 'lg'}
+        title={panel ? PANEL_TITLES[panel] : ''}
+        description={
+          panel && panel !== 'idea' && selectedRun
+            ? `Riset versi ${selectedRun.version}`
+            : undefined
+        }
+      >
+        {panel === 'target' && result?.targetSegments && (
+          <TargetSegmentsPanel segments={result.targetSegments} />
+        )}
+        {panel === 'criteria' && result && <CriteriaPanel result={result} />}
+        {panel === 'competitors' && result && <CompetitorsPanel result={result} />}
+        {panel === 'idea' && (
+          <>
+            <dl className="space-y-4 text-sm">
+              {[
+                ['Ringkasan', idea.summary],
+                ['Masalah', idea.problem],
+                ['Solusi', idea.solution],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <dt className="text-xs text-slate-500">{label}</dt>
+                  <dd className="whitespace-pre-line text-slate-700">{value || '—'}</dd>
+                </div>
+              ))}
+            </dl>
+            {idea.rawInput && (
+              <div className="mt-4 border-t border-slate-100 pt-4 text-sm">
+                <p className="text-xs text-slate-500">Ide mentah</p>
+                <p className="mt-1 whitespace-pre-line text-slate-600">{idea.rawInput}</p>
+              </div>
+            )}
+          </>
+        )}
+      </Modal>
 
       <ConfirmDialog
         open={confirmDelete}

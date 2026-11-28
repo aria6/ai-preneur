@@ -29,9 +29,9 @@ Menilai ketepatan target pasar bisa jadi fitur skoring terpisah nanti.
 
 ## Halaman detail
 
-Ringkasan dulu: skor + label + kesimpulan, 4 bar dimensi (klik → buka detailnya), target pasar potensial,
-kekuatan / risiko / langkah validasi. Yang bisa dibuka-tutup: Detail penilaian (9 sub-poin), Kompetitor,
-Isi ide.
+Kolom utama = ringkasan: skor + label + "Dihitung untuk: segmen #1" + kesimpulan, 4 bar dimensi,
+kekuatan / risiko / langkah validasi. Panel kanan "Lihat detail" membuka modal: Target pasar potensial,
+Detail penilaian (9 sub-poin), Kompetitor, Isi ide. Klik bar dimensi → modal Detail penilaian di dimensi itu.
 
 ## Skoring (rubrik v1)
 

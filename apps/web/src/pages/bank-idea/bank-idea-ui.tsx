@@ -13,11 +13,9 @@ import {
 
 import { SelectField, TextAreaField, TextField } from '../../components/ui/fields';
 import { Badge } from '../../components/ui/feedback';
-import { Icon } from '../../components/ui/Icon';
 import { Spinner } from '../../components/ui/Spinner';
 import { cn } from '../../lib/cn';
 import type { FieldErrors } from '../../lib/errors';
-import { useState, type ReactNode } from 'react';
 
 export const LABEL_STYLES: Record<
   BankIdeaLabel,
@@ -171,67 +169,5 @@ export function IdeaFields({
         </SelectField>
       </div>
     </div>
-  );
-}
-
-/** A card whose body is hidden until its header is clicked. */
-export function Collapsible({
-  id,
-  title,
-  meta,
-  open,
-  onToggle,
-  children,
-}: {
-  id?: string;
-  title: string;
-  /** Short text next to the title (e.g. a count). */
-  meta?: string;
-  open: boolean;
-  onToggle: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <section id={id} className="scroll-mt-4 rounded-xl border border-slate-200 bg-white shadow-xs">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        className="flex w-full items-center justify-between gap-3 rounded-xl px-5 py-4 text-left hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-primary-500"
-      >
-        <span className="font-semibold text-slate-900">
-          {title}
-          {meta && <span className="ml-2 text-sm font-normal text-slate-500">{meta}</span>}
-        </span>
-        <Icon
-          name="chevronDown"
-          className={cn(
-            'size-5 shrink-0 text-slate-400 transition-transform',
-            open && 'rotate-180',
-          )}
-        />
-      </button>
-      {open && <div className="border-t border-slate-100 p-5">{children}</div>}
-    </section>
-  );
-}
-
-/** Collapsible that keeps its own open state. */
-export function CollapsibleCard(props: {
-  title: string;
-  meta?: string;
-  defaultOpen?: boolean;
-  children: ReactNode;
-}) {
-  const [open, setOpen] = useState(props.defaultOpen ?? false);
-  return (
-    <Collapsible
-      title={props.title}
-      meta={props.meta}
-      open={open}
-      onToggle={() => setOpen((v) => !v)}
-    >
-      {props.children}
-    </Collapsible>
   );
 }

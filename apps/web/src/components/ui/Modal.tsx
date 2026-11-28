@@ -15,7 +15,7 @@ export interface ModalProps {
   description?: string;
   children: ReactNode;
   footer?: ReactNode;
-  size?: 'md' | 'lg';
+  size?: 'md' | 'lg' | 'xl';
   /** Prevents closing (e.g. while a request is in flight). */
   busy?: boolean;
 }
@@ -103,7 +103,7 @@ export function Modal({
         aria-labelledby={titleId}
         className={cn(
           'relative flex max-h-[92dvh] w-full flex-col rounded-t-2xl bg-white shadow-xl sm:rounded-2xl',
-          size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-md',
+          size === 'xl' ? 'sm:max-w-4xl' : size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-md',
         )}
       >
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
