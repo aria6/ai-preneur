@@ -53,6 +53,11 @@ export function researchPrompt(idea: ResearchPromptInput, today: string): string
     return `${dimension.label}:\n${criteria}`;
   }).join('\n\n');
 
+  const hasTarget = idea.targetMarket.trim().length > 0;
+  const targetTask = hasTarget
+    ? `Pemilik ide sudah menentukan target pasar: "${idea.targetMarket.trim()}". Hitung SEMUA skor untuk target ini. Tetap periksa: jika ada segmen lain yang jelas lebih menjanjikan (lebih besar, lebih mau bayar, lebih mudah dijangkau), tulis sarannya di "targetMarket.note" dan isi "targetMarket.alternatives"; jika target sudah tepat, "note": null.`
+    : `Pemilik ide BELUM menentukan target pasar. Langkah pertama: riset dan tentukan SATU segmen paling menjanjikan untuk ide ini (siapa tepatnya, di mana, karakteristiknya), berdasarkan data, bukan tebakan. Lalu hitung SEMUA skor untuk segmen itu. Tulis segmen tersebut di "targetMarket.segment" dan 1–3 segmen lain yang layak dipertimbangkan di "targetMarket.alternatives".`;
+
   const criteriaExample = BANK_IDEA_CRITERIA.map(
     (key) =>
       `    "${key}": { "score": 1-10, "confidence": "low|medium|high", "reason": "...", "sources": [{ "title": "...", "url": "https://..." }] }`,
@@ -70,6 +75,10 @@ IDE
 
 CAKUPAN PASAR: ${BANK_IDEA_MARKET_SCOPE_LABELS[idea.marketScope]} — ${scope}
 
+TARGET PASAR
+${targetTask}
+Segmen yang baik itu spesifik (mis. "ibu rumah tangga 25–45 tahun di kota besar Jawa yang aktif belanja online"), bukan "semua orang". "sizeEstimate" = perkiraan jumlah/nilai segmen beserta satuannya, atau null jika tidak ada data.
+
 CARA KERJA
 1. Pakai WebSearch (dan WebFetch bila perlu membaca halaman) untuk mencari: tren minat/permintaan, ukuran dan pertumbuhan pasar, kompetitor yang ada beserta harganya, dan model monetisasi solusi serupa. Lakukan beberapa pencarian dengan sudut berbeda; utamakan data terbaru.
 2. Jangan mengarang angka, nama perusahaan, atau URL. Setiap URL di "sources" harus berasal dari hasil pencarianmu. Jika data tidak ditemukan, katakan begitu di "reason" dan beri "confidence": "low".
@@ -86,6 +95,14 @@ Balas HANYA dengan satu objek JSON (tanpa teks lain, tanpa markdown) persis deng
   "criteria": {
 ${criteriaExample}
   },
+  "targetMarket": {
+    "segment": "segmen yang dipakai untuk semua skor",
+    "reason": "kenapa segmen ini, 2–4 kalimat dengan data",
+    "sizeEstimate": "perkiraan ukuran segmen dengan satuan, atau null",
+    "sources": [{ "title": "...", "url": "https://..." }],
+    "alternatives": [{ "segment": "...", "reason": "..." }],
+    "note": ${hasTarget ? '"saran jika ada segmen yang jelas lebih baik, atau null"' : 'null'}
+  },
   "competitors": [{ "name": "...", "url": "https://... atau null", "note": "apa yang mereka tawarkan, harga jika ada" }],
   "summary": {
     "verdict": "kesimpulan 2–3 kalimat",
@@ -101,7 +118,7 @@ Isi semua ${BANK_IDEA_CRITERIA.length} kriteria. Maksimal 6 sumber per kriteria,
 export function repairPrompt(brokenOutput: string, problem: string): string {
   return `Teks di bawah seharusnya berupa satu objek JSON hasil riset ide, tetapi tidak valid: ${problem}.
 Jangan memakai tool apa pun dan jangan menambah data baru. Ubah menjadi JSON valid dengan struktur:
-{ "criteria": { "<key>": { "score": 1-10, "confidence": "low|medium|high", "reason": "...", "sources": [{ "title": "...", "url": "..." }] } }, "competitors": [{ "name": "...", "url": "... atau null", "note": "..." }], "summary": { "verdict": "...", "strengths": [], "risks": [], "nextSteps": [] } }
+{ "targetMarket": { "segment": "...", "reason": "...", "sizeEstimate": "... atau null", "sources": [], "alternatives": [{ "segment": "...", "reason": "..." }], "note": "... atau null" }, "criteria": { "<key>": { "score": 1-10, "confidence": "low|medium|high", "reason": "...", "sources": [{ "title": "...", "url": "..." }] } }, "competitors": [{ "name": "...", "url": "... atau null", "note": "..." }], "summary": { "verdict": "...", "strengths": [], "risks": [], "nextSteps": [] } }
 Key kriteria: ${BANK_IDEA_CRITERIA.join(', ')}. Pakai hanya nilai yang ada di teks; jangan mengarang skor untuk kriteria yang tidak ada.
 Balas HANYA dengan JSON-nya.
 

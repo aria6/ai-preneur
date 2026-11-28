@@ -9,6 +9,8 @@ import {
   type BankIdeaDraft,
   type BankIdeaResearchResult,
   type BankIdeaSource,
+  type BankIdeaTargetMarketResult,
+  type BankIdeaTargetSource,
 } from '@ai-preneur/shared';
 import { z } from 'zod';
 
@@ -90,6 +92,7 @@ export function parseDraft(text: string): BankIdeaDraft {
 const researchOutputSchema = z.object({
   criteria: z.record(z.string(), z.unknown()),
   competitors: z.array(z.unknown()).optional(),
+  targetMarket: z.record(z.string(), z.unknown()).nullable().optional(),
   summary: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -138,10 +141,44 @@ function list(value: unknown): string[] {
 export interface ParsedResearch {
   criteria: Map<BankIdeaCriterion, BankIdeaCriterionResult>;
   competitors: BankIdeaCompetitor[];
+  targetMarket: BankIdeaTargetMarketResult | null;
   summary: BankIdeaResearchResult['summary'];
 }
 
-export function parseResearch(text: string): ParsedResearch {
+const MAX_ALTERNATIVES = 3;
+
+/** `source` comes from the idea (was a target given?), never from the AI. */
+function parseTargetMarket(
+  value: Record<string, unknown> | null | undefined,
+  source: BankIdeaTargetSource,
+  userTarget: string,
+): BankIdeaTargetMarketResult | null {
+  const segment = source === 'user' ? userTarget : cut(value?.segment, BANK_IDEA_TEXT_MAX_LENGTH);
+  if (!segment) return null;
+  const alternatives: BankIdeaTargetMarketResult['alternatives'] = [];
+  for (const item of Array.isArray(value?.alternatives) ? value.alternatives : []) {
+    if (typeof item !== 'object' || item === null) continue;
+    const record = item as Record<string, unknown>;
+    const alt = cut(record.segment, 500);
+    if (!alt) continue;
+    alternatives.push({ segment: alt, reason: cut(record.reason, MAX_ITEM) });
+    if (alternatives.length >= MAX_ALTERNATIVES) break;
+  }
+  return {
+    source,
+    segment,
+    reason: cut(value?.reason, MAX_REASON),
+    sizeEstimate: cut(value?.sizeEstimate, 300) || null,
+    sources: parseSources(Array.isArray(value?.sources) ? value.sources : undefined),
+    alternatives,
+    note: source === 'user' ? cut(value?.note, MAX_ITEM) || null : null,
+  };
+}
+
+export function parseResearch(
+  text: string,
+  target: { source: BankIdeaTargetSource; userTarget: string },
+): ParsedResearch {
   const parsed = researchOutputSchema.safeParse(extractJson(text));
   if (!parsed.success) throw new OutputError('format hasil riset tidak sesuai');
 
@@ -174,10 +211,20 @@ export function parseResearch(text: string): ParsedResearch {
     if (competitors.length >= MAX_COMPETITORS) break;
   }
 
+  const targetMarket = parseTargetMarket(
+    parsed.data.targetMarket,
+    target.source,
+    target.userTarget,
+  );
+  if (!targetMarket && target.source === 'ai') {
+    throw new OutputError('target pasar tidak ditentukan');
+  }
+
   const summary = parsed.data.summary ?? {};
   return {
     criteria,
     competitors,
+    targetMarket,
     summary: {
       verdict: cut(summary.verdict, 1_000),
       strengths: list(summary.strengths),

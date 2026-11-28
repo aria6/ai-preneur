@@ -1,6 +1,7 @@
 import {
   BANK_IDEA_LABEL_TEXT,
   BANK_IDEA_MARKET_SCOPE_LABELS,
+  BANK_IDEA_TEXT_MAX_LENGTH,
   PERMISSIONS,
   updateBankIdeaRequestSchema,
   type BankIdeaDetailResponse,
@@ -238,6 +239,24 @@ export function BankIdeaDetailPage() {
     (selectedRunId ? runs.find((run) => run.id === selectedRunId) : undefined) ?? succeeded[0];
   const lastRun = runs[0];
   const isLatestSucceeded = selectedRun?.id === succeeded[0]?.id;
+  const aiTarget = selectedRun?.result?.targetMarket;
+  // Offered only for the AI's pick on the latest research, when the idea still differs.
+  const applyTarget =
+    canManage &&
+    !archived &&
+    isLatestSucceeded &&
+    aiTarget?.source === 'ai' &&
+    idea.targetMarket.trim() !== aiTarget.segment.trim()
+      ? {
+          busy: busy === 'target',
+          onApply: () =>
+            void act('target', () =>
+              bankIdeaService.updateIdea(idea.id, {
+                targetMarket: aiTarget.segment.slice(0, BANK_IDEA_TEXT_MAX_LENGTH),
+              }),
+            ),
+        }
+      : null;
 
   return (
     <>
@@ -368,6 +387,7 @@ export function BankIdeaDetailPage() {
               run={selectedRun}
               result={selectedRun.result}
               outdated={isLatestSucceeded && idea.changedSinceResearch}
+              applyTarget={applyTarget}
             />
           ) : (
             <EmptyState

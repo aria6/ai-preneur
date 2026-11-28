@@ -20,6 +20,14 @@ Cakupan pasar per ide: Indonesia (default) atau Global. Status: Baru → Diriset
 pertama berhasil) → Dieksekusi (manual). Arsip = read-only; Hapus permanen menghapus ide + riwayatnya.
 Mengubah isi ide setelah riset menandai "Berubah sejak riset".
 
+## Target pasar
+
+- Target pasar **kosong** → AI menentukan dulu segmen paling menjanjikan (berdasarkan data), lalu semua
+  skor dihitung untuk segmen itu ("Ditentukan AI"). Tombol "Pakai sebagai target pasar ide" menyalinnya ke ide.
+- Target pasar **diisi** → skor dihitung untuk target itu ("Dari kamu"); AI boleh memberi saran segmen lain.
+- Hasil: segmen, alasan, perkiraan ukuran, sumber, 1–3 segmen alternatif (`result.targetMarket`;
+  riset lama tidak punya bagian ini). Sumber (`user`/`ai`) ditentukan backend, bukan AI.
+
 ## Skoring (rubrik v1)
 
 AI hanya memberi skor 1–10 untuk 9 sub-poin, plus alasan, sumber, dan tingkat keyakinan. **Semua

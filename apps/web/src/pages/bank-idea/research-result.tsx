@@ -8,9 +8,11 @@ import {
   type BankIdeaDimensionResult,
   type BankIdeaRunDto,
   type BankIdeaResearchResult,
+  type BankIdeaTargetMarketResult,
 } from '@ai-preneur/shared';
 import type { ReactNode } from 'react';
 
+import { Button } from '../../components/ui/Button';
 import { Alert, Badge, Card } from '../../components/ui/feedback';
 import { Icon } from '../../components/ui/Icon';
 import { cn } from '../../lib/cn';
@@ -146,14 +148,86 @@ function BulletCard({
   );
 }
 
+/** Set when the AI chose the segment and it can be copied into the idea. */
+export interface ApplyTargetAction {
+  onApply: () => void;
+  busy: boolean;
+}
+
+function TargetMarketCard({
+  target,
+  apply,
+}: {
+  target: BankIdeaTargetMarketResult;
+  apply: ApplyTargetAction | null;
+}) {
+  return (
+    <Card className="p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <h3 className="font-semibold text-slate-900">Target pasar</h3>
+          <Badge color={target.source === 'ai' ? 'violet' : 'gray'}>
+            {target.source === 'ai' ? 'Ditentukan AI' : 'Dari kamu'}
+          </Badge>
+        </div>
+        {apply && (
+          <Button variant="secondary" size="sm" onClick={apply.onApply} loading={apply.busy}>
+            <Icon name="check" className="size-4" /> Pakai sebagai target pasar ide
+          </Button>
+        )}
+      </div>
+      <p className="mt-3 text-sm font-medium whitespace-pre-line text-slate-900">
+        {target.segment}
+      </p>
+      {target.sizeEstimate && (
+        <p className="mt-1 text-sm text-slate-600">
+          <span className="text-slate-500">Perkiraan ukuran:</span> {target.sizeEstimate}
+        </p>
+      )}
+      {target.reason && (
+        <p className="mt-2 text-sm whitespace-pre-line text-slate-600">{target.reason}</p>
+      )}
+      {target.sources.length > 0 && (
+        <ul className="mt-1.5 space-y-0.5 text-xs">
+          {target.sources.map((source) => (
+            <li key={source.url} className="truncate">
+              <ExternalLink href={source.url}>{source.title}</ExternalLink>
+            </li>
+          ))}
+        </ul>
+      )}
+      {target.note && (
+        <Alert variant="warning" className="mt-3">
+          Saran: {target.note}
+        </Alert>
+      )}
+      {target.alternatives.length > 0 && (
+        <div className="mt-4 border-t border-slate-100 pt-3">
+          <p className="mb-2 text-xs font-medium text-slate-500">Segmen alternatif</p>
+          <ul className="space-y-2 text-sm">
+            {target.alternatives.map((alt) => (
+              <li key={alt.segment}>
+                <p className="font-medium text-slate-800">{alt.segment}</p>
+                {alt.reason && <p className="text-slate-600">{alt.reason}</p>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export function ResearchResultView({
   run,
   result,
   outdated,
+  applyTarget,
 }: {
   run: BankIdeaRunDto;
   result: BankIdeaResearchResult;
   outdated: boolean;
+  applyTarget: ApplyTargetAction | null;
 }) {
   const redFlags = result.dimensions.filter((d) => d.redFlag);
   return (
@@ -206,6 +280,8 @@ export function ResearchResultView({
           Ide sudah diubah setelah riset ini. Jalankan riset ulang agar skornya sesuai isi terbaru.
         </Alert>
       )}
+
+      {result.targetMarket && <TargetMarketCard target={result.targetMarket} apply={applyTarget} />}
 
       <div className="grid gap-4 lg:grid-cols-2">
         {result.dimensions.map((dimension) => (
