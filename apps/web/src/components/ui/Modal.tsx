@@ -106,12 +106,12 @@ export function Modal({
           size === 'xl' ? 'sm:max-w-4xl' : size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-md',
         )}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-3">
           <div>
             <h2 id={titleId} className="text-base font-semibold text-slate-900">
               {title}
             </h2>
-            {description && <p className="mt-0.5 text-sm text-slate-500">{description}</p>}
+            {description && <p className="text-sm text-slate-500">{description}</p>}
           </div>
           <Button
             variant="ghost"
